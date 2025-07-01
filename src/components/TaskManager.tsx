@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Calendar, Clock, BookOpen, Trash2 } from "lucide-react";
+import { Plus, Calendar, Clock, BookOpen, Trash2, CheckSquare } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
 
 interface Task {
@@ -57,43 +56,52 @@ const TaskManager = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-    const task: Task = {
-      id: Date.now().toString(),
-      ...newTask,
-      completed: false,
-      createdAt: new Date().toISOString()
-    };
+      const task: Task = {
+        id: Date.now().toString(),
+        ...newTask,
+        completed: false,
+        createdAt: new Date().toISOString()
+      };
 
-    const updatedTasks = [...tasks, task];
-    saveTasks(updatedTasks);
-    
-    setNewTask({
-      title: "",
-      description: "",
-      subject: "",
-      priority: "medium",
-      dueDate: ""
-    });
-    setIsDialogOpen(false);
-    setIsLoading(false);
-    toast.success("Task added successfully!");
+      const updatedTasks = [...tasks, task];
+      saveTasks(updatedTasks);
+      
+      setNewTask({
+        title: "",
+        description: "",
+        subject: "",
+        priority: "medium",
+        dueDate: ""
+      });
+      setIsDialogOpen(false);
+      toast.success("Task added successfully! 🎉");
+    } catch (error) {
+      toast.error("Failed to add task. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const toggleTask = (id: string) => {
+    const task = tasks.find(t => t.id === id);
     const updatedTasks = tasks.map(task =>
       task.id === id ? { ...task, completed: !task.completed } : task
     );
     saveTasks(updatedTasks);
-    toast.success("Task updated!");
+    
+    if (task) {
+      toast.success(task.completed ? "Task marked as pending! 📝" : "Task completed! ✅");
+    }
   };
 
   const deleteTask = (id: string) => {
     const updatedTasks = tasks.filter(task => task.id !== id);
     saveTasks(updatedTasks);
-    toast.success("Task deleted!");
+    toast.success("Task deleted successfully! 🗑️");
   };
 
   const filteredTasks = tasks.filter(task => {

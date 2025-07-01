@@ -10,10 +10,21 @@ import TaskManager from "@/components/TaskManager";
 import CalendarSection from "@/components/CalendarSection";
 import AnalyticsSection from "@/components/AnalyticsSection";
 import { Calendar, CheckSquare, BarChart3, User } from "lucide-react";
+import { toast } from "sonner";
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("tasks");
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const tabNames = {
+      tasks: "Tasks",
+      calendar: "Calendar", 
+      analytics: "Analytics"
+    };
+    toast.success(`Switched to ${tabNames[value as keyof typeof tabNames]} section! 📊`);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800">
@@ -55,7 +66,7 @@ const Dashboard = () => {
           </p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-8 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border border-purple-200/50 dark:border-purple-700/50">
             <TabsTrigger value="tasks" className="transition-all hover-glow">
               <CheckSquare className="w-4 h-4 mr-2" />

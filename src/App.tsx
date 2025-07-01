@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -8,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import LoadingScreen from "./components/LoadingScreen";
+import { toast } from "sonner";
 
 const queryClient = new QueryClient();
 
@@ -58,7 +58,12 @@ const App = () => {
     // Check for saved user
     const savedUser = localStorage.getItem("user");
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        setUser(JSON.parse(savedUser));
+        toast.success("Welcome back! 👋");
+      } catch (error) {
+        localStorage.removeItem("user");
+      }
     }
 
     // Simulate loading
@@ -72,6 +77,7 @@ const App = () => {
 
   const toggleTheme = () => {
     setTheme(prev => prev === "light" ? "dark" : "light");
+    toast.success(`Switched to ${theme === "light" ? "dark" : "light"} mode! 🌙`);
   };
 
   const login = async (email: string, password: string) => {
@@ -80,6 +86,7 @@ const App = () => {
     const userData = { name: email.split("@")[0], email };
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
+    toast.success(`Welcome, ${userData.name}! 🎉`);
   };
 
   const register = async (name: string, email: string, password: string) => {
@@ -88,11 +95,13 @@ const App = () => {
     const userData = { name, email };
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
+    toast.success(`Account created successfully! Welcome, ${name}! 🎊`);
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem("user");
+    toast.success("Logged out successfully! See you soon! 👋");
   };
 
   if (isLoading) {
@@ -110,12 +119,13 @@ const App = () => {
               <Routes>
                 <Route 
                   path="/" 
-                  element={user ? <Navigate to="/dashboard" /> : <AuthPage />} 
+                  element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />} 
                 />
                 <Route 
                   path="/dashboard" 
-                  element={user ? <Dashboard /> : <Navigate to="/" />} 
+                  element={user ? <Dashboard /> : <Navigate to="/" replace />} 
                 />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </BrowserRouter>
           </TooltipProvider>
