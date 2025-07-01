@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +10,7 @@ import CalendarSection from "@/components/CalendarSection";
 import AnalyticsSection from "@/components/AnalyticsSection";
 import { Calendar, CheckSquare, BarChart3, User, Book } from "lucide-react";
 import { toast } from "sonner";
+import TaskCountdown from "@/components/TaskCountdown";
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -36,8 +36,8 @@ const Dashboard = () => {
               <Book className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">EduPlanner</h1>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Academic Task Manager</p>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Aurora</h1>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Academic Task Planner</p>
             </div>
           </div>
           
@@ -64,6 +64,11 @@ const Dashboard = () => {
           <p className="text-gray-600 dark:text-gray-300">
             Let's make today productive and organized.
           </p>
+        </div>
+
+        {/* Task Countdown */}
+        <div className="mb-8 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+          <TaskCountdown />
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
