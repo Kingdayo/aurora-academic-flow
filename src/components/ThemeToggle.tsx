@@ -1,0 +1,25 @@
+
+import { Button } from "@/components/ui/button";
+import { useTheme } from "@/App";
+import { Moon, Sun } from "lucide-react";
+
+const ThemeToggle = () => {
+  const { theme, toggleTheme } = useTheme();
+
+  return (
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={toggleTheme}
+      className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50 hover-glow transition-all animate-scale-in"
+    >
+      {theme === "light" ? (
+        <Moon className="h-4 w-4 text-purple-600 animate-bounce-gentle" />
+      ) : (
+        <Sun className="h-4 w-4 text-purple-400 animate-bounce-gentle" />
+      )}
+    </Button>
+  );
+};
+
+export default ThemeToggle;

@@ -1,0 +1,300 @@
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
+import { TrendingUp, Target, Clock, BookOpen, CheckCircle, AlertCircle } from "lucide-react";
+
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  subject: string;
+  priority: "low" | "medium" | "high";
+  dueDate: string;
+  completed: boolean;
+  createdAt: string;
+}
+
+const AnalyticsSection = () => {
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  useEffect(() => {
+    const savedTasks = localStorage.getItem("tasks");
+    if (savedTasks) {
+      setTasks(JSON.parse(savedTasks));
+    }
+  }, []);
+
+  const completedTasks = tasks.filter(task => task.completed);
+  const pendingTasks = tasks.filter(task => !task.completed);
+  const completionRate = tasks.length > 0 ? (completedTasks.length / tasks.length) * 100 : 0;
+
+  // Subject-wise task distribution
+  const subjectData = tasks.reduce((acc, task) => {
+    acc[task.subject] = (acc[task.subject] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const subjectChartData = Object.entries(subjectData).map(([subject, count]) => ({
+    subject,
+    count,
+    completed: tasks.filter(t => t.subject === subject && t.completed).length
+  }));
+
+  // Priority distribution
+  const priorityData = [
+    { name: 'High', value: tasks.filter(t => t.priority === 'high').length, color: '#EF4444' },
+    { name: 'Medium', value: tasks.filter(t => t.priority === 'medium').length, color: '#F59E0B' },
+    { name: 'Low', value: tasks.filter(t => t.priority === 'low').length, color: '#10B981' }
+  ].filter(item => item.value > 0);
+
+  // Weekly progress
+  const getWeeklyData = () => {
+    const weeks = [];
+    const now = new Date();
+    
+    for (let i = 6; i >= 0; i--) {
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - (i * 7));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      
+      const weekTasks = tasks.filter(task => {
+        const taskDate = new Date(task.createdAt);
+        return taskDate >= weekStart && taskDate <= weekEnd;
+      });
+      
+      weeks.push({
+        week: `Week ${7 - i}`,
+        created: weekTasks.length,
+        completed: weekTasks.filter(t => t.completed).length
+      });
+    }
+    
+    return weeks;
+  };
+
+  const weeklyData = getWeeklyData();
+
+  // Overdue tasks
+  const overdueTasks = tasks.filter(task => {
+    const dueDate = new Date(task.dueDate);
+    const today = new Date();
+    return !task.completed && dueDate < today;
+  });
+
+  const upcomingTasks = tasks.filter(task => {
+    const dueDate = new Date(task.dueDate);
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    return !task.completed && dueDate >= today && dueDate <= nextWeek;
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="hover-lift transition-all animate-fade-in-up">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
+            <BookOpen className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{tasks.length}</div>
+            <p className="text-xs text-muted-foreground">
+              All time tasks created
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover-lift transition-all animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{completedTasks.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {completionRate.toFixed(1)}% completion rate
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover-lift transition-all animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">{pendingTasks.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Tasks remaining
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover-lift transition-all animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Overdue</CardTitle>
+            <AlertCircle className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{overdueTasks.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Need immediate attention
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Progress Overview */}
+      <Card className="hover-lift transition-all animate-fade-in-up">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Target className="w-5 h-5 text-purple-600" />
+            <span>Overall Progress</span>
+          </CardTitle>
+          <CardDescription>Your academic task completion progress</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Completion Rate</span>
+              <span>{completionRate.toFixed(1)}%</span>
+            </div>
+            <Progress value={completionRate} className="h-2" />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+            <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">{completedTasks.length}</div>
+              <div className="text-sm text-green-600">Completed</div>
+            </div>
+            <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+              <div className="text-2xl font-bold text-yellow-600">{pendingTasks.length}</div>
+              <div className="text-sm text-yellow-600">In Progress</div>
+            </div>
+            <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+              <div className="text-2xl font-bold text-red-600">{overdueTasks.length}</div>
+              <div className="text-sm text-red-600">Overdue</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Subject Distribution */}
+        <Card className="hover-lift transition-all animate-fade-in-up">
+          <CardHeader>
+            <CardTitle>Tasks by Subject</CardTitle>
+            <CardDescription>Distribution of tasks across different subjects</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={subjectChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="subject" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill="#8b5cf6" name="Total" />
+                <Bar dataKey="completed" fill="#10b981" name="Completed" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Priority Distribution */}
+        <Card className="hover-lift transition-all animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <CardHeader>
+            <CardTitle>Priority Distribution</CardTitle>
+            <CardDescription>Tasks categorized by priority level</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={priorityData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {priorityData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Weekly Progress */}
+        <Card className="lg:col-span-2 hover-lift transition-all animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <TrendingUp className="w-5 h-5 text-purple-600" />
+              <span>Weekly Progress</span>
+            </CardTitle>
+            <CardDescription>Task creation and completion over the past 7 weeks</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={weeklyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="week" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="created" stroke="#8b5cf6" strokeWidth={2} name="Created" />
+                <Line type="monotone" dataKey="completed" stroke="#10b981" strokeWidth={2} name="Completed" />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Upcoming Tasks Alert */}
+      {upcomingTasks.length > 0 && (
+        <Card className="border-yellow-200 dark:border-yellow-800 hover-lift transition-all animate-fade-in-up">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-yellow-600">
+              <Clock className="w-5 h-5" />
+              <span>Upcoming Deadlines</span>
+            </CardTitle>
+            <CardDescription>Tasks due within the next 7 days</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {upcomingTasks.slice(0, 5).map((task, index) => (
+                <div 
+                  key={task.id} 
+                  className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg animate-scale-in"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <div>
+                    <h4 className="font-semibold">{task.title}</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{task.subject}</p>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant="secondary">
+                      Due {new Date(task.dueDate).toLocaleDateString()}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+export default AnalyticsSection;
