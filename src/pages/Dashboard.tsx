@@ -9,7 +9,7 @@ import UserProfile from "@/components/UserProfile";
 import TaskManager from "@/components/TaskManager";
 import CalendarSection from "@/components/CalendarSection";
 import AnalyticsSection from "@/components/AnalyticsSection";
-import { Calendar, CheckSquare, BarChart3, User } from "lucide-react";
+import { Calendar, CheckSquare, BarChart3, User, Book } from "lucide-react";
 import { toast } from "sonner";
 
 const Dashboard = () => {
@@ -33,7 +33,7 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="w-10 h-10 bg-purple-gradient rounded-full flex items-center justify-center animate-pulse-glow">
-              <span className="text-lg font-bold text-white">E</span>
+              <Book className="w-5 h-5 text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">EduPlanner</h1>
