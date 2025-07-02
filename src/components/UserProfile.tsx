@@ -17,18 +17,20 @@ const UserProfile = () => {
       .slice(0, 2);
   };
 
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+
   return (
     <Popover>
       <PopoverTrigger asChild>
         <div className="flex items-center space-x-3 cursor-pointer hover-lift transition-all">
           <Avatar className="w-10 h-10 border-2 border-purple-200 dark:border-purple-700 animate-pulse-glow">
             <AvatarFallback className="bg-purple-gradient text-white font-bold">
-              {user ? getInitials(user.name) : 'U'}
+              {getInitials(displayName)}
             </AvatarFallback>
           </Avatar>
           <div className="hidden md:block">
             <p className="text-sm font-medium text-gray-900 dark:text-white">
-              {user?.name}
+              {displayName}
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
               {user?.email}
@@ -42,12 +44,12 @@ const UserProfile = () => {
             <div className="flex items-center space-x-4 mb-4">
               <Avatar className="w-16 h-16 border-4 border-purple-200 dark:border-purple-700 animate-pulse-glow">
                 <AvatarFallback className="bg-purple-gradient text-white font-bold text-xl">
-                  {user ? getInitials(user.name) : 'U'}
+                  {getInitials(displayName)}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {user?.name}
+                  {displayName}
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
                   Student
@@ -60,7 +62,7 @@ const UserProfile = () => {
                 <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-full flex items-center justify-center">
                   <User className="w-4 h-4 text-purple-600" />
                 </div>
-                <span className="text-gray-700 dark:text-gray-300">{user?.name}</span>
+                <span className="text-gray-700 dark:text-gray-300">{displayName}</span>
               </div>
               
               <div className="flex items-center space-x-3 text-sm">

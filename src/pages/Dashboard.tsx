@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +16,8 @@ import TaskCountdown from "@/components/TaskCountdown";
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("tasks");
+
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -59,7 +62,7 @@ const Dashboard = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8 animate-fade-in-up">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Welcome back, {user?.name}! 👋
+            Welcome back, {displayName}! 👋
           </h2>
           <p className="text-gray-600 dark:text-gray-300">
             Let's make today productive and organized.

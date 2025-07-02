@@ -1,9 +1,12 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import LoadingScreen from "./components/LoadingScreen";
@@ -27,10 +30,12 @@ export const useTheme = () => {
 };
 
 interface AuthContextType {
-  user: { name: string; email: string } | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  user: User | null;
+  session: Session | null;
+  login: (email: string, password: string) => Promise<{ error: any }>;
+  register: (name: string, email: string, password: string) => Promise<{ error: any }>;
+  logout: () => Promise<void>;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,8 +50,9 @@ export const useAuth = () => {
 
 const App = () => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check for saved theme
@@ -55,19 +61,29 @@ const App = () => {
       setTheme(savedTheme);
     }
 
-    // Check for saved user
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-        toast.success("Welcome back! 👋");
-      } catch (error) {
-        localStorage.removeItem("user");
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+        
+        if (event === 'SIGNED_IN') {
+          toast.success("Welcome back! 👋");
+        } else if (event === 'SIGNED_OUT') {
+          toast.success("Logged out successfully! See you soon! 👋");
+        }
       }
-    }
+    );
 
-    // Simulate loading
-    setTimeout(() => setIsLoading(false), 2000);
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -81,37 +97,41 @@ const App = () => {
   };
 
   const login = async (email: string, password: string) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const userData = { name: email.split("@")[0], email };
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
-    toast.success(`Welcome, ${userData.name}! 🎉`);
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    return { error };
   };
 
   const register = async (name: string, email: string, password: string) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const userData = { name, email };
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
-    toast.success(`Account created successfully! Welcome, ${name}! 🎊`);
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          full_name: name,
+        }
+      }
+    });
+    return { error };
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("user");
-    toast.success("Logged out successfully! See you soon! 👋");
+  const logout = async () => {
+    await supabase.auth.signOut();
   };
 
-  if (isLoading) {
+  if (loading) {
     return <LoadingScreen />;
   }
 
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeContext.Provider value={{ theme, toggleTheme }}>
-        <AuthContext.Provider value={{ user, login, register, logout }}>
+        <AuthContext.Provider value={{ user, session, login, register, logout, loading }}>
           <TooltipProvider>
             <Toaster />
             <Sonner />
