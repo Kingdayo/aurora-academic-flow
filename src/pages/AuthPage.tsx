@@ -12,6 +12,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 
 const AuthPage = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("login");
   const [loginData, setLoginData] = useState({
     email: "",
     password: ""
@@ -63,6 +64,8 @@ const AuthPage = () => {
         }
       } else {
         toast.success("Account created successfully! Please check your email to confirm your account.");
+        setActiveTab("login"); // Switch to login tab after successful signup
+        setRegisterData({ name: "", email: "", password: "" }); // Clear form
       }
     } catch (error) {
       toast.error("An unexpected error occurred. Please try again.");
@@ -98,7 +101,7 @@ const AuthPage = () => {
         </div>
 
         <Card className="backdrop-blur-lg bg-white/80 dark:bg-gray-800/80 border-purple-200/50 dark:border-purple-700/50 shadow-xl hover-lift transition-all">
-          <Tabs defaultValue="login" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="login" className="transition-all">Login</TabsTrigger>
               <TabsTrigger value="register" className="transition-all">Sign Up</TabsTrigger>

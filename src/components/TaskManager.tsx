@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Calendar, Clock, BookOpen, Trash2, CheckSquare } from "lucide-react";
+import { Plus, Calendar, Clock, BookOpen, Trash2, CheckSquare, Edit } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
+import TaskEditDialog from "./TaskEditDialog";
 
 interface Task {
   id: string;
@@ -28,6 +29,8 @@ const TaskManager = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "pending" | "completed">("all");
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
@@ -102,6 +105,18 @@ const TaskManager = () => {
     const updatedTasks = tasks.filter(task => task.id !== id);
     saveTasks(updatedTasks);
     toast.success("Task deleted successfully! 🗑️");
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEditedTask = (updatedTask: Task) => {
+    const updatedTasks = tasks.map(task =>
+      task.id === updatedTask.id ? updatedTask : task
+    );
+    saveTasks(updatedTasks);
   };
 
   const filteredTasks = tasks.filter(task => {
@@ -258,14 +273,24 @@ const TaskManager = () => {
                     {task.title}
                   </CardTitle>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteTask(task.id)}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex space-x-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEditTask(task)}
+                    className="text-purple-600 hover:text-purple-800"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteTask(task.id)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               <div className="flex items-center space-x-2">
                 <Badge variant="secondary" className="text-xs">
@@ -311,6 +336,16 @@ const TaskManager = () => {
           </p>
         </div>
       )}
+
+      <TaskEditDialog
+        task={editingTask}
+        isOpen={isEditDialogOpen}
+        onClose={() => {
+          setIsEditDialogOpen(false);
+          setEditingTask(null);
+        }}
+        onSave={handleSaveEditedTask}
+      />
     </div>
   );
 };
