@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { useAuth } from "@/App";
 import { toast } from "sonner";
 import { Book, Brain, Timer, Mic, BarChart3 } from "lucide-react";
 import LoadingSpinner from "@/components/LoadingSpinner";
+
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -15,13 +17,12 @@ const AuthPage = () => {
     email: "",
     password: ""
   });
-  const {
-    login,
-    register
-  } = useAuth();
+  const { login, register } = useAuth();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
     try {
       let result;
       if (isLogin) {
@@ -29,6 +30,7 @@ const AuthPage = () => {
       } else {
         result = await register(formData.name, formData.email, formData.password);
       }
+
       if (result.error) {
         toast.error(result.error.message);
         setIsLoading(false);
@@ -46,14 +48,17 @@ const AuthPage = () => {
       setIsLoading(false);
     }
   };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
   };
+
   if (isLoading) {
-    return <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800 flex items-center justify-center relative">
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800 flex items-center justify-center relative">
         {/* Blurred backdrop */}
         <div className="absolute inset-0 backdrop-blur-sm bg-white/30 dark:bg-gray-900/30 z-10" />
         
@@ -75,9 +80,12 @@ const AuthPage = () => {
             </div>
           </div>
         </div>
-      </div>;
+      </div>
+    );
   }
-  return <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800 flex flex-col items-center justify-center p-4">
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800 flex flex-col items-center justify-center p-4">
       {/* Header */}
       <div className="text-center mb-8 animate-fade-in-up">
         <div className="w-16 h-16 bg-purple-gradient rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse-glow">
@@ -101,22 +109,55 @@ const AuthPage = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && <div className="space-y-2">
+            {!isLogin && (
+              <div className="space-y-2">
                 <Label htmlFor="name" className="text-sm font-medium">Full Name</Label>
-                <Input id="name" name="name" type="text" placeholder="Enter your full name" value={formData.name} onChange={handleInputChange} className="h-10 text-sm" required />
-              </div>}
+                <Input 
+                  id="name" 
+                  name="name" 
+                  type="text" 
+                  placeholder="Enter your full name" 
+                  value={formData.name} 
+                  onChange={handleInputChange} 
+                  className="h-10 text-sm" 
+                  required 
+                />
+              </div>
+            )}
             
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-              <Input id="email" name="email" type="email" placeholder="Enter your email" value={formData.email} onChange={handleInputChange} className="h-10 text-sm" required />
+              <Input 
+                id="email" 
+                name="email" 
+                type="email" 
+                placeholder="Enter your email" 
+                value={formData.email} 
+                onChange={handleInputChange} 
+                className="h-10 text-sm" 
+                required 
+              />
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-              <Input id="password" name="password" type="password" placeholder="Enter your password" value={formData.password} onChange={handleInputChange} className="h-10 text-sm" required />
+              <Input 
+                id="password" 
+                name="password" 
+                type="password" 
+                placeholder="Enter your password" 
+                value={formData.password} 
+                onChange={handleInputChange} 
+                className="h-10 text-sm" 
+                required 
+              />
             </div>
 
-            <Button type="submit" className="w-full bg-purple-gradient hover:opacity-90 hover-glow transition-all h-10 text-sm font-medium" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full bg-purple-gradient hover:opacity-90 hover-glow transition-all h-10 text-sm font-medium" 
+              disabled={isLoading}
+            >
               {isLogin ? "Sign In" : "Create Account"}
             </Button>
           </form>
@@ -125,7 +166,11 @@ const AuthPage = () => {
             <p className="text-sm text-gray-600 dark:text-gray-400">
               {isLogin ? "Don't have an account?" : "Already have an account?"}
             </p>
-            <Button variant="link" onClick={() => setIsLogin(!isLogin)} className="text-purple-600 hover:text-purple-800 p-0 h-auto font-medium text-sm">
+            <Button 
+              variant="link" 
+              onClick={() => setIsLogin(!isLogin)} 
+              className="text-purple-600 hover:text-purple-800 p-0 h-auto font-medium text-sm"
+            >
               {isLogin ? "Sign up here" : "Sign in here"}
             </Button>
           </div>
@@ -134,26 +179,23 @@ const AuthPage = () => {
 
       {/* Features Preview */}
       <div className="mt-8 max-w-4xl mx-auto px-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center my-[-450px]">
-          {[{
-          icon: Brain,
-          title: "AI Assistant",
-          desc: "Smart task suggestions"
-        }, {
-          icon: Timer,
-          title: "Pomodoro Timer",
-          desc: "Focus sessions"
-        }, {
-          icon: Mic,
-          title: "Voice Commands",
-          desc: "Hands-free control"
-        }, {
-          icon: BarChart3,
-          title: "Analytics",
-          desc: "Track progress"
-        }].map((feature, index) => {})}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
+          {[
+            { icon: Brain, title: "AI Assistant", desc: "Smart task suggestions" },
+            { icon: Timer, title: "Pomodoro Timer", desc: "Focus sessions" },
+            { icon: Mic, title: "Voice Commands", desc: "Hands-free control" },
+            { icon: BarChart3, title: "Analytics", desc: "Track progress" }
+          ].map((feature, index) => (
+            <div key={index} className="flex flex-col items-center space-y-2 p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg backdrop-blur-sm">
+              <feature.icon className="w-8 h-8 text-purple-600" />
+              <h3 className="font-semibold text-sm">{feature.title}</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400">{feature.desc}</p>
+            </div>
+          ))}
         </div>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default AuthPage;
