@@ -27,37 +27,102 @@ const SmartNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>("default");
 
   useEffect(() => {
+    // Load settings from localStorage
+    const savedSettings = localStorage.getItem('notificationSettings');
+    if (savedSettings) {
+      setSettings(JSON.parse(savedSettings));
+    }
+
+    // Check current notification permission
     if ("Notification" in window) {
       setPermission(Notification.permission);
+      
+      // If permission was granted before, enable browser notifications
+      if (Notification.permission === "granted") {
+        setSettings(prev => ({ ...prev, browserNotifications: true }));
+      }
     }
   }, []);
+
+  // Save settings whenever they change
+  useEffect(() => {
+    localStorage.setItem('notificationSettings', JSON.stringify(settings));
+  }, [settings]);
 
   const requestNotificationPermission = async () => {
     if ("Notification" in window) {
       const result = await Notification.requestPermission();
       setPermission(result);
       if (result === "granted") {
-        toast.success("Browser notifications enabled! 🔔");
+        toast.success("Browser notifications enabled permanently! 🔔");
         setSettings(prev => ({ ...prev, browserNotifications: true }));
+        
+        // Save the permission status
+        localStorage.setItem('notificationPermissionGranted', 'true');
+        
+        // Send a welcome notification
+        new Notification("Aurora Notifications", {
+          body: "You'll now receive smart reminders and updates! 🎉",
+          icon: "/favicon.ico"
+        });
+      } else {
+        toast.error("Notification permission denied. You can enable it later in browser settings.");
       }
     }
   };
 
   const handleSettingChange = (key: keyof NotificationSettings, value: boolean) => {
     setSettings(prev => ({ ...prev, [key]: value }));
-    localStorage.setItem('notificationSettings', JSON.stringify({ ...settings, [key]: value }));
     toast.success("Notification settings updated! ⚙️");
+    
+    // If enabling browser notifications but permission not granted, request it
+    if (key === 'browserNotifications' && value && permission !== 'granted') {
+      requestNotificationPermission();
+    }
   };
 
   const sendTestNotification = () => {
     if (permission === "granted") {
+      const testMessages = [
+        "Don't forget to work on your Mathematics homework! 📚",
+        "Time for a study break! Take 5 minutes to recharge ☕",
+        "Your English essay is due tomorrow - make sure to review it! 📝",
+        "Great job completing your tasks today! Keep up the momentum 🎉"
+      ];
+      
+      const randomMessage = testMessages[Math.floor(Math.random() * testMessages.length)];
+      
       new Notification("Aurora Reminder", {
-        body: "Don't forget to work on your Mathematics homework! 📚",
-        icon: "/favicon.ico"
+        body: randomMessage,
+        icon: "/favicon.ico",
+        badge: "/favicon.ico"
       });
       toast.success("Test notification sent! 🔔");
     } else {
       toast.error("Please enable browser notifications first!");
+    }
+  };
+
+  const scheduleSmartReminder = () => {
+    if (permission === "granted" && settings.smartReminders) {
+      // Schedule a smart reminder based on user's tasks
+      const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+      const pendingTasks = tasks.filter((task: any) => !task.completed);
+      
+      if (pendingTasks.length > 0) {
+        const randomTask = pendingTasks[Math.floor(Math.random() * pendingTasks.length)];
+        
+        setTimeout(() => {
+          new Notification("Smart Reminder", {
+            body: `Don't forget: ${randomTask.title} (${randomTask.subject})`,
+            icon: "/favicon.ico"
+          });
+        }, 30000); // 30 seconds delay for demo
+        
+        toast.success("Smart reminder scheduled! 🧠");
+      } else {
+        toast.info("No pending tasks for reminders!");
+      }
     }
   };
 
@@ -128,36 +193,48 @@ const SmartNotifications = () => {
               <Switch
                 id="browser-notifications"
                 checked={settings.browserNotifications && permission === "granted"}
-                onCheckedChange={(checked) => {
-                  if (checked && permission !== "granted") {
-                    requestNotificationPermission();
-                  } else {
-                    handleSettingChange('browserNotifications', checked);
-                  }
-                }}
+                onCheckedChange={(checked) => handleSettingChange('browserNotifications', checked)}
               />
             </div>
             
-            {permission !== "granted" && (
-              <Button 
-                onClick={requestNotificationPermission}
-                variant="outline" 
-                size="sm"
-                className="w-full"
-              >
-                Enable Browser Notifications
-              </Button>
-            )}
+            <div className="space-y-2">
+              {permission !== "granted" && (
+                <Button 
+                  onClick={requestNotificationPermission}
+                  variant="outline" 
+                  size="sm"
+                  className="w-full"
+                >
+                  Enable Browser Notifications
+                </Button>
+              )}
+              
+              {permission === "granted" && (
+                <div className="flex space-x-2">
+                  <Button 
+                    onClick={sendTestNotification}
+                    variant="outline" 
+                    size="sm"
+                    className="flex-1"
+                  >
+                    Send Test
+                  </Button>
+                  <Button 
+                    onClick={scheduleSmartReminder}
+                    variant="outline" 
+                    size="sm"
+                    className="flex-1"
+                  >
+                    Smart Reminder
+                  </Button>
+                </div>
+              )}
+            </div>
             
             {permission === "granted" && (
-              <Button 
-                onClick={sendTestNotification}
-                variant="outline" 
-                size="sm"
-                className="w-full"
-              >
-                Send Test Notification
-              </Button>
+              <p className="text-xs text-green-600 mt-2">
+                ✅ Notifications enabled permanently
+              </p>
             )}
           </div>
         </div>

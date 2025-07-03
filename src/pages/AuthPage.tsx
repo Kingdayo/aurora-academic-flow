@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,20 +33,20 @@ const AuthPage = () => {
 
       if (result.error) {
         toast.error(result.error.message);
+        setIsLoading(false);
       } else {
         toast.success(isLogin ? "Welcome back! 🎉" : "Account created successfully! Check your email to verify your account. 📧");
         
-        // Increase loading time to 10 seconds before redirect
+        // Extended loading time to 15 seconds before redirect
         setTimeout(() => {
           setIsLoading(false);
-        }, 10000);
+        }, 15000);
         return;
       }
     } catch (error: any) {
       toast.error(error.message || "An error occurred");
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,6 +75,9 @@ const AuthPage = () => {
             <p className="text-gray-600 dark:text-gray-300">
               Preparing your AI-powered academic experience
             </p>
+            <div className="mt-4 text-sm text-gray-500">
+              This may take a few moments...
+            </div>
           </div>
         </div>
       </div>
