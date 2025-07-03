@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useAuth } from "@/App";
+import { useAuth, useTheme } from "@/App";
 import { toast } from "sonner";
 import { Book, CheckSquare, Calendar, BarChart3, Brain, Timer, Settings, Plus, Mic } from "lucide-react";
 import TaskManager from "@/components/TaskManager";
@@ -35,7 +36,8 @@ interface Task {
 }
 
 const Dashboard = () => {
-  const { user, logout, theme } = useAuth();
+  const { user, logout } = useAuth();
+  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState("tasks");
   const [showMobileNav, setShowMobileNav] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -246,7 +248,7 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="calendar">
-            <CalendarSection tasks={tasks} />
+            <CalendarSection />
           </TabsContent>
 
           <TabsContent value="analytics">
@@ -258,7 +260,7 @@ const Dashboard = () => {
 
           <TabsContent value="ai-hub">
             <div className="space-y-6">
-              <AIAssistant />
+              <AIAssistant tasks={tasks} />
               {showVoiceCommands && (
                 <Dialog open={showVoiceCommands} onOpenChange={setShowVoiceCommands}>
                   <DialogContent className="max-w-2xl">
