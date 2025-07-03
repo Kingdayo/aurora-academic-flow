@@ -294,27 +294,78 @@ const Dashboard = () => {
         </Tabs>
       </main>
 
-      {/* Mobile-specific styles */}
-      <style jsx global>{`
-        @media (max-width: 385px) {
-          .container {
-            padding-left: 0.5rem;
-            padding-right: 0.5rem;
-          }
-          
-          .grid {
-            gap: 0.75rem;
-          }
-          
-          .space-y-6 > * + * {
-            margin-top: 1rem;
-          }
-          
-          .space-y-4 > * + * {
-            margin-top: 0.75rem;
-          }
-        }
-      `}</style>
+      {/* Mobile-specific styles using CSS module approach */}
+      <div className="mobile-styles">
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            @media (max-width: 385px) {
+              .container {
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+              }
+              
+              .grid {
+                gap: 0.75rem !important;
+              }
+              
+              .space-y-6 > * + * {
+                margin-top: 1rem !important;
+              }
+              
+              .space-y-4 > * + * {
+                margin-top: 0.75rem !important;
+              }
+              
+              .text-2xl {
+                font-size: 1.25rem !important;
+              }
+              
+              .text-3xl {
+                font-size: 1.5rem !important;
+              }
+              
+              .p-4 {
+                padding: 0.75rem !important;
+              }
+              
+              .px-4 {
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+              }
+              
+              .py-4 {
+                padding-top: 0.75rem !important;
+                padding-bottom: 0.75rem !important;
+              }
+              
+              .mb-6 {
+                margin-bottom: 1rem !important;
+              }
+              
+              .mb-8 {
+                margin-bottom: 1.5rem !important;
+              }
+              
+              .rounded-lg {
+                border-radius: 0.5rem !important;
+              }
+              
+              .max-w-md {
+                max-width: 90vw !important;
+              }
+              
+              .w-full {
+                width: 100% !important;
+              }
+              
+              .min-h-screen {
+                min-height: 100vh !important;
+                overflow-x: hidden !important;
+              }
+            }
+          `
+        }} />
+      </div>
     </div>
   );
 };

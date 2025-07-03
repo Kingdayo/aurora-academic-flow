@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/App";
 import { toast } from "sonner";
-import { Book } from "lucide-react";
+import { Book, Brain, Timer, Mic, BarChart3 } from "lucide-react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 const AuthPage = () => {
@@ -36,10 +37,10 @@ const AuthPage = () => {
       } else {
         toast.success(isLogin ? "Welcome back! 🎉" : "Account created successfully! Check your email to verify your account. 📧");
         
-        // Increase loading time to 8 seconds before redirect
+        // Increase loading time to 10 seconds before redirect
         setTimeout(() => {
           setIsLoading(false);
-        }, 8000);
+        }, 10000);
         return;
       }
     } catch (error: any) {

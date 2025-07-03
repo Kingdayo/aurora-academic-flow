@@ -34,7 +34,7 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
     title: "",
     description: "",
     subject: "",
-    priority: "medium" as const,
+    priority: "medium" as "low" | "medium" | "high",
     dueDate: "",
     dueTime: ""
   });
@@ -124,7 +124,7 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-priority" className="text-sm">Priority</Label>
-              <Select value={editData.priority} onValueChange={(value: any) => setEditData({ ...editData, priority: value })}>
+              <Select value={editData.priority} onValueChange={(value: "low" | "medium" | "high") => setEditData({ ...editData, priority: value })}>
                 <SelectTrigger className="text-sm">
                   <SelectValue />
                 </SelectTrigger>
