@@ -2,19 +2,22 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Play, Pause, RotateCcw, Coffee, Brain } from "lucide-react";
+import { Play, Pause, RotateCcw, Coffee, Brain, Settings } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const PomodoroTimer = () => {
-  const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes in seconds
+  const [workDuration, setWorkDuration] = useState(25); // minutes
+  const [breakDuration, setBreakDuration] = useState(5); // minutes
+  const [timeLeft, setTimeLeft] = useState(25 * 60); // seconds
   const [isActive, setIsActive] = useState(false);
   const [mode, setMode] = useState<"work" | "break">("work");
   const [sessions, setSessions] = useState(0);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const workTime = 25 * 60; // 25 minutes
-  const breakTime = 5 * 60; // 5 minutes
 
   useEffect(() => {
     if (isActive && timeLeft > 0) {
@@ -42,10 +45,9 @@ const PomodoroTimer = () => {
     if (mode === "work") {
       setSessions(prev => prev + 1);
       setMode("break");
-      setTimeLeft(breakTime);
+      setTimeLeft(breakDuration * 60);
       toast.success("Great work! Time for a break! ☕");
       
-      // Browser notification
       if (Notification.permission === "granted") {
         new Notification("Pomodoro Complete!", {
           body: "Time for a 5-minute break!",
@@ -54,7 +56,7 @@ const PomodoroTimer = () => {
       }
     } else {
       setMode("work");
-      setTimeLeft(workTime);
+      setTimeLeft(workDuration * 60);
       toast.success("Break over! Ready to focus? 🧠");
       
       if (Notification.permission === "granted") {
@@ -73,7 +75,7 @@ const PomodoroTimer = () => {
   const resetTimer = () => {
     setIsActive(false);
     setMode("work");
-    setTimeLeft(workTime);
+    setTimeLeft(workDuration * 60);
   };
 
   const formatTime = (seconds: number) => {
@@ -83,20 +85,71 @@ const PomodoroTimer = () => {
   };
 
   const getProgress = () => {
-    const totalTime = mode === "work" ? workTime : breakTime;
+    const totalTime = mode === "work" ? workDuration * 60 : breakDuration * 60;
     return ((totalTime - timeLeft) / totalTime) * 100;
+  };
+
+  const handleSettingsSave = () => {
+    if (mode === "work") {
+      setTimeLeft(workDuration * 60);
+    } else {
+      setTimeLeft(breakDuration * 60);
+    }
+    setIsSettingsOpen(false);
+    toast.success("Timer settings updated!");
   };
 
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          {mode === "work" ? (
-            <Brain className="w-5 h-5 text-purple-600" />
-          ) : (
-            <Coffee className="w-5 h-5 text-orange-600" />
-          )}
-          <span>Pomodoro Timer</span>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            {mode === "work" ? (
+              <Brain className="w-5 h-5 text-purple-600" />
+            ) : (
+              <Coffee className="w-5 h-5 text-orange-600" />
+            )}
+            <span>Pomodoro Timer</span>
+          </div>
+          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Settings className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Timer Settings</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="work-duration">Work Duration (minutes)</Label>
+                  <Input
+                    id="work-duration"
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={workDuration}
+                    onChange={(e) => setWorkDuration(Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="break-duration">Break Duration (minutes)</Label>
+                  <Input
+                    id="break-duration"
+                    type="number"
+                    min="1"
+                    max="30"
+                    value={breakDuration}
+                    onChange={(e) => setBreakDuration(Number(e.target.value))}
+                  />
+                </div>
+                <Button onClick={handleSettingsSave} className="w-full">
+                  Save Settings
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

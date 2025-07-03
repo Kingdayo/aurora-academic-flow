@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/App";
+import { useIsMobile } from "@/hooks/use-mobile";
 import ThemeToggle from "@/components/ThemeToggle";
 import UserProfile from "@/components/UserProfile";
 import TaskManager from "@/components/TaskManager";
@@ -16,13 +17,15 @@ import PomodoroTimer from "@/components/PomodoroTimer";
 import VoiceCommands from "@/components/VoiceCommands";
 import OfflineSync from "@/components/OfflineSync";
 import GestureControls from "@/components/GestureControls";
-import { Calendar, CheckSquare, BarChart3, User, Book, Brain, Bell, Timer, Mic, Sparkles, Settings } from "lucide-react";
+import { Calendar, CheckSquare, BarChart3, User, Book, Brain, Bell, Timer, Mic, Sparkles, Settings, Menu } from "lucide-react";
 import { toast } from "sonner";
 import TaskCountdown from "@/components/TaskCountdown";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("tasks");
+  const isMobile = useIsMobile();
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
 
@@ -34,10 +37,83 @@ const Dashboard = () => {
       analytics: "Analytics",
       advanced: "Advanced Analytics",
       ai: "AI Assistant",
+      productivity: "Productivity",
       settings: "Settings"
     };
     toast.success(`Switched to ${tabNames[value as keyof typeof tabNames]} section! 📊`);
   };
+
+  const TabNavigation = () => (
+    <TabsList className="grid w-full grid-cols-7 mb-8 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border border-purple-200/50 dark:border-purple-700/50">
+      <TabsTrigger value="tasks" className="transition-all hover-glow">
+        <CheckSquare className="w-4 h-4 mr-2" />
+        <span className="hidden sm:inline">Tasks</span>
+      </TabsTrigger>
+      <TabsTrigger value="calendar" className="transition-all hover-glow">
+        <Calendar className="w-4 h-4 mr-2" />
+        <span className="hidden sm:inline">Calendar</span>
+      </TabsTrigger>
+      <TabsTrigger value="analytics" className="transition-all hover-glow">
+        <BarChart3 className="w-4 h-4 mr-2" />
+        <span className="hidden sm:inline">Analytics</span>
+      </TabsTrigger>
+      <TabsTrigger value="advanced" className="transition-all hover-glow">
+        <Sparkles className="w-4 h-4 mr-2" />
+        <span className="hidden sm:inline">Advanced</span>
+      </TabsTrigger>
+      <TabsTrigger value="ai" className="transition-all hover-glow">
+        <Brain className="w-4 h-4 mr-2" />
+        <span className="hidden sm:inline">AI Hub</span>
+      </TabsTrigger>
+      <TabsTrigger value="productivity" className="transition-all hover-glow">
+        <Timer className="w-4 h-4 mr-2" />
+        <span className="hidden sm:inline">Focus</span>
+      </TabsTrigger>
+      <TabsTrigger value="settings" className="transition-all hover-glow">
+        <Settings className="w-4 h-4 mr-2" />
+        <span className="hidden sm:inline">Settings</span>
+      </TabsTrigger>
+    </TabsList>
+  );
+
+  const MobileNavigation = () => (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="sm" className="md:hidden">
+          <Menu className="w-4 h-4" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-80">
+        <div className="space-y-4 mt-8">
+          <h3 className="text-lg font-semibold">Navigation</h3>
+          <div className="space-y-2">
+            {[
+              { value: "tasks", label: "Tasks", icon: CheckSquare },
+              { value: "calendar", label: "Calendar", icon: Calendar },
+              { value: "analytics", label: "Analytics", icon: BarChart3 },
+              { value: "advanced", label: "Advanced", icon: Sparkles },
+              { value: "ai", label: "AI Hub", icon: Brain },
+              { value: "productivity", label: "Focus", icon: Timer },
+              { value: "settings", label: "Settings", icon: Settings }
+            ].map((tab) => (
+              <Button
+                key={tab.value}
+                variant={activeTab === tab.value ? "default" : "ghost"}
+                className="w-full justify-start"
+                onClick={() => {
+                  setActiveTab(tab.value);
+                  handleTabChange(tab.value);
+                }}
+              >
+                <tab.icon className="w-4 h-4 mr-2" />
+                {tab.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800">
@@ -45,6 +121,7 @@ const Dashboard = () => {
       <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-b border-purple-200/50 dark:border-purple-700/50 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
+            <MobileNavigation />
             <div className="w-10 h-10 bg-purple-gradient rounded-full flex items-center justify-center animate-pulse-glow">
               <Book className="w-5 h-5 text-white" />
             </div>
@@ -84,45 +161,8 @@ const Dashboard = () => {
           <TaskCountdown />
         </div>
 
-        {/* Modern Features Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <PomodoroTimer />
-          <AIAssistant />
-          <SmartNotifications />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <VoiceCommands />
-          <OfflineSync />
-        </div>
-
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-8 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border border-purple-200/50 dark:border-purple-700/50">
-            <TabsTrigger value="tasks" className="transition-all hover-glow">
-              <CheckSquare className="w-4 h-4 mr-2" />
-              Tasks
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="transition-all hover-glow">
-              <Calendar className="w-4 h-4 mr-2" />
-              Calendar
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="transition-all hover-glow">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="advanced" className="transition-all hover-glow">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Advanced
-            </TabsTrigger>
-            <TabsTrigger value="ai" className="transition-all hover-glow">
-              <Brain className="w-4 h-4 mr-2" />
-              AI Hub
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="transition-all hover-glow">
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
+          {!isMobile && <TabNavigation />}
 
           <TabsContent value="tasks" className="animate-fade-in-up">
             <TaskManager />
@@ -177,6 +217,16 @@ const Dashboard = () => {
                     </div>
                   </CardContent>
                 </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="productivity" className="animate-fade-in-up">
+            <div className="space-y-6">
+              <h3 className="text-2xl font-bold">Productivity Tools</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <PomodoroTimer />
+                <OfflineSync />
               </div>
             </div>
           </TabsContent>

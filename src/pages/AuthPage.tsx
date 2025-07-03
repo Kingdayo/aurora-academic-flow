@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,11 +38,19 @@ const AuthPage = () => {
         } else {
           toast.error(error.message || "Login failed. Please try again.");
         }
+      } else {
+        // Keep loading for 5 seconds before redirect
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 5000);
+        return; // Don't set loading to false immediately
       }
     } catch (error) {
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
-      setIsLoading(false);
+      if (!isLoading) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -64,13 +71,20 @@ const AuthPage = () => {
         }
       } else {
         toast.success("Account created successfully! Please check your email to confirm your account.");
-        setActiveTab("login"); // Switch to login tab after successful signup
-        setRegisterData({ name: "", email: "", password: "" }); // Clear form
+        setActiveTab("login");
+        setRegisterData({ name: "", email: "", password: "" });
+        // Keep loading for 5 seconds
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 5000);
+        return; // Don't set loading to false immediately
       }
     } catch (error) {
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
-      setIsLoading(false);
+      if (!isLoading) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -82,6 +96,16 @@ const AuthPage = () => {
         <div className="absolute -bottom-4 -left-4 w-96 h-96 bg-purple-400/10 rounded-full animate-float" style={{ animationDelay: '1s' }}></div>
         <div className="absolute top-1/2 left-1/4 w-48 h-48 bg-purple-200/15 rounded-full animate-float" style={{ animationDelay: '2s' }}></div>
       </div>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 flex flex-col items-center space-y-4 shadow-2xl">
+            <LoadingSpinner size="lg" />
+            <p className="text-gray-700 dark:text-gray-300 font-medium">Processing your request...</p>
+          </div>
+        </div>
+      )}
 
       {/* Theme Toggle */}
       <div className="absolute top-4 right-4 z-10">
@@ -124,6 +148,7 @@ const AuthPage = () => {
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                       required
                       className="transition-all focus:ring-2 focus:ring-purple-500"
+                      disabled={isLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -136,6 +161,7 @@ const AuthPage = () => {
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                       required
                       className="transition-all focus:ring-2 focus:ring-purple-500"
+                      disabled={isLoading}
                     />
                   </div>
                   <Button
@@ -166,6 +192,7 @@ const AuthPage = () => {
                       onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
                       required
                       className="transition-all focus:ring-2 focus:ring-purple-500"
+                      disabled={isLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -178,6 +205,7 @@ const AuthPage = () => {
                       onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
                       required
                       className="transition-all focus:ring-2 focus:ring-purple-500"
+                      disabled={isLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -191,6 +219,7 @@ const AuthPage = () => {
                       required
                       minLength={6}
                       className="transition-all focus:ring-2 focus:ring-purple-500"
+                      disabled={isLoading}
                     />
                   </div>
                   <Button
