@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -190,11 +191,58 @@ const Dashboard = () => {
         </div>
       </header>
 
+      {/* Features Preview - moved up */}
+      <div className="container mx-auto px-4 pt-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center mb-8">
+          {[
+            { icon: Brain, title: "AI Assistant", desc: "Smart task suggestions" },
+            { icon: Timer, title: "Pomodoro Timer", desc: "Focus sessions" },
+            { icon: Mic, title: "Voice Commands", desc: "Hands-free control" },
+            { icon: BarChart3, title: "Analytics", desc: "Track progress" }
+          ].map((feature, index) => (
+            <div
+              key={index}
+              className="p-4 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-lg border border-purple-200/30 dark:border-purple-700/30 animate-fade-in-up"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
+              <feature.icon className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+              <h3 className="font-semibold text-sm text-gray-900 dark:text-white">{feature.title}</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">{feature.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Quick Actions FAB */}
       <div className="fixed bottom-6 right-6 z-50">
         <div className="flex flex-col space-y-3">
           {/* Quick action buttons */}
-          {quickActions.map((action, index) => (
+          {[
+            {
+              icon: Plus,
+              label: "Add Task",
+              action: () => setShowAddTask(true),
+              color: "bg-blue-500 hover:bg-blue-600"
+            },
+            {
+              icon: Mic,
+              label: "Voice Commands",
+              action: () => setShowVoiceCommands(true),
+              color: "bg-purple-500 hover:bg-purple-600"
+            },
+            {
+              icon: Calendar,
+              label: "Calendar",
+              action: () => setActiveTab('calendar'),
+              color: "bg-green-500 hover:bg-green-600"
+            },
+            {
+              icon: BarChart3,
+              label: "Analytics",
+              action: () => setActiveTab('analytics'),
+              color: "bg-orange-500 hover:bg-orange-600"
+            }
+          ].map((action, index) => (
             <Button
               key={index}
               onClick={action.action}
@@ -238,12 +286,7 @@ const Dashboard = () => {
           </TabsList>
 
           <TabsContent value="tasks">
-            <TaskManager 
-              tasks={tasks} 
-              onTasksChange={setTasks}
-              showAddDialog={showAddTask}
-              onShowAddDialogChange={setShowAddTask}
-            />
+            <TaskManager />
           </TabsContent>
 
           <TabsContent value="calendar">
