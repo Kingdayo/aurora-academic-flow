@@ -12,7 +12,13 @@ interface VoiceCommand {
   description: string;
 }
 
-const VoiceCommands = () => {
+interface VoiceCommandsProps {
+  onTabChange?: (tab: string) => void;
+  onAddTask?: () => void;
+  onStartTimer?: () => void;
+}
+
+const VoiceCommands = ({ onTabChange, onAddTask, onStartTimer }: VoiceCommandsProps) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
@@ -27,7 +33,7 @@ const VoiceCommands = () => {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SpeechRecognitionConstructor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognitionConstructor) {
         const recognitionInstance = new SpeechRecognitionConstructor();
         
@@ -35,7 +41,7 @@ const VoiceCommands = () => {
         recognitionInstance.interimResults = false;
         recognitionInstance.lang = 'en-US';
 
-        recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
+        recognitionInstance.onresult = (event: any) => {
           const command = event.results[0][0].transcript.toLowerCase();
           setTranscript(command);
           processVoiceCommand(command);
@@ -45,7 +51,7 @@ const VoiceCommands = () => {
           setIsListening(false);
         };
 
-        recognitionInstance.onerror = (event: SpeechRecognitionErrorEvent) => {
+        recognitionInstance.onerror = (event: any) => {
           console.error('Speech recognition error:', event.error);
           setIsListening(false);
           toast.error("Voice recognition error. Please try again.");
@@ -64,22 +70,43 @@ const VoiceCommands = () => {
     if (matchedCommand) {
       toast.success(`Voice command recognized: "${matchedCommand.phrase}"`);
       
-      // Here you would typically dispatch actions or call functions
+      // Execute the actual functions
       switch (matchedCommand.action) {
         case "ADD_TASK":
-          // Trigger add task dialog
+          if (onAddTask) {
+            onAddTask();
+          } else {
+            // Trigger add task dialog by dispatching a custom event
+            window.dispatchEvent(new CustomEvent('voice-add-task'));
+          }
           break;
         case "SHOW_TASKS":
-          // Switch to tasks tab
+          if (onTabChange) {
+            onTabChange("tasks");
+          } else {
+            window.dispatchEvent(new CustomEvent('voice-tab-change', { detail: { tab: 'tasks' } }));
+          }
           break;
         case "START_TIMER":
-          // Start Pomodoro timer
+          if (onStartTimer) {
+            onStartTimer();
+          } else {
+            window.dispatchEvent(new CustomEvent('voice-start-timer'));
+          }
           break;
         case "SHOW_CALENDAR":
-          // Switch to calendar tab
+          if (onTabChange) {
+            onTabChange("calendar");
+          } else {
+            window.dispatchEvent(new CustomEvent('voice-tab-change', { detail: { tab: 'calendar' } }));
+          }
           break;
         case "SHOW_ANALYTICS":
-          // Switch to analytics tab
+          if (onTabChange) {
+            onTabChange("analytics");
+          } else {
+            window.dispatchEvent(new CustomEvent('voice-tab-change', { detail: { tab: 'analytics' } }));
+          }
           break;
       }
     } else {
@@ -122,18 +149,19 @@ const VoiceCommands = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
           <Button
             onClick={toggleListening}
-            className={`${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-purple-gradient hover:opacity-90'}`}
+            className={`w-full sm:w-auto ${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-purple-gradient hover:opacity-90'}`}
           >
-            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            {isListening ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
             {isListening ? "Stop Listening" : "Start Listening"}
           </Button>
           
           <Button
             onClick={() => speakText("Voice commands are ready. Say 'add task' to create a new task.")}
             variant="outline"
+            className="w-full sm:w-auto"
           >
             <Volume2 className="w-4 h-4 mr-2" />
             Test Voice
@@ -154,16 +182,18 @@ const VoiceCommands = () => {
 
         <div className="space-y-2">
           <h4 className="font-semibold text-sm">Supported Commands:</h4>
-          {commands.map((command, index) => (
-            <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-              <div>
-                <Badge variant="secondary" className="mr-2">
-                  "{command.phrase}"
-                </Badge>
-                <span className="text-xs text-gray-600">{command.description}</span>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {commands.map((command, index) => (
+              <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-gray-50 rounded gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                  <Badge variant="secondary" className="text-xs w-fit">
+                    "{command.phrase}"
+                  </Badge>
+                  <span className="text-xs text-gray-600">{command.description}</span>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>

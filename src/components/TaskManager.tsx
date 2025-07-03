@@ -20,6 +20,7 @@ interface Task {
   subject: string;
   priority: "low" | "medium" | "high";
   dueDate: string;
+  dueTime: string;
   completed: boolean;
   createdAt: string;
 }
@@ -36,7 +37,8 @@ const TaskManager = () => {
     description: "",
     subject: "",
     priority: "medium" as const,
-    dueDate: ""
+    dueDate: "",
+    dueTime: ""
   });
 
   useEffect(() => {
@@ -60,7 +62,6 @@ const TaskManager = () => {
     setIsLoading(true);
 
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 500));
 
       const task: Task = {
@@ -78,7 +79,8 @@ const TaskManager = () => {
         description: "",
         subject: "",
         priority: "medium",
-        dueDate: ""
+        dueDate: "",
+        dueTime: ""
       });
       setIsDialogOpen(false);
       toast.success("Task added successfully! 🎉");
@@ -142,6 +144,15 @@ const TaskManager = () => {
     });
   };
 
+  const formatTime = (timeString: string) => {
+    if (!timeString) return "";
+    const [hours, minutes] = timeString.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
   const getDaysUntilDue = (dueDate: string) => {
     const today = new Date();
     const due = new Date(dueDate);
@@ -151,66 +162,69 @@ const TaskManager = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Task Manager</h3>
-          <p className="text-gray-600 dark:text-gray-300">
+          <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Task Manager</h3>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
             {tasks.length} total tasks, {tasks.filter(t => !t.completed).length} pending
           </p>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-purple-gradient hover:opacity-90 hover-glow transition-all">
+            <Button className="w-full sm:w-auto bg-purple-gradient hover:opacity-90 hover-glow transition-all">
               <Plus className="w-4 h-4 mr-2" />
               Add Task
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50 animate-scale-in">
+          <DialogContent className="w-[95vw] max-w-md mx-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50 animate-scale-in">
             <DialogHeader>
-              <DialogTitle>Add New Task</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-lg">Add New Task</DialogTitle>
+              <DialogDescription className="text-sm">
                 Create a new academic task to stay organized.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={addTask} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Task Title</Label>
+                <Label htmlFor="title" className="text-sm">Task Title</Label>
                 <Input
                   id="title"
                   value={newTask.title}
                   onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
                   placeholder="Enter task title"
+                  className="text-sm"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description" className="text-sm">Description</Label>
                 <Textarea
                   id="description"
                   value={newTask.description}
                   onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
                   placeholder="Enter task description"
+                  className="text-sm"
                   rows={3}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="subject">Subject</Label>
+                  <Label htmlFor="subject" className="text-sm">Subject</Label>
                   <Input
                     id="subject"
                     value={newTask.subject}
                     onChange={(e) => setNewTask({ ...newTask, subject: e.target.value })}
-                    placeholder="e.g., Mathematics"
+                    placeholder="e.g., Math"
+                    className="text-sm"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="priority">Priority</Label>
+                  <Label htmlFor="priority" className="text-sm">Priority</Label>
                   <Select value={newTask.priority} onValueChange={(value: any) => setNewTask({ ...newTask, priority: value })}>
-                    <SelectTrigger>
+                    <SelectTrigger className="text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -221,17 +235,30 @@ const TaskManager = () => {
                   </Select>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="dueDate">Due Date</Label>
-                <Input
-                  id="dueDate"
-                  type="date"
-                  value={newTask.dueDate}
-                  onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                  required
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="dueDate" className="text-sm">Due Date</Label>
+                  <Input
+                    id="dueDate"
+                    type="date"
+                    value={newTask.dueDate}
+                    onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                    className="text-sm"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dueTime" className="text-sm">Due Time</Label>
+                  <Input
+                    id="dueTime"
+                    type="time"
+                    value={newTask.dueTime}
+                    onChange={(e) => setNewTask({ ...newTask, dueTime: e.target.value })}
+                    className="text-sm"
+                  />
+                </div>
               </div>
-              <Button type="submit" className="w-full bg-purple-gradient hover:opacity-90" disabled={isLoading}>
+              <Button type="submit" className="w-full bg-purple-gradient hover:opacity-90 text-sm" disabled={isLoading}>
                 {isLoading ? <LoadingSpinner size="sm" /> : "Add Task"}
               </Button>
             </form>
@@ -240,13 +267,13 @@ const TaskManager = () => {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex space-x-2">
+      <div className="flex space-x-2 overflow-x-auto pb-2">
         {["all", "pending", "completed"].map((filterType) => (
           <Button
             key={filterType}
             variant={filter === filterType ? "default" : "outline"}
             onClick={() => setFilter(filterType as any)}
-            className={filter === filterType ? "bg-purple-gradient" : ""}
+            className={`text-sm whitespace-nowrap ${filter === filterType ? "bg-purple-gradient" : ""}`}
           >
             {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
           </Button>
@@ -254,45 +281,45 @@ const TaskManager = () => {
       </div>
 
       {/* Tasks Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         {filteredTasks.map((task, index) => (
           <Card 
             key={task.id} 
             className={`hover-lift transition-all animate-fade-in-up ${task.completed ? 'opacity-70' : ''}`}
             style={{ animationDelay: `${index * 0.1}s` }}
           >
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 space-y-2">
               <div className="flex items-start justify-between">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 flex-1">
                   <Checkbox
                     checked={task.completed}
                     onCheckedChange={() => toggleTask(task.id)}
-                    className="data-[state=checked]:bg-purple-600"
+                    className="data-[state=checked]:bg-purple-600 mt-1 flex-shrink-0"
                   />
-                  <CardTitle className={`text-lg ${task.completed ? 'line-through text-gray-500' : ''}`}>
+                  <CardTitle className={`text-base leading-tight ${task.completed ? 'line-through text-gray-500' : ''}`}>
                     {task.title}
                   </CardTitle>
                 </div>
-                <div className="flex space-x-1">
+                <div className="flex space-x-1 flex-shrink-0 ml-2">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleEditTask(task)}
-                    className="text-purple-600 hover:text-purple-800"
+                    className="text-purple-600 hover:text-purple-800 h-8 w-8 p-0"
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-3 h-3" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => deleteTask(task.id)}
-                    className="text-red-500 hover:text-red-700"
+                    className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3 h-3" />
                   </Button>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary" className="text-xs">
                   <BookOpen className="w-3 h-3 mr-1" />
                   {task.subject}
@@ -302,20 +329,26 @@ const TaskManager = () => {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 space-y-3">
               {task.description && (
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
                   {task.description}
                 </p>
               )}
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <div className="flex items-center space-x-1">
-                  <Calendar className="w-3 h-3" />
+              <div className="space-y-1">
+                <div className="flex items-center text-xs text-gray-500">
+                  <Calendar className="w-3 h-3 mr-1" />
                   <span>Due: {formatDate(task.dueDate)}</span>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Clock className="w-3 h-3" />
-                  <span>{getDaysUntilDue(task.dueDate)} days</span>
+                {task.dueTime && (
+                  <div className="flex items-center text-xs text-gray-500">
+                    <Clock className="w-3 h-3 mr-1" />
+                    <span>Time: {formatTime(task.dueTime)}</span>
+                  </div>
+                )}
+                <div className="flex items-center text-xs text-gray-500">
+                  <Clock className="w-3 h-3 mr-1" />
+                  <span>{getDaysUntilDue(task.dueDate)} days left</span>
                 </div>
               </div>
             </CardContent>
@@ -324,14 +357,14 @@ const TaskManager = () => {
       </div>
 
       {filteredTasks.length === 0 && (
-        <div className="text-center py-12 animate-fade-in-up">
+        <div className="text-center py-8 sm:py-12 animate-fade-in-up">
           <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckSquare className="w-8 h-8 text-purple-600" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
             No tasks found
           </h3>
-          <p className="text-gray-600 dark:text-gray-300">
+          <p className="text-gray-600 dark:text-gray-300 text-sm">
             {filter === "all" ? "Add your first task to get started!" : `No ${filter} tasks at the moment.`}
           </p>
         </div>
