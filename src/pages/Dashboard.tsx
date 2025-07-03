@@ -23,18 +23,6 @@ import ThemeToggle from "@/components/ThemeToggle";
 import UserProfile from "@/components/UserProfile";
 import VoiceCommands from "@/components/VoiceCommands";
 
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  subject: string;
-  priority: "low" | "medium" | "high";
-  dueDate: string;
-  dueTime: string;
-  completed: boolean;
-  createdAt: string;
-}
-
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const { theme } = useTheme();
@@ -42,14 +30,6 @@ const Dashboard = () => {
   const [showMobileNav, setShowMobileNav] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [showVoiceCommands, setShowVoiceCommands] = useState(false);
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const storedTasks = localStorage.getItem("tasks");
-    return storedTasks ? JSON.parse(storedTasks) : [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-  }, [tasks]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -93,54 +73,6 @@ const Dashboard = () => {
       window.removeEventListener('voice-start-timer', handleVoiceStartTimer);
     };
   }, []);
-
-  const addTask = (newTask: Task) => {
-    setTasks([...tasks, newTask]);
-    setShowAddTask(false);
-    toast.success("Task added successfully! ✅");
-  };
-
-  const updateTask = (updatedTask: Task) => {
-    const updatedTasks = tasks.map(task =>
-      task.id === updatedTask.id ? updatedTask : task
-    );
-    setTasks(updatedTasks);
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-  };
-
-  const deleteTask = (id: string) => {
-    const updatedTasks = tasks.filter(task => task.id !== id);
-    setTasks(updatedTasks);
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-    toast.success("Task deleted successfully! 🗑️");
-  };
-
-  const quickActions = [
-    {
-      icon: Plus,
-      label: "Add Task",
-      action: () => setShowAddTask(true),
-      color: "bg-blue-500 hover:bg-blue-600"
-    },
-    {
-      icon: Mic,
-      label: "Voice Commands",
-      action: () => setShowVoiceCommands(true),
-      color: "bg-purple-500 hover:bg-purple-600"
-    },
-    {
-      icon: Calendar,
-      label: "Calendar",
-      action: () => setActiveTab('calendar'),
-      color: "bg-green-500 hover:bg-green-600"
-    },
-    {
-      icon: BarChart3,
-      label: "Analytics",
-      action: () => setActiveTab('analytics'),
-      color: "bg-orange-500 hover:bg-orange-600"
-    }
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800">
