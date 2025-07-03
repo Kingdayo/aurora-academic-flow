@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -22,15 +21,18 @@ import GestureControls from "@/components/GestureControls";
 import ThemeToggle from "@/components/ThemeToggle";
 import UserProfile from "@/components/UserProfile";
 import VoiceCommands from "@/components/VoiceCommands";
-
 const Dashboard = () => {
-  const { user, logout } = useAuth();
-  const { theme } = useTheme();
+  const {
+    user,
+    logout
+  } = useAuth();
+  const {
+    theme
+  } = useTheme();
   const [activeTab, setActiveTab] = useState("tasks");
   const [showMobileNav, setShowMobileNav] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [showVoiceCommands, setShowVoiceCommands] = useState(false);
-
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
@@ -38,9 +40,7 @@ const Dashboard = () => {
         toast.info("Search function coming soon! 🚀");
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
@@ -51,31 +51,27 @@ const Dashboard = () => {
     const handleVoiceAddTask = () => {
       setShowAddTask(true);
     };
-
     const handleVoiceTabChange = (event: CustomEvent) => {
-      const { tab } = event.detail;
+      const {
+        tab
+      } = event.detail;
       setActiveTab(tab);
     };
-
     const handleVoiceStartTimer = () => {
       // This will be handled by the PomodoroTimer component
       const timerEvent = new CustomEvent('start-pomodoro-timer');
       window.dispatchEvent(timerEvent);
     };
-
     window.addEventListener('voice-add-task', handleVoiceAddTask);
     window.addEventListener('voice-tab-change', handleVoiceTabChange as EventListener);
     window.addEventListener('voice-start-timer', handleVoiceStartTimer);
-
     return () => {
       window.removeEventListener('voice-add-task', handleVoiceAddTask);
       window.removeEventListener('voice-tab-change', handleVoiceTabChange as EventListener);
       window.removeEventListener('voice-start-timer', handleVoiceStartTimer);
     };
   }, []);
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800">
+  return <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800">
       {/* Header */}
       <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-b border-purple-200/50 dark:border-purple-700/50 sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -98,92 +94,70 @@ const Dashboard = () => {
         {/* Mobile Navigation */}
         <div className="md:hidden">
           <div className="flex overflow-x-auto px-4 pb-4 space-x-2">
-            {[
-              { id: "tasks", label: "Tasks", icon: CheckSquare },
-              { id: "calendar", label: "Calendar", icon: Calendar },
-              { id: "analytics", label: "Analytics", icon: BarChart3 },
-              { id: "ai-hub", label: "AI Hub", icon: Brain },
-              { id: "productivity", label: "Productivity", icon: Timer },
-              { id: "settings", label: "Settings", icon: Settings }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
-                    ? "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}
-              >
+            {[{
+            id: "tasks",
+            label: "Tasks",
+            icon: CheckSquare
+          }, {
+            id: "calendar",
+            label: "Calendar",
+            icon: Calendar
+          }, {
+            id: "analytics",
+            label: "Analytics",
+            icon: BarChart3
+          }, {
+            id: "ai-hub",
+            label: "AI Hub",
+            icon: Brain
+          }, {
+            id: "productivity",
+            label: "Productivity",
+            icon: Timer
+          }, {
+            id: "settings",
+            label: "Settings",
+            icon: Settings
+          }].map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === tab.id ? "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}>
                 <tab.icon className="w-4 h-4" />
                 <span>{tab.label}</span>
-              </button>
-            ))}
+              </button>)}
           </div>
         </div>
       </header>
 
       {/* Features Preview - moved up */}
       <div className="container mx-auto px-4 pt-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center mb-8">
-          {[
-            { icon: Brain, title: "AI Assistant", desc: "Smart task suggestions" },
-            { icon: Timer, title: "Pomodoro Timer", desc: "Focus sessions" },
-            { icon: Mic, title: "Voice Commands", desc: "Hands-free control" },
-            { icon: BarChart3, title: "Analytics", desc: "Track progress" }
-          ].map((feature, index) => (
-            <div
-              key={index}
-              className="p-4 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-lg border border-purple-200/30 dark:border-purple-700/30 animate-fade-in-up"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <feature.icon className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-              <h3 className="font-semibold text-sm text-gray-900 dark:text-white">{feature.title}</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">{feature.desc}</p>
-            </div>
-          ))}
-        </div>
+        
       </div>
 
       {/* Quick Actions FAB */}
       <div className="fixed bottom-6 right-6 z-50">
         <div className="flex flex-col space-y-3">
           {/* Quick action buttons */}
-          {[
-            {
-              icon: Plus,
-              label: "Add Task",
-              action: () => setShowAddTask(true),
-              color: "bg-blue-500 hover:bg-blue-600"
-            },
-            {
-              icon: Mic,
-              label: "Voice Commands",
-              action: () => setShowVoiceCommands(true),
-              color: "bg-purple-500 hover:bg-purple-600"
-            },
-            {
-              icon: Calendar,
-              label: "Calendar",
-              action: () => setActiveTab('calendar'),
-              color: "bg-green-500 hover:bg-green-600"
-            },
-            {
-              icon: BarChart3,
-              label: "Analytics",
-              action: () => setActiveTab('analytics'),
-              color: "bg-orange-500 hover:bg-orange-600"
-            }
-          ].map((action, index) => (
-            <Button
-              key={index}
-              onClick={action.action}
-              className={`w-12 h-12 rounded-full shadow-lg ${action.color} text-white hover:scale-110 transition-all duration-200`}
-              size="icon"
-            >
+          {[{
+          icon: Plus,
+          label: "Add Task",
+          action: () => setShowAddTask(true),
+          color: "bg-blue-500 hover:bg-blue-600"
+        }, {
+          icon: Mic,
+          label: "Voice Commands",
+          action: () => setShowVoiceCommands(true),
+          color: "bg-purple-500 hover:bg-purple-600"
+        }, {
+          icon: Calendar,
+          label: "Calendar",
+          action: () => setActiveTab('calendar'),
+          color: "bg-green-500 hover:bg-green-600"
+        }, {
+          icon: BarChart3,
+          label: "Analytics",
+          action: () => setActiveTab('analytics'),
+          color: "bg-orange-500 hover:bg-orange-600"
+        }].map((action, index) => <Button key={index} onClick={action.action} className={`w-12 h-12 rounded-full shadow-lg ${action.color} text-white hover:scale-110 transition-all duration-200`} size="icon">
               <action.icon className="w-5 h-5" />
-            </Button>
-          ))}
+            </Button>)}
         </div>
       </div>
 
@@ -235,31 +209,21 @@ const Dashboard = () => {
           <TabsContent value="ai-hub">
             <div className="space-y-6">
               <AIAssistant />
-              {showVoiceCommands && (
-                <Dialog open={showVoiceCommands} onOpenChange={setShowVoiceCommands}>
+              {showVoiceCommands && <Dialog open={showVoiceCommands} onOpenChange={setShowVoiceCommands}>
                   <DialogContent className="max-w-2xl">
-                    <VoiceCommands 
-                      onTabChange={setActiveTab}
-                      onAddTask={() => {
-                        setShowAddTask(true);
-                        setShowVoiceCommands(false);
-                      }}
-                      onStartTimer={() => {
-                        const timerEvent = new CustomEvent('start-pomodoro-timer');
-                        window.dispatchEvent(timerEvent);
-                      }}
-                    />
-                  </DialogContent>
-                </Dialog>
-              )}
-              <VoiceCommands 
-                onTabChange={setActiveTab}
-                onAddTask={() => setShowAddTask(true)}
-                onStartTimer={() => {
+                    <VoiceCommands onTabChange={setActiveTab} onAddTask={() => {
+                  setShowAddTask(true);
+                  setShowVoiceCommands(false);
+                }} onStartTimer={() => {
                   const timerEvent = new CustomEvent('start-pomodoro-timer');
                   window.dispatchEvent(timerEvent);
-                }}
-              />
+                }} />
+                  </DialogContent>
+                </Dialog>}
+              <VoiceCommands onTabChange={setActiveTab} onAddTask={() => setShowAddTask(true)} onStartTimer={() => {
+              const timerEvent = new CustomEvent('start-pomodoro-timer');
+              window.dispatchEvent(timerEvent);
+            }} />
             </div>
           </TabsContent>
 
@@ -282,7 +246,7 @@ const Dashboard = () => {
 
       <div className="mobile-styles">
         <style dangerouslySetInnerHTML={{
-          __html: `
+        __html: `
             @media (max-width: 385px) {
               .container {
                 padding-left: 0.5rem !important;
@@ -359,10 +323,8 @@ const Dashboard = () => {
               }
             }
           `
-        }} />
+      }} />
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Dashboard;
