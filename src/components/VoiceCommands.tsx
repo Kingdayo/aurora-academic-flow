@@ -26,31 +26,33 @@ const VoiceCommands = () => {
   ];
 
   useEffect(() => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognitionInstance = new SpeechRecognition();
-      
-      recognitionInstance.continuous = false;
-      recognitionInstance.interimResults = false;
-      recognitionInstance.lang = 'en-US';
+    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognitionConstructor) {
+        const recognitionInstance = new SpeechRecognitionConstructor();
+        
+        recognitionInstance.continuous = false;
+        recognitionInstance.interimResults = false;
+        recognitionInstance.lang = 'en-US';
 
-      recognitionInstance.onresult = (event) => {
-        const command = event.results[0][0].transcript.toLowerCase();
-        setTranscript(command);
-        processVoiceCommand(command);
-      };
+        recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
+          const command = event.results[0][0].transcript.toLowerCase();
+          setTranscript(command);
+          processVoiceCommand(command);
+        };
 
-      recognitionInstance.onend = () => {
-        setIsListening(false);
-      };
+        recognitionInstance.onend = () => {
+          setIsListening(false);
+        };
 
-      recognitionInstance.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-        toast.error("Voice recognition error. Please try again.");
-      };
+        recognitionInstance.onerror = (event: SpeechRecognitionErrorEvent) => {
+          console.error('Speech recognition error:', event.error);
+          setIsListening(false);
+          toast.error("Voice recognition error. Please try again.");
+        };
 
-      setRecognition(recognitionInstance);
+        setRecognition(recognitionInstance);
+      }
     }
   }, []);
 
