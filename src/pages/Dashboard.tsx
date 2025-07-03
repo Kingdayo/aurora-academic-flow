@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -253,14 +252,14 @@ const Dashboard = () => {
 
           <TabsContent value="analytics">
             <div className="space-y-6">
-              <AnalyticsSection tasks={tasks} />
-              <AdvancedAnalytics tasks={tasks} />
+              <AnalyticsSection />
+              <AdvancedAnalytics />
             </div>
           </TabsContent>
 
           <TabsContent value="ai-hub">
             <div className="space-y-6">
-              <AIAssistant tasks={tasks} />
+              <AIAssistant />
               {showVoiceCommands && (
                 <Dialog open={showVoiceCommands} onOpenChange={setShowVoiceCommands}>
                   <DialogContent className="max-w-2xl">
@@ -292,7 +291,7 @@ const Dashboard = () => {
           <TabsContent value="productivity">
             <div className="space-y-6">
               <PomodoroTimer />
-              <TaskCountdown tasks={tasks} />
+              <TaskCountdown />
             </div>
           </TabsContent>
 
