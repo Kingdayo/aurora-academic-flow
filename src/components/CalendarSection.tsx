@@ -51,10 +51,16 @@ const CalendarSection = () => {
       setTasks(updatedTasks);
     };
 
+    const handleTasksChanged = () => {
+      loadTasks();
+    };
+
     window.addEventListener('tasks-updated', handleTasksUpdate as EventListener);
+    window.addEventListener('tasks-changed', handleTasksChanged);
 
     return () => {
       window.removeEventListener('tasks-updated', handleTasksUpdate as EventListener);
+      window.removeEventListener('tasks-changed', handleTasksChanged);
     };
   }, []);
 
@@ -140,7 +146,18 @@ const CalendarSection = () => {
     .filter(task => !task.completed && task.dueDate && new Date(task.dueDate) >= new Date())
     .sort((a, b) => {
       if (!a.dueDate || !b.dueDate) return 0;
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      const dateA = new Date(a.dueDate);
+      const dateB = new Date(b.dueDate);
+      
+      // Include time in sorting if available
+      if (a.dueTime && b.dueTime) {
+        const [hoursA, minutesA] = a.dueTime.split(':').map(Number);
+        const [hoursB, minutesB] = b.dueTime.split(':').map(Number);
+        dateA.setHours(hoursA, minutesA);
+        dateB.setHours(hoursB, minutesB);
+      }
+      
+      return dateA.getTime() - dateB.getTime();
     })
     .slice(0, 5);
 
@@ -155,35 +172,37 @@ const CalendarSection = () => {
                 <Calendar className="w-5 h-5 text-purple-600" />
                 <span>Academic Calendar</span>
               </CardTitle>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1 sm:space-x-2">
                 <button
                   onClick={() => navigateMonth(-1)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                  className="p-1 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-lg sm:text-base"
                 >
                   ←
                 </button>
-                <h3 className="text-lg font-semibold min-w-[200px] text-center">
+                <h3 className="text-sm sm:text-lg font-semibold min-w-[150px] sm:min-w-[200px] text-center">
                   {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
                 </h3>
                 <button
                   onClick={() => navigateMonth(1)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                  className="p-1 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-lg sm:text-base"
                 >
                   →
                 </button>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-7 gap-1 mb-4">
-              {weekDays.map(day => (
-                <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
-                  {day}
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {renderCalendar()}
+          <CardContent className="overflow-x-auto">
+            <div className="min-w-[320px]">
+              <div className="grid grid-cols-7 gap-1 mb-4">
+                {weekDays.map(day => (
+                  <div key={day} className="text-center text-xs sm:text-sm font-medium text-gray-500 py-2">
+                    {day}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {renderCalendar()}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -296,6 +315,31 @@ const CalendarSection = () => {
           </CardContent>
         </Card>
       )}
+      
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @media (max-width: 470px) {
+            .calendar-responsive {
+              font-size: 0.75rem;
+            }
+            
+            .calendar-responsive .grid-cols-7 > div {
+              min-height: 60px;
+              padding: 0.5rem;
+            }
+            
+            .calendar-responsive button {
+              padding: 0.25rem !important;
+              font-size: 1rem;
+            }
+            
+            .calendar-responsive h3 {
+              font-size: 0.875rem !important;
+              min-width: 140px !important;
+            }
+          }
+        `
+      }} />
     </div>
   );
 };

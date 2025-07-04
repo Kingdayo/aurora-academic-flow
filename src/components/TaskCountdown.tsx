@@ -8,9 +8,10 @@ interface Task {
   id: string;
   title: string;
   description: string;
-  subject: string;
+  category: string;
   priority: "low" | "medium" | "high";
   dueDate: string;
+  dueTime?: string;
   completed: boolean;
   createdAt: string;
 }
@@ -26,16 +27,27 @@ const TaskCountdown = () => {
 
   useEffect(() => {
     const loadNextTask = () => {
-      const savedTasks = localStorage.getItem("tasks");
+      const savedTasks = localStorage.getItem("aurora-tasks");
       if (savedTasks) {
         const tasks: Task[] = JSON.parse(savedTasks);
-        const incompleteTasks = tasks.filter(task => !task.completed);
+        const incompleteTasks = tasks.filter(task => !task.completed && task.dueDate);
         
         if (incompleteTasks.length > 0) {
-          // Sort by due date to get the most urgent task
-          const sortedTasks = incompleteTasks.sort((a, b) => 
-            new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-          );
+          // Sort by due date and time to get the most urgent task
+          const sortedTasks = incompleteTasks.sort((a, b) => {
+            const dateA = new Date(a.dueDate);
+            const dateB = new Date(b.dueDate);
+            
+            // If both have time, include it in comparison
+            if (a.dueTime && b.dueTime) {
+              const [hoursA, minutesA] = a.dueTime.split(':').map(Number);
+              const [hoursB, minutesB] = b.dueTime.split(':').map(Number);
+              dateA.setHours(hoursA, minutesA);
+              dateB.setHours(hoursB, minutesB);
+            }
+            
+            return dateA.getTime() - dateB.getTime();
+          });
           setNextTask(sortedTasks[0]);
         } else {
           setNextTask(null);
@@ -44,18 +56,42 @@ const TaskCountdown = () => {
     };
 
     loadNextTask();
-    const interval = setInterval(loadNextTask, 5000); // Refresh every 5 seconds
 
-    return () => clearInterval(interval);
+    // Listen for task updates
+    const handleTaskUpdate = () => {
+      loadNextTask();
+    };
+
+    window.addEventListener('tasks-updated', handleTaskUpdate);
+    window.addEventListener('tasks-changed', handleTaskUpdate);
+
+    // Refresh every 5 seconds to catch any missed updates
+    const interval = setInterval(loadNextTask, 5000);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('tasks-updated', handleTaskUpdate);
+      window.removeEventListener('tasks-changed', handleTaskUpdate);
+    };
   }, []);
 
   useEffect(() => {
-    if (!nextTask) return;
+    if (!nextTask || !nextTask.dueDate) return;
 
     const updateCountdown = () => {
       const now = new Date().getTime();
-      const dueDate = new Date(nextTask.dueDate).getTime();
-      const difference = dueDate - now;
+      const dueDate = new Date(nextTask.dueDate);
+      
+      // If task has a specific time, set it
+      if (nextTask.dueTime) {
+        const [hours, minutes] = nextTask.dueTime.split(':').map(Number);
+        dueDate.setHours(hours, minutes, 0, 0);
+      } else {
+        // Default to end of day if no specific time
+        dueDate.setHours(23, 59, 59, 999);
+      }
+      
+      const difference = dueDate.getTime() - now;
 
       if (difference > 0) {
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
@@ -84,7 +120,17 @@ const TaskCountdown = () => {
     }
   };
 
-  const isOverdue = nextTask && new Date(nextTask.dueDate).getTime() < new Date().getTime();
+  const isOverdue = nextTask && nextTask.dueDate && (() => {
+    const dueDate = new Date(nextTask.dueDate);
+    if (nextTask.dueTime) {
+      const [hours, minutes] = nextTask.dueTime.split(':').map(Number);
+      dueDate.setHours(hours, minutes, 0, 0);
+    } else {
+      dueDate.setHours(23, 59, 59, 999);
+    }
+    return dueDate.getTime() < new Date().getTime();
+  })();
+
   const isUrgent = nextTask && timeLeft.days === 0 && timeLeft.hours < 24;
 
   if (!nextTask) {
@@ -151,6 +197,7 @@ const TaskCountdown = () => {
               day: 'numeric',
               year: 'numeric'
             })}</span>
+            {nextTask.dueTime && <span>at {nextTask.dueTime}</span>}
           </div>
         </div>
 

@@ -73,10 +73,12 @@ const VoiceCommands = ({ onTabChange, onAddTask, onStartTimer }: VoiceCommandsPr
       // Execute the actual functions
       switch (matchedCommand.action) {
         case "ADD_TASK":
+          // Immediately trigger the add task dialog
           if (onAddTask) {
             onAddTask();
           } else {
-            // Trigger add task dialog by dispatching a custom event
+            // Set a flag to open dialog immediately
+            localStorage.setItem('voice-add-task-trigger', 'true');
             window.dispatchEvent(new CustomEvent('voice-add-task'));
           }
           break;

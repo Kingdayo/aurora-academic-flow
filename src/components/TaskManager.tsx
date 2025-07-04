@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,30 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
     category: "General"
   });
 
+  // Check for voice command trigger on mount and listen for voice events
+  useEffect(() => {
+    const checkVoiceTrigger = () => {
+      const voiceTrigger = localStorage.getItem('voice-add-task-trigger');
+      if (voiceTrigger === 'true') {
+        localStorage.removeItem('voice-add-task-trigger');
+        setShowAddTaskDialog(true);
+      }
+    };
+
+    checkVoiceTrigger();
+
+    const handleVoiceAddTask = () => {
+      console.log("Voice add task triggered");
+      setShowAddTaskDialog(true);
+    };
+
+    window.addEventListener('voice-add-task', handleVoiceAddTask);
+
+    return () => {
+      window.removeEventListener('voice-add-task', handleVoiceAddTask);
+    };
+  }, []);
+
   // Sync with parent prop - fix dialog stability
   useEffect(() => {
     if (showAddDialog && !showAddTaskDialog) {
@@ -87,12 +112,14 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
     loadTasks();
   }, []);
 
-  // Save tasks to localStorage whenever tasks change
+  // Save tasks to localStorage whenever tasks change and trigger countdown update
   const saveTasks = (updatedTasks: Task[]) => {
     try {
       localStorage.setItem('aurora-tasks', JSON.stringify(updatedTasks));
-      // Broadcast task changes to other components
+      // Broadcast task changes to other components including countdown
       window.dispatchEvent(new CustomEvent('tasks-updated', { detail: updatedTasks }));
+      // Trigger countdown refresh specifically
+      window.dispatchEvent(new CustomEvent('tasks-changed'));
     } catch (error) {
       console.error('Error saving tasks:', error);
     }
