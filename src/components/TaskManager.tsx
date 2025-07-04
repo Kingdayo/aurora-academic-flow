@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,31 +65,44 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
     }
   }, [showAddTaskDialog, onShowAddDialogChange]);
 
-  // Load tasks from localStorage
+  // Load tasks from localStorage on component mount
   useEffect(() => {
-    const savedTasks = localStorage.getItem('aurora-tasks');
-    if (savedTasks) {
-      try {
-        const parsedTasks = JSON.parse(savedTasks);
-        setTasks(parsedTasks.map((task: any) => ({
-          ...task,
-          dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-          createdAt: new Date(task.createdAt)
-        })));
-      } catch (error) {
-        console.error('Error loading tasks:', error);
+    const loadTasks = () => {
+      const savedTasks = localStorage.getItem('aurora-tasks');
+      if (savedTasks) {
+        try {
+          const parsedTasks = JSON.parse(savedTasks);
+          const tasksWithDates = parsedTasks.map((task: any) => ({
+            ...task,
+            dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+            createdAt: new Date(task.createdAt)
+          }));
+          setTasks(tasksWithDates);
+        } catch (error) {
+          console.error('Error loading tasks:', error);
+        }
       }
-    }
+    };
+
+    loadTasks();
   }, []);
 
-  // Save tasks to localStorage and broadcast changes
-  useEffect(() => {
-    if (tasks.length > 0) {
-      localStorage.setItem('aurora-tasks', JSON.stringify(tasks));
+  // Save tasks to localStorage whenever tasks change
+  const saveTasks = (updatedTasks: Task[]) => {
+    try {
+      localStorage.setItem('aurora-tasks', JSON.stringify(updatedTasks));
       // Broadcast task changes to other components
-      window.dispatchEvent(new CustomEvent('tasks-updated', { detail: tasks }));
+      window.dispatchEvent(new CustomEvent('tasks-updated', { detail: updatedTasks }));
+    } catch (error) {
+      console.error('Error saving tasks:', error);
     }
-  }, [tasks]);
+  };
+
+  // Update tasks state and save to localStorage
+  const updateTasks = (updatedTasks: Task[]) => {
+    setTasks(updatedTasks);
+    saveTasks(updatedTasks);
+  };
 
   const categories = ["General", "Study", "Assignment", "Project", "Exam", "Personal", "Work"];
 
@@ -112,7 +124,9 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
       createdAt: new Date()
     };
 
-    setTasks(prev => [task, ...prev]);
+    const updatedTasks = [task, ...tasks];
+    updateTasks(updatedTasks);
+    
     setNewTask({
       title: "",
       description: "",
@@ -126,9 +140,11 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
   };
 
   const toggleTask = (id: string) => {
-    setTasks(prev => prev.map(task => 
+    const updatedTasks = tasks.map(task => 
       task.id === id ? { ...task, completed: !task.completed } : task
-    ));
+    );
+    updateTasks(updatedTasks);
+    
     const task = tasks.find(t => t.id === id);
     if (task) {
       toast.success(task.completed ? "Task marked as incomplete" : "Task completed! 🎉");
@@ -136,7 +152,8 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
   };
 
   const deleteTask = (id: string) => {
-    setTasks(prev => prev.filter(task => task.id !== id));
+    const updatedTasks = tasks.filter(task => task.id !== id);
+    updateTasks(updatedTasks);
     toast.success("Task deleted");
   };
 
@@ -146,15 +163,15 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
   };
 
   const handleTaskUpdate = (updatedTask: Task) => {
-    setTasks(prev => prev.map(task => 
+    const updatedTasks = tasks.map(task => 
       task.id === updatedTask.id ? updatedTask : task
-    ));
+    );
+    updateTasks(updatedTasks);
     setEditingTask(null);
     setShowEditDialog(false);
     toast.success("Task updated successfully! ✨");
   };
 
-  // Filter tasks
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -187,7 +204,6 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
 
   return (
     <div className="space-y-6">
-      {/* Header with Add Task Button */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Task Manager</h2>
@@ -202,7 +218,6 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
         </Button>
       </div>
 
-      {/* Search and Filters */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col lg:flex-row gap-4">
@@ -258,7 +273,6 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
         </CardContent>
       </Card>
 
-      {/* Tasks List */}
       <div className="space-y-4">
         {filteredTasks.length === 0 ? (
           <Card>
@@ -357,7 +371,6 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
         )}
       </div>
 
-      {/* Add Task Dialog */}
       <Dialog open={showAddTaskDialog} onOpenChange={setShowAddTaskDialog}>
         <DialogContent className="w-[95vw] max-w-md mx-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50">
           <DialogHeader>
@@ -464,7 +477,6 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
         </DialogContent>
       </Dialog>
 
-      {/* Edit Task Dialog */}
       {editingTask && (
         <TaskEditDialog
           task={editingTask}

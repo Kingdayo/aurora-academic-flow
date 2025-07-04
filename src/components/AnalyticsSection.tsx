@@ -9,38 +9,69 @@ import { TrendingUp, Target, Clock, BookOpen, CheckCircle, AlertCircle } from "l
 interface Task {
   id: string;
   title: string;
-  description: string;
-  subject: string;
+  description?: string;
+  category: string;
   priority: "low" | "medium" | "high";
-  dueDate: string;
+  dueDate?: Date;
+  dueTime?: string;
   completed: boolean;
-  createdAt: string;
+  createdAt: Date;
 }
 
 const AnalyticsSection = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
 
   useEffect(() => {
-    const savedTasks = localStorage.getItem("tasks");
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
-    }
+    const loadTasks = () => {
+      const savedTasks = localStorage.getItem("aurora-tasks");
+      if (savedTasks) {
+        try {
+          const parsedTasks = JSON.parse(savedTasks);
+          const tasksWithDates = parsedTasks.map((task: any) => ({
+            ...task,
+            dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+            createdAt: new Date(task.createdAt)
+          }));
+          setTasks(tasksWithDates);
+        } catch (error) {
+          console.error('Error loading tasks:', error);
+        }
+      }
+    };
+
+    loadTasks();
+
+    // Listen for task updates
+    const handleTasksUpdate = (event: CustomEvent) => {
+      const updatedTasks = event.detail.map((task: any) => ({
+        ...task,
+        dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+        createdAt: new Date(task.createdAt)
+      }));
+      setTasks(updatedTasks);
+    };
+
+    window.addEventListener('tasks-updated', handleTasksUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('tasks-updated', handleTasksUpdate as EventListener);
+    };
   }, []);
 
   const completedTasks = tasks.filter(task => task.completed);
   const pendingTasks = tasks.filter(task => !task.completed);
   const completionRate = tasks.length > 0 ? (completedTasks.length / tasks.length) * 100 : 0;
 
-  // Subject-wise task distribution
-  const subjectData = tasks.reduce((acc, task) => {
-    acc[task.subject] = (acc[task.subject] || 0) + 1;
+  // Category-wise task distribution
+  const categoryData = tasks.reduce((acc, task) => {
+    acc[task.category] = (acc[task.category] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const subjectChartData = Object.entries(subjectData).map(([subject, count]) => ({
-    subject,
+  const categoryChartData = Object.entries(categoryData).map(([category, count]) => ({
+    category,
     count,
-    completed: tasks.filter(t => t.subject === subject && t.completed).length
+    completed: tasks.filter(t => t.category === category && t.completed).length
   }));
 
   // Priority distribution
@@ -80,12 +111,14 @@ const AnalyticsSection = () => {
 
   // Overdue tasks
   const overdueTasks = tasks.filter(task => {
+    if (!task.dueDate) return false;
     const dueDate = new Date(task.dueDate);
     const today = new Date();
     return !task.completed && dueDate < today;
   });
 
   const upcomingTasks = tasks.filter(task => {
+    if (!task.dueDate) return false;
     const dueDate = new Date(task.dueDate);
     const today = new Date();
     const nextWeek = new Date(today);
@@ -187,23 +220,32 @@ const AnalyticsSection = () => {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Subject Distribution */}
+        {/* Category Distribution */}
         <Card className="hover-lift transition-all animate-fade-in-up">
           <CardHeader>
-            <CardTitle>Tasks by Subject</CardTitle>
-            <CardDescription>Distribution of tasks across different subjects</CardDescription>
+            <CardTitle>Tasks by Category</CardTitle>
+            <CardDescription>Distribution of tasks across different categories</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={subjectChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="subject" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#8b5cf6" name="Total" />
-                <Bar dataKey="completed" fill="#10b981" name="Completed" />
-              </BarChart>
-            </ResponsiveContainer>
+            {categoryChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={categoryChartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="category" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#8b5cf6" name="Total" />
+                  <Bar dataKey="completed" fill="#10b981" name="Completed" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-500">
+                <div className="text-center">
+                  <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No tasks data available</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -214,25 +256,34 @@ const AnalyticsSection = () => {
             <CardDescription>Tasks categorized by priority level</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={priorityData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {priorityData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {priorityData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={priorityData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {priorityData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-500">
+                <div className="text-center">
+                  <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No priority data available</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -280,12 +331,15 @@ const AnalyticsSection = () => {
                 >
                   <div>
                     <h4 className="font-semibold">{task.title}</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">{task.subject}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{task.category}</p>
                   </div>
                   <div className="text-right">
                     <Badge variant="secondary">
-                      Due {new Date(task.dueDate).toLocaleDateString()}
+                      Due {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}
                     </Badge>
+                    {task.dueTime && (
+                      <div className="text-xs text-gray-500 mt-1">at {task.dueTime}</div>
+                    )}
                   </div>
                 </div>
               ))}

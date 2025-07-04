@@ -7,12 +7,13 @@ import { Calendar, Clock, BookOpen } from "lucide-react";
 interface Task {
   id: string;
   title: string;
-  description: string;
-  subject: string;
+  description?: string;
+  category: string;
   priority: "low" | "medium" | "high";
-  dueDate: string;
+  dueDate?: Date;
+  dueTime?: string;
   completed: boolean;
-  createdAt: string;
+  createdAt: Date;
 }
 
 const CalendarSection = () => {
@@ -21,10 +22,40 @@ const CalendarSection = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   useEffect(() => {
-    const savedTasks = localStorage.getItem("tasks");
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
-    }
+    const loadTasks = () => {
+      const savedTasks = localStorage.getItem("aurora-tasks");
+      if (savedTasks) {
+        try {
+          const parsedTasks = JSON.parse(savedTasks);
+          const tasksWithDates = parsedTasks.map((task: any) => ({
+            ...task,
+            dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+            createdAt: new Date(task.createdAt)
+          }));
+          setTasks(tasksWithDates);
+        } catch (error) {
+          console.error('Error loading tasks:', error);
+        }
+      }
+    };
+
+    loadTasks();
+
+    // Listen for task updates
+    const handleTasksUpdate = (event: CustomEvent) => {
+      const updatedTasks = event.detail.map((task: any) => ({
+        ...task,
+        dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+        createdAt: new Date(task.createdAt)
+      }));
+      setTasks(updatedTasks);
+    };
+
+    window.addEventListener('tasks-updated', handleTasksUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('tasks-updated', handleTasksUpdate as EventListener);
+    };
   }, []);
 
   const getDaysInMonth = (date: Date) => {
@@ -36,8 +67,11 @@ const CalendarSection = () => {
   };
 
   const getTasksForDate = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
-    return tasks.filter(task => task.dueDate === dateString);
+    return tasks.filter(task => {
+      if (!task.dueDate) return false;
+      const taskDate = new Date(task.dueDate);
+      return taskDate.toDateString() === date.toDateString();
+    });
   };
 
   const renderCalendar = () => {
@@ -103,8 +137,11 @@ const CalendarSection = () => {
   };
 
   const upcomingTasks = tasks
-    .filter(task => !task.completed && new Date(task.dueDate) >= new Date())
-    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+    .filter(task => !task.completed && task.dueDate && new Date(task.dueDate) >= new Date())
+    .sort((a, b) => {
+      if (!a.dueDate || !b.dueDate) return 0;
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    })
     .slice(0, 5);
 
   return (
@@ -182,10 +219,11 @@ const CalendarSection = () => {
                   </div>
                   <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-300">
                     <BookOpen className="w-3 h-3" />
-                    <span>{task.subject}</span>
+                    <span>{task.category}</span>
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    Due: {new Date(task.dueDate).toLocaleDateString()}
+                    Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date set'}
+                    {task.dueTime && ` at ${task.dueTime}`}
                   </div>
                 </div>
               ))}
@@ -222,11 +260,13 @@ const CalendarSection = () => {
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
                   <h4 className="font-semibold mb-2">{task.title}</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{task.description}</p>
+                  {task.description && (
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{task.description}</p>
+                  )}
                   <div className="flex items-center justify-between">
                     <Badge variant="secondary">
                       <BookOpen className="w-3 h-3 mr-1" />
-                      {task.subject}
+                      {task.category}
                     </Badge>
                     <Badge 
                       className={`text-white ${
@@ -238,6 +278,12 @@ const CalendarSection = () => {
                       {task.priority}
                     </Badge>
                   </div>
+                  {task.dueTime && (
+                    <div className="text-xs text-gray-500 mt-2 flex items-center">
+                      <Clock className="w-3 h-3 mr-1" />
+                      Due at {task.dueTime}
+                    </div>
+                  )}
                 </div>
               ))}
               {getTasksForDate(selectedDate).length === 0 && (
