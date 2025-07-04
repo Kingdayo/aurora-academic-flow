@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -22,10 +21,14 @@ import UserProfile from "@/components/UserProfile";
 import VoiceCommands from "@/components/VoiceCommands";
 import UserTour from "@/components/UserTour";
 import ScrollAnimations from "@/components/ScrollAnimations";
-
 const Dashboard = () => {
-  const { user, logout } = useAuth();
-  const { theme } = useTheme();
+  const {
+    user,
+    logout
+  } = useAuth();
+  const {
+    theme
+  } = useTheme();
   const [activeTab, setActiveTab] = useState("tasks");
   const [showAddTask, setShowAddTask] = useState(false);
   const [showVoiceCommands, setShowVoiceCommands] = useState(false);
@@ -40,7 +43,6 @@ const Dashboard = () => {
       setTimeout(() => setShowTour(true), 1000);
     }
   }, []);
-
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
@@ -48,7 +50,6 @@ const Dashboard = () => {
         toast.info("Search function coming soon! 🚀");
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
@@ -61,37 +62,32 @@ const Dashboard = () => {
       console.log("Voice add task triggered");
       setShowAddTask(true);
     };
-
     const handleVoiceTabChange = (event: CustomEvent) => {
-      const { tab } = event.detail;
+      const {
+        tab
+      } = event.detail;
       setActiveTab(tab);
     };
-
     const handleVoiceStartTimer = () => {
       const timerEvent = new CustomEvent('start-pomodoro-timer');
       window.dispatchEvent(timerEvent);
     };
-
     window.addEventListener('voice-add-task', handleVoiceAddTask);
     window.addEventListener('voice-tab-change', handleVoiceTabChange as EventListener);
     window.addEventListener('voice-start-timer', handleVoiceStartTimer);
-
     return () => {
       window.removeEventListener('voice-add-task', handleVoiceAddTask);
       window.removeEventListener('voice-tab-change', handleVoiceTabChange as EventListener);
       window.removeEventListener('voice-start-timer', handleVoiceStartTimer);
     };
   }, []);
-
   const handleVoiceCommandsClick = () => {
     setShowVoiceCommands(true);
   };
-
   const handleAddTaskClick = () => {
     console.log("Add task clicked - Dashboard");
     setShowAddTask(true);
   };
-
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
@@ -103,9 +99,7 @@ const Dashboard = () => {
       setIsLoggingOut(false);
     }
   };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800">
+  return <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800">
       <ScrollAnimations />
       
       {/* Header */}
@@ -122,51 +116,43 @@ const Dashboard = () => {
           </div>
           
           <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="hidden md:flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">{isLoggingOut ? "Signing out..." : "Logout"}</span>
-            </Button>
+            
             <ThemeToggle />
-            <UserProfile 
-              onAddTask={handleAddTaskClick}
-              onTabChange={setActiveTab}
-              onVoiceCommands={handleVoiceCommandsClick}
-              isLoggingOut={isLoggingOut}
-              onLogout={handleLogout}
-            />
+            <UserProfile onAddTask={handleAddTaskClick} onTabChange={setActiveTab} onVoiceCommands={handleVoiceCommandsClick} isLoggingOut={isLoggingOut} onLogout={handleLogout} />
           </div>
         </div>
         
         {/* Mobile Navigation */}
         <div className="md:hidden">
           <div className="flex overflow-x-auto px-4 pb-4 space-x-2">
-            {[
-              { id: "tasks", label: "Tasks", icon: CheckSquare },
-              { id: "calendar", label: "Calendar", icon: Calendar },
-              { id: "analytics", label: "Analytics", icon: BarChart3 },
-              { id: "ai-hub", label: "AI Hub", icon: Brain },
-              { id: "productivity", label: "Productivity", icon: Timer },
-              { id: "settings", label: "Settings", icon: Settings }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
-                    ? "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}
-              >
+            {[{
+            id: "tasks",
+            label: "Tasks",
+            icon: CheckSquare
+          }, {
+            id: "calendar",
+            label: "Calendar",
+            icon: Calendar
+          }, {
+            id: "analytics",
+            label: "Analytics",
+            icon: BarChart3
+          }, {
+            id: "ai-hub",
+            label: "AI Hub",
+            icon: Brain
+          }, {
+            id: "productivity",
+            label: "Productivity",
+            icon: Timer
+          }, {
+            id: "settings",
+            label: "Settings",
+            icon: Settings
+          }].map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === tab.id ? "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}>
                 <tab.icon className="w-4 h-4" />
                 <span>{tab.label}</span>
-              </button>
-            ))}
+              </button>)}
           </div>
         </div>
       </header>
@@ -203,10 +189,7 @@ const Dashboard = () => {
 
           <TabsContent value="tasks" className="scroll-animate">
             <div id="task-section">
-              <TaskManager 
-                showAddDialog={showAddTask} 
-                onShowAddDialogChange={setShowAddTask} 
-              />
+              <TaskManager showAddDialog={showAddTask} onShowAddDialogChange={setShowAddTask} />
             </div>
           </TabsContent>
 
@@ -224,14 +207,10 @@ const Dashboard = () => {
           <TabsContent value="ai-hub" className="scroll-animate">
             <div className="space-y-6">
               <AIAssistant />
-              <VoiceCommands 
-                onTabChange={setActiveTab} 
-                onAddTask={() => setShowAddTask(true)} 
-                onStartTimer={() => {
-                  const timerEvent = new CustomEvent('start-pomodoro-timer');
-                  window.dispatchEvent(timerEvent);
-                }} 
-              />
+              <VoiceCommands onTabChange={setActiveTab} onAddTask={() => setShowAddTask(true)} onStartTimer={() => {
+              const timerEvent = new CustomEvent('start-pomodoro-timer');
+              window.dispatchEvent(timerEvent);
+            }} />
             </div>
           </TabsContent>
 
@@ -258,21 +237,17 @@ const Dashboard = () => {
           <DialogHeader>
             <DialogTitle>Voice Commands</DialogTitle>
           </DialogHeader>
-          <VoiceCommands 
-            onTabChange={(tab) => {
-              setActiveTab(tab);
-              setShowVoiceCommands(false);
-            }} 
-            onAddTask={() => {
-              setShowAddTask(true);
-              setShowVoiceCommands(false);
-            }} 
-            onStartTimer={() => {
-              const timerEvent = new CustomEvent('start-pomodoro-timer');
-              window.dispatchEvent(timerEvent);
-              setShowVoiceCommands(false);
-            }} 
-          />
+          <VoiceCommands onTabChange={tab => {
+          setActiveTab(tab);
+          setShowVoiceCommands(false);
+        }} onAddTask={() => {
+          setShowAddTask(true);
+          setShowVoiceCommands(false);
+        }} onStartTimer={() => {
+          const timerEvent = new CustomEvent('start-pomodoro-timer');
+          window.dispatchEvent(timerEvent);
+          setShowVoiceCommands(false);
+        }} />
         </DialogContent>
       </Dialog>
 
@@ -282,7 +257,7 @@ const Dashboard = () => {
       {/* Enhanced Mobile styles with notification support */}
       <div className="mobile-styles">
         <style dangerouslySetInnerHTML={{
-          __html: `
+        __html: `
             @media (max-width: 768px) {
               /* Improved notification positioning for mobile */
               [data-sonner-toaster] {
@@ -393,10 +368,8 @@ const Dashboard = () => {
               transform: translateY(0);
             }
           `
-        }} />
+      }} />
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Dashboard;
