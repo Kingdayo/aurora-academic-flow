@@ -8,6 +8,7 @@ import { useAuth } from "@/App";
 import { toast } from "sonner";
 import { Book, Brain, Timer, Mic, BarChart3 } from "lucide-react";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -85,7 +86,13 @@ const AuthPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800 flex flex-col items-center justify-center p-4 relative">
+      
+      {/* Theme Toggle positioned in top right */}
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
+
       {/* Header */}
       <div className="text-center mb-8 animate-fade-in-up">
         <div className="w-16 h-16 bg-purple-gradient rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse-glow">
@@ -97,89 +104,125 @@ const AuthPage = () => {
         </p>
       </div>
 
-      {/* Auth Card */}
-      <Card className="w-full max-w-sm mx-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50 animate-scale-in">
-        <CardHeader className="text-center space-y-2 pb-4">
-          <CardTitle className="text-xl sm:text-2xl font-bold">
-            {isLogin ? "Welcome Back" : "Get Started"}
-          </CardTitle>
-          <CardDescription className="text-sm">
-            {isLogin ? "Sign in to your account" : "Create your account to begin"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
+      {/* Main Content Container with Side-by-Side Layout */}
+      <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row items-center lg:items-start justify-center gap-8 lg:gap-12">
+        
+        {/* Left Features - Hidden on mobile, shown on larger screens */}
+        <div className="hidden lg:flex flex-col space-y-4 w-60">
+          {[
+            { icon: Brain, title: "AI Assistant", desc: "Smart task suggestions and academic help" },
+            { icon: Timer, title: "Pomodoro Timer", desc: "Focused study sessions with breaks" }
+          ].map((feature, index) => (
+            <div key={index} className="flex items-center space-x-4 p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg backdrop-blur-sm">
+              <feature.icon className="w-8 h-8 text-purple-600 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-sm">{feature.title}</h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400">{feature.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Auth Card - Center */}
+        <Card className="w-full max-w-sm mx-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50 animate-scale-in">
+          <CardHeader className="text-center space-y-2 pb-4">
+            <CardTitle className="text-xl sm:text-2xl font-bold">
+              {isLogin ? "Welcome Back" : "Get Started"}
+            </CardTitle>
+            <CardDescription className="text-sm">
+              {isLogin ? "Sign in to your account" : "Create your account to begin"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-sm font-medium">Full Name</Label>
+                  <Input 
+                    id="name" 
+                    name="name" 
+                    type="text" 
+                    placeholder="Enter your full name" 
+                    value={formData.name} 
+                    onChange={handleInputChange} 
+                    className="h-10 text-sm" 
+                    required 
+                  />
+                </div>
+              )}
+              
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-sm font-medium">Full Name</Label>
+                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
                 <Input 
-                  id="name" 
-                  name="name" 
-                  type="text" 
-                  placeholder="Enter your full name" 
-                  value={formData.name} 
+                  id="email" 
+                  name="email" 
+                  type="email" 
+                  placeholder="Enter your email" 
+                  value={formData.email} 
                   onChange={handleInputChange} 
                   className="h-10 text-sm" 
                   required 
                 />
               </div>
-            )}
-            
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-              <Input 
-                id="email" 
-                name="email" 
-                type="email" 
-                placeholder="Enter your email" 
-                value={formData.email} 
-                onChange={handleInputChange} 
-                className="h-10 text-sm" 
-                required 
-              />
+              
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+                <Input 
+                  id="password" 
+                  name="password" 
+                  type="password" 
+                  placeholder="Enter your password" 
+                  value={formData.password} 
+                  onChange={handleInputChange} 
+                  className="h-10 text-sm" 
+                  required 
+                />
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full bg-purple-gradient hover:opacity-90 hover-glow transition-all h-10 text-sm font-medium" 
+                disabled={isLoading}
+              >
+                {isLogin ? "Sign In" : "Create Account"}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {isLogin ? "Don't have an account?" : "Already have an account?"}
+              </p>
+              <Button 
+                variant="link" 
+                onClick={() => setIsLogin(!isLogin)} 
+                className="text-purple-600 hover:text-purple-800 p-0 h-auto font-medium text-sm"
+              >
+                {isLogin ? "Sign up here" : "Sign in here"}
+              </Button>
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-              <Input 
-                id="password" 
-                name="password" 
-                type="password" 
-                placeholder="Enter your password" 
-                value={formData.password} 
-                onChange={handleInputChange} 
-                className="h-10 text-sm" 
-                required 
-              />
+          </CardContent>
+        </Card>
+
+        {/* Right Features - Hidden on mobile, shown on larger screens */}
+        <div className="hidden lg:flex flex-col space-y-4 w-60">
+          {[
+            { icon: Mic, title: "Voice Commands", desc: "Hands-free control with voice" },
+            { icon: BarChart3, title: "Analytics", desc: "Track your progress and productivity" }
+          ].map((feature, index) => (
+            <div key={index} className="flex items-center space-x-4 p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg backdrop-blur-sm">
+              <feature.icon className="w-8 h-8 text-purple-600 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-sm">{feature.title}</h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400">{feature.desc}</p>
+              </div>
             </div>
+          ))}
+        </div>
+      </div>
 
-            <Button 
-              type="submit" 
-              className="w-full bg-purple-gradient hover:opacity-90 hover-glow transition-all h-10 text-sm font-medium" 
-              disabled={isLoading}
-            >
-              {isLogin ? "Sign In" : "Create Account"}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {isLogin ? "Don't have an account?" : "Already have an account?"}
-            </p>
-            <Button 
-              variant="link" 
-              onClick={() => setIsLogin(!isLogin)} 
-              className="text-purple-600 hover:text-purple-800 p-0 h-auto font-medium text-sm"
-            >
-              {isLogin ? "Sign up here" : "Sign in here"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Features Preview */}
-      <div className="mt-8 max-w-4xl mx-auto px-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
+      {/* Mobile Features Preview - Only shown on mobile */}
+      <div className="mt-8 max-w-4xl mx-auto px-4 lg:hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-center">
           {[
             { icon: Brain, title: "AI Assistant", desc: "Smart task suggestions" },
             { icon: Timer, title: "Pomodoro Timer", desc: "Focus sessions" },

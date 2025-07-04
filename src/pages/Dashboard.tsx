@@ -87,7 +87,7 @@ const Dashboard = () => {
   };
 
   const handleAddTaskClick = () => {
-    console.log("Add task clicked");
+    console.log("Add task clicked - Dashboard");
     setShowAddTask(true);
   };
 
@@ -122,7 +122,7 @@ const Dashboard = () => {
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Logout</span>
@@ -160,7 +160,7 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* Quick Actions FAB */}
+      {/* Quick Actions FAB - Fixed positioning and improved mobile support */}
       <div id="fab-buttons" className="fixed bottom-6 right-6 z-50">
         <div className="flex flex-col space-y-3">
           {[
@@ -168,32 +168,32 @@ const Dashboard = () => {
               icon: Plus,
               label: "Add Task",
               action: handleAddTaskClick,
-              color: "bg-blue-500 hover:bg-blue-600"
+              color: "bg-blue-500 hover:bg-blue-600 active:bg-blue-700"
             },
             {
               icon: Mic,
               label: "Voice Commands",
               action: handleVoiceCommandsClick,
-              color: "bg-purple-500 hover:bg-purple-600",
+              color: "bg-purple-500 hover:bg-purple-600 active:bg-purple-700",
               id: "voice-button"
             },
             {
               icon: Calendar,
               label: "Calendar",
               action: () => setActiveTab('calendar'),
-              color: "bg-green-500 hover:bg-green-600"
+              color: "bg-green-500 hover:bg-green-600 active:bg-green-700"
             },
             {
               icon: BarChart3,
               label: "Analytics",
               action: () => setActiveTab('analytics'),
-              color: "bg-orange-500 hover:bg-orange-600"
+              color: "bg-orange-500 hover:bg-orange-600 active:bg-orange-700"
             }
           ].map((action, index) => (
             <Button
               key={index}
               onClick={action.action}
-              className={`w-12 h-12 rounded-full shadow-lg ${action.color} text-white hover:scale-110 transition-all duration-200`}
+              className={`w-12 h-12 rounded-full shadow-lg ${action.color} text-white hover:scale-110 transition-all duration-200 touch-manipulation`}
               size="icon"
               id={action.id}
             >
@@ -235,7 +235,10 @@ const Dashboard = () => {
 
           <TabsContent value="tasks" className="scroll-animate">
             <div id="task-section">
-              <TaskManager showAddDialog={showAddTask} onShowAddDialogChange={setShowAddTask} />
+              <TaskManager 
+                showAddDialog={showAddTask} 
+                onShowAddDialogChange={setShowAddTask} 
+              />
             </div>
           </TabsContent>
 
@@ -308,10 +311,42 @@ const Dashboard = () => {
       {/* User Tour */}
       <UserTour isOpen={showTour} onClose={() => setShowTour(false)} />
 
-      {/* Mobile styles */}
+      {/* Enhanced Mobile styles with notification support */}
       <div className="mobile-styles">
         <style dangerouslySetInnerHTML={{
           __html: `
+            @media (max-width: 768px) {
+              /* Notification fixes for mobile */
+              [data-sonner-toaster] {
+                position: fixed !important;
+                top: env(safe-area-inset-top, 16px) !important;
+                left: 16px !important;
+                right: 16px !important;
+                width: calc(100vw - 32px) !important;
+                max-width: none !important;
+                z-index: 9999 !important;
+              }
+              
+              [data-sonner-toast] {
+                width: 100% !important;
+                max-width: none !important;
+                margin: 0 !important;
+                border-radius: 8px !important;
+                font-size: 14px !important;
+              }
+              
+              /* FAB improvements for mobile */
+              #fab-buttons {
+                bottom: env(safe-area-inset-bottom, 16px) !important;
+                right: 16px !important;
+              }
+              
+              #fab-buttons button {
+                touch-action: manipulation !important;
+                -webkit-tap-highlight-color: transparent !important;
+              }
+            }
+
             @media (max-width: 385px) {
               .container {
                 padding-left: 0.5rem !important;
@@ -377,12 +412,12 @@ const Dashboard = () => {
                 overflow-x: hidden !important;
               }
               
-              .fixed.bottom-6.right-6 {
+              #fab-buttons {
                 bottom: 1rem !important;
                 right: 1rem !important;
               }
               
-              .fixed.bottom-6.right-6 .w-12.h-12 {
+              #fab-buttons .w-12.h-12 {
                 width: 2.5rem !important;
                 height: 2.5rem !important;
               }

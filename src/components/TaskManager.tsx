@@ -20,6 +20,7 @@ interface Task {
   title: string;
   description?: string;
   dueDate?: Date;
+  dueTime?: string;
   priority: 'low' | 'medium' | 'high';
   category: string;
   completed: boolean;
@@ -46,23 +47,24 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
     title: "",
     description: "",
     dueDate: undefined as Date | undefined,
+    dueTime: "",
     priority: "medium" as 'low' | 'medium' | 'high',
     category: "General"
   });
 
-  // Sync with parent prop
+  // Sync with parent prop - fix dialog stability
   useEffect(() => {
-    if (showAddDialog !== showAddTaskDialog) {
-      setShowAddTaskDialog(showAddDialog);
+    if (showAddDialog && !showAddTaskDialog) {
+      setShowAddTaskDialog(true);
     }
   }, [showAddDialog]);
 
   // Notify parent when dialog state changes
   useEffect(() => {
-    if (onShowAddDialogChange && showAddTaskDialog !== showAddDialog) {
+    if (onShowAddDialogChange) {
       onShowAddDialogChange(showAddTaskDialog);
     }
-  }, [showAddTaskDialog, showAddDialog, onShowAddDialogChange]);
+  }, [showAddTaskDialog, onShowAddDialogChange]);
 
   // Load tasks from localStorage
   useEffect(() => {
@@ -81,10 +83,12 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
     }
   }, []);
 
-  // Save tasks to localStorage
+  // Save tasks to localStorage and broadcast changes
   useEffect(() => {
     if (tasks.length > 0) {
       localStorage.setItem('aurora-tasks', JSON.stringify(tasks));
+      // Broadcast task changes to other components
+      window.dispatchEvent(new CustomEvent('tasks-updated', { detail: tasks }));
     }
   }, [tasks]);
 
@@ -101,6 +105,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
       title: newTask.title,
       description: newTask.description,
       dueDate: newTask.dueDate,
+      dueTime: newTask.dueTime,
       priority: newTask.priority,
       category: newTask.category,
       completed: false,
@@ -112,6 +117,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
       title: "",
       description: "",
       dueDate: undefined,
+      dueTime: "",
       priority: "medium",
       category: "General"
     });
@@ -310,12 +316,20 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
                       </p>
                     )}
                     
-                    {task.dueDate && (
-                      <div className="flex items-center space-x-1 text-sm text-gray-500">
-                        <CalendarIcon className="w-4 h-4" />
-                        <span>Due: {format(task.dueDate, 'MMM dd, yyyy')}</span>
-                      </div>
-                    )}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-gray-500">
+                      {task.dueDate && (
+                        <div className="flex items-center space-x-1">
+                          <CalendarIcon className="w-4 h-4" />
+                          <span>Due: {format(task.dueDate, 'MMM dd, yyyy')}</span>
+                        </div>
+                      )}
+                      {task.dueTime && (
+                        <div className="flex items-center space-x-1">
+                          <Clock className="w-4 h-4" />
+                          <span>at {task.dueTime}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="flex items-center space-x-2">
@@ -345,7 +359,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
 
       {/* Add Task Dialog */}
       <Dialog open={showAddTaskDialog} onOpenChange={setShowAddTaskDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md mx-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50">
           <DialogHeader>
             <DialogTitle>Add New Task</DialogTitle>
           </DialogHeader>
@@ -418,6 +432,17 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
                   />
                 </PopoverContent>
               </Popover>
+            </div>
+
+            <div>
+              <Label htmlFor="time">Due Time (Optional)</Label>
+              <Input
+                id="time"
+                type="time"
+                value={newTask.dueTime}
+                onChange={(e) => setNewTask({...newTask, dueTime: e.target.value})}
+                placeholder="Select time"
+              />
             </div>
             
             <div className="flex space-x-2 pt-4">

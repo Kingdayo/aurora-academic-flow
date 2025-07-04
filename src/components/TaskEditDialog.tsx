@@ -18,6 +18,7 @@ interface Task {
   title: string;
   description?: string;
   dueDate?: Date;
+  dueTime?: string;
   priority: 'low' | 'medium' | 'high';
   category: string;
   completed: boolean;
@@ -38,7 +39,8 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
     description: "",
     category: "",
     priority: "medium" as "low" | "medium" | "high",
-    dueDate: undefined as Date | undefined
+    dueDate: undefined as Date | undefined,
+    dueTime: ""
   });
 
   const categories = ["General", "Study", "Assignment", "Project", "Exam", "Personal", "Work"];
@@ -50,7 +52,8 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
         description: task.description || "",
         category: task.category || "General",
         priority: task.priority || "medium",
-        dueDate: task.dueDate
+        dueDate: task.dueDate,
+        dueTime: task.dueTime || ""
       });
     }
   }, [task]);
@@ -159,6 +162,16 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
                 />
               </PopoverContent>
             </Popover>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-time" className="text-sm">Due Time (Optional)</Label>
+            <Input
+              id="edit-time"
+              type="time"
+              value={editData.dueTime}
+              onChange={(e) => setEditData({ ...editData, dueTime: e.target.value })}
+              className="text-sm"
+            />
           </div>
           <div className="flex gap-2">
             <Button type="submit" className="flex-1 bg-purple-gradient hover:opacity-90 text-sm" disabled={isLoading}>
