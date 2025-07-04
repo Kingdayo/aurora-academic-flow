@@ -122,13 +122,17 @@ const Dashboard = () => {
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+              className="hidden md:flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Logout</span>
             </Button>
             <ThemeToggle />
-            <UserProfile />
+            <UserProfile 
+              onAddTask={handleAddTaskClick}
+              onTabChange={setActiveTab}
+              onVoiceCommands={handleVoiceCommandsClick}
+            />
           </div>
         </div>
         
