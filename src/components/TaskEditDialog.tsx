@@ -6,19 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
 import LoadingSpinner from "./LoadingSpinner";
 
 interface Task {
   id: string;
   title: string;
-  description: string;
-  subject: string;
-  priority: "low" | "medium" | "high";
-  dueDate: string;
-  dueTime: string;
+  description?: string;
+  dueDate?: Date;
+  priority: 'low' | 'medium' | 'high';
+  category: string;
   completed: boolean;
-  createdAt: string;
+  createdAt: Date;
 }
 
 interface TaskEditDialogProps {
@@ -33,21 +36,21 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
   const [editData, setEditData] = useState({
     title: "",
     description: "",
-    subject: "",
+    category: "",
     priority: "medium" as "low" | "medium" | "high",
-    dueDate: "",
-    dueTime: ""
+    dueDate: undefined as Date | undefined
   });
+
+  const categories = ["General", "Study", "Assignment", "Project", "Exam", "Personal", "Work"];
 
   useEffect(() => {
     if (task) {
       setEditData({
         title: task.title || "",
         description: task.description || "",
-        subject: task.subject || "",
+        category: task.category || "General",
         priority: task.priority || "medium",
-        dueDate: task.dueDate || "",
-        dueTime: task.dueTime || ""
+        dueDate: task.dueDate
       });
     }
   }, [task]);
@@ -112,15 +115,17 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="edit-subject" className="text-sm">Subject</Label>
-              <Input
-                id="edit-subject"
-                value={editData.subject}
-                onChange={(e) => setEditData({ ...editData, subject: e.target.value })}
-                placeholder="e.g., Math"
-                className="text-sm"
-                required
-              />
+              <Label htmlFor="edit-category" className="text-sm">Category</Label>
+              <Select value={editData.category} onValueChange={(value) => setEditData({ ...editData, category: value })}>
+                <SelectTrigger className="text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(category => (
+                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-priority" className="text-sm">Priority</Label>
@@ -136,28 +141,24 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="edit-dueDate" className="text-sm">Due Date</Label>
-              <Input
-                id="edit-dueDate"
-                type="date"
-                value={editData.dueDate}
-                onChange={(e) => setEditData({ ...editData, dueDate: e.target.value })}
-                className="text-sm"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-dueTime" className="text-sm">Due Time</Label>
-              <Input
-                id="edit-dueTime"
-                type="time"
-                value={editData.dueTime}
-                onChange={(e) => setEditData({ ...editData, dueTime: e.target.value })}
-                className="text-sm"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label>Due Date (Optional)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-start text-left text-sm">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {editData.dueDate ? format(editData.dueDate, 'PPP') : 'Select due date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={editData.dueDate}
+                  onSelect={(date) => setEditData({...editData, dueDate: date})}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="flex gap-2">
             <Button type="submit" className="flex-1 bg-purple-gradient hover:opacity-90 text-sm" disabled={isLoading}>
