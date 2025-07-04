@@ -167,11 +167,7 @@ const CalendarSection = () => {
         {/* Calendar */}
         <Card className="lg:col-span-2 hover-lift transition-all animate-fade-in-up">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center space-x-2">
-                <Calendar className="w-5 h-5 text-purple-600" />
-                <span>Academic Calendar</span>
-              </CardTitle>
+            <div className="flex items-center justify-center">
               <div className="flex items-center space-x-1 sm:space-x-2">
                 <button
                   onClick={() => navigateMonth(-1)}
