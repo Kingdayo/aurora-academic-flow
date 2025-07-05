@@ -23,13 +23,8 @@ import UserTour from "@/components/UserTour";
 import ScrollAnimations from "@/components/ScrollAnimations";
 
 const Dashboard = () => {
-  const {
-    user,
-    logout
-  } = useAuth();
-  const {
-    theme
-  } = useTheme();
+  const { user, logout } = useAuth();
+  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState("tasks");
   const [showAddTask, setShowAddTask] = useState(false);
   const [showVoiceCommands, setShowVoiceCommands] = useState(false);
@@ -44,6 +39,7 @@ const Dashboard = () => {
       setTimeout(() => setShowTour(true), 1000);
     }
   }, []);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
@@ -64,9 +60,7 @@ const Dashboard = () => {
       setShowAddTask(true);
     };
     const handleVoiceTabChange = (event: CustomEvent) => {
-      const {
-        tab
-      } = event.detail;
+      const { tab } = event.detail;
       setActiveTab(tab);
     };
     const handleVoiceStartTimer = () => {
@@ -82,13 +76,16 @@ const Dashboard = () => {
       window.removeEventListener('voice-start-timer', handleVoiceStartTimer);
     };
   }, []);
+
   const handleVoiceCommandsClick = () => {
     setShowVoiceCommands(true);
   };
+
   const handleAddTaskClick = () => {
     console.log("Add task clicked - Dashboard");
     setShowAddTask(true);
   };
+
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
@@ -100,7 +97,26 @@ const Dashboard = () => {
       setIsLoggingOut(false);
     }
   };
-  return <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800">
+
+  // Improved mobile tab change handler that prevents freezing
+  const handleMobileTabChange = (tabId: string) => {
+    // Use requestAnimationFrame to ensure smooth transition
+    requestAnimationFrame(() => {
+      setActiveTab(tabId);
+    });
+  };
+
+  const mobileNavTabs = [
+    { id: "tasks", label: "Tasks", icon: CheckSquare },
+    { id: "calendar", label: "Calendar", icon: Calendar },
+    { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "ai-hub", label: "AI Hub", icon: Brain },
+    { id: "productivity", label: "Productivity", icon: Timer },
+    { id: "settings", label: "Settings", icon: Settings }
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800">
       <ScrollAnimations />
       
       {/* Header */}
@@ -122,37 +138,27 @@ const Dashboard = () => {
           </div>
         </div>
         
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation - Improved with better event handling */}
         <div className="md:hidden">
           <div className="flex overflow-x-auto px-4 pb-4 space-x-2">
-            {[{
-            id: "tasks",
-            label: "Tasks",
-            icon: CheckSquare
-          }, {
-            id: "calendar",
-            label: "Calendar",
-            icon: Calendar
-          }, {
-            id: "analytics",
-            label: "Analytics",
-            icon: BarChart3
-          }, {
-            id: "ai-hub",
-            label: "AI Hub",
-            icon: Brain
-          }, {
-            id: "productivity",
-            label: "Productivity",
-            icon: Timer
-          }, {
-            id: "settings",
-            label: "Settings",
-            icon: Settings
-          }].map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === tab.id ? "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}>
+            {mobileNavTabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => handleMobileTabChange(tab.id)}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 transform active:scale-95 ${
+                  activeTab === tab.id 
+                    ? "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 shadow-sm" 
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                }`}
+                style={{ 
+                  touchAction: 'manipulation',
+                  WebkitTapHighlightColor: 'transparent'
+                }}
+              >
                 <tab.icon className="w-4 h-4" />
                 <span>{tab.label}</span>
-              </button>)}
+              </button>
+            ))}
           </div>
         </div>
       </header>
@@ -213,9 +219,9 @@ const Dashboard = () => {
             <div className="space-y-6">
               <AIAssistant />
               <VoiceCommands onTabChange={setActiveTab} onAddTask={() => setShowAddTask(true)} onStartTimer={() => {
-              const timerEvent = new CustomEvent('start-pomodoro-timer');
-              window.dispatchEvent(timerEvent);
-            }} />
+                const timerEvent = new CustomEvent('start-pomodoro-timer');
+                window.dispatchEvent(timerEvent);
+              }} />
             </div>
           </TabsContent>
 
@@ -243,27 +249,55 @@ const Dashboard = () => {
             <DialogTitle>Voice Commands</DialogTitle>
           </DialogHeader>
           <VoiceCommands onTabChange={tab => {
-          setActiveTab(tab);
-          setShowVoiceCommands(false);
-        }} onAddTask={() => {
-          setShowAddTask(true);
-          setShowVoiceCommands(false);
-        }} onStartTimer={() => {
-          const timerEvent = new CustomEvent('start-pomodoro-timer');
-          window.dispatchEvent(timerEvent);
-          setShowVoiceCommands(false);
-        }} />
+            setActiveTab(tab);
+            setShowVoiceCommands(false);
+          }} onAddTask={() => {
+            setShowAddTask(true);
+            setShowVoiceCommands(false);
+          }} onStartTimer={() => {
+            const timerEvent = new CustomEvent('start-pomodoro-timer');
+            window.dispatchEvent(timerEvent);
+            setShowVoiceCommands(false);
+          }} />
         </DialogContent>
       </Dialog>
 
       {/* User Tour */}
       <UserTour isOpen={showTour} onClose={() => setShowTour(false)} />
 
-      {/* Enhanced Mobile styles with notification support */}
+      {/* Enhanced Mobile styles with improved navigation */}
       <div className="mobile-styles">
         <style dangerouslySetInnerHTML={{
-        __html: `
-            @media (max-width: 768px) {
+          __html: `
+            @media (max-width: 1024px) {
+              /* Improved mobile navigation handling */
+              .mobile-nav-button {
+                transition: all 0.2s ease-in-out !important;
+                will-change: transform, background-color !important;
+              }
+              
+              .mobile-nav-button:active {
+                transform: scale(0.95) !important;
+              }
+              
+              /* Prevent theme toggle interference with navigation */
+              [data-theme-toggle] {
+                isolation: isolate !important;
+              }
+              
+              /* Fix for frozen navigation after theme toggle */
+              .mobile-nav-container {
+                pointer-events: auto !important;
+                z-index: 30 !important;
+              }
+              
+              /* Ensure mobile buttons remain interactive */
+              button {
+                pointer-events: auto !important;
+                touch-action: manipulation !important;
+                -webkit-tap-highlight-color: transparent !important;
+              }
+              
               /* Fixed notification positioning for mobile */
               [data-sonner-toaster] {
                 position: fixed !important;
@@ -283,13 +317,6 @@ const Dashboard = () => {
                 font-size: 14px !important;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
                 backdrop-filter: blur(10px) !important;
-              }
-              
-              /* Fix mobile toggle behavior */
-              .mobile-friendly-toggle {
-                touch-action: manipulation !important;
-                -webkit-tap-highlight-color: transparent !important;
-                user-select: none !important;
               }
               
               /* Ensure popover positioning on mobile */
@@ -352,9 +379,10 @@ const Dashboard = () => {
               transform: translateY(0);
             }
           `
-      }} />
+        }} />
       </div>
-    </div>;
+    </div>
+  );
 };
 
 export default Dashboard;

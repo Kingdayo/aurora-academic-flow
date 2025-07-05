@@ -7,11 +7,14 @@ const ThemeToggle = () => {
   const { theme, toggleTheme } = useTheme();
 
   const handleToggle = () => {
-    try {
-      toggleTheme();
-    } catch (error) {
-      console.error('Theme toggle error:', error);
-    }
+    // Ensure smooth theme transition without blocking UI
+    requestAnimationFrame(() => {
+      try {
+        toggleTheme();
+      } catch (error) {
+        console.error('Theme toggle error:', error);
+      }
+    });
   };
 
   return (
@@ -23,6 +26,12 @@ const ThemeToggle = () => {
       aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
       name="theme-toggle"
       id="theme-toggle"
+      data-theme-toggle="true"
+      style={{
+        touchAction: 'manipulation',
+        WebkitTapHighlightColor: 'transparent',
+        isolation: 'isolate'
+      }}
     >
       {theme === "light" ? (
         <Moon className="h-4 w-4 text-purple-600 animate-bounce-gentle" />
