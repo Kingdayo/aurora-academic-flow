@@ -21,6 +21,7 @@ import UserProfile from "@/components/UserProfile";
 import VoiceCommands from "@/components/VoiceCommands";
 import UserTour from "@/components/UserTour";
 import ScrollAnimations from "@/components/ScrollAnimations";
+
 const Dashboard = () => {
   const {
     user,
@@ -116,7 +117,6 @@ const Dashboard = () => {
           </div>
           
           <div className="flex items-center space-x-2">
-            
             <ThemeToggle />
             <UserProfile onAddTask={handleAddTaskClick} onTabChange={setActiveTab} onVoiceCommands={handleVoiceCommandsClick} isLoggingOut={isLoggingOut} onLogout={handleLogout} />
           </div>
@@ -156,6 +156,11 @@ const Dashboard = () => {
           </div>
         </div>
       </header>
+
+      {/* Mobile Scroll Indicator */}
+      <div className="md:hidden bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-center py-2 text-xs text-gray-600 dark:text-gray-300 animate-pulse">
+        ↓ Scroll down to see more content ↓
+      </div>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
@@ -197,7 +202,7 @@ const Dashboard = () => {
             <CalendarSection />
           </TabsContent>
 
-          <TabsContent value="analytics" className="scroll-animate">
+          <TabsContent value="analytics" className="scroll-animate opacity-100 animate-fade-in">
             <div className="space-y-6">
               <AnalyticsSection />
               <AdvancedAnalytics />
@@ -259,10 +264,10 @@ const Dashboard = () => {
         <style dangerouslySetInnerHTML={{
         __html: `
             @media (max-width: 768px) {
-              /* Improved notification positioning for mobile */
+              /* Fixed notification positioning for mobile */
               [data-sonner-toaster] {
                 position: fixed !important;
-                top: env(safe-area-inset-top, 80px) !important;
+                top: env(safe-area-inset-top, 100px) !important;
                 left: 16px !important;
                 right: 16px !important;
                 width: calc(100vw - 32px) !important;
@@ -284,83 +289,62 @@ const Dashboard = () => {
               .mobile-friendly-toggle {
                 touch-action: manipulation !important;
                 -webkit-tap-highlight-color: transparent !important;
+                user-select: none !important;
               }
               
               /* Ensure popover positioning on mobile */
               [data-radix-popper-content-wrapper] {
                 z-index: 9998 !important;
               }
+              
+              /* Force analytics content to be visible */
+              .scroll-animate {
+                opacity: 1 !important;
+                transform: translateY(0) !important;
+              }
             }
 
-            @media (max-width: 385px) {
+            @media (max-width: 400px) {
               .container {
                 padding-left: 0.5rem !important;
                 padding-right: 0.5rem !important;
               }
               
-              .grid {
-                gap: 0.75rem !important;
+              .calendar-responsive .grid-cols-7 > div {
+                min-height: 48px !important;
+                padding: 0.25rem !important;
+                font-size: 0.75rem !important;
+              }
+              
+              .calendar-responsive button {
+                padding: 0.375rem !important;
+                font-size: 0.875rem !important;
+              }
+              
+              .calendar-responsive h3 {
+                font-size: 0.875rem !important;
+                min-width: 100px !important;
               }
               
               .space-y-6 > * + * {
                 margin-top: 1rem !important;
               }
               
-              .space-y-4 > * + * {
-                margin-top: 0.75rem !important;
+              .p-4 {
+                padding: 0.75rem !important;
               }
               
               .text-2xl {
                 font-size: 1.25rem !important;
               }
               
-              .text-3xl {
-                font-size: 1.5rem !important;
-              }
-              
-              .p-4 {
-                padding: 0.75rem !important;
-              }
-              
-              .px-4 {
-                padding-left: 0.75rem !important;
-                padding-right: 0.75rem !important;
-              }
-              
-              .py-4 {
-                padding-top: 0.75rem !important;
-                padding-bottom: 0.75rem !important;
-              }
-              
-              .mb-6 {
-                margin-bottom: 1rem !important;
-              }
-              
-              .mb-8 {
-                margin-bottom: 1.5rem !important;
-              }
-              
               .rounded-lg {
                 border-radius: 0.5rem !important;
-              }
-              
-              .max-w-md {
-                max-width: 90vw !important;
-              }
-              
-              .w-full {
-                width: 100% !important;
-              }
-              
-              .min-h-screen {
-                min-height: 100vh !important;
-                overflow-x: hidden !important;
               }
             }
 
             .scroll-animate {
               transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-              transform: translateY(20px);
             }
 
             .scroll-animate.animate-fade-in {
@@ -372,4 +356,5 @@ const Dashboard = () => {
       </div>
     </div>;
 };
+
 export default Dashboard;

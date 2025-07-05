@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { useAuth } from "@/App";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +19,7 @@ interface UserProfileProps {
 
 const UserProfile = ({ onAddTask, onTabChange, onVoiceCommands, isLoggingOut = false, onLogout }: UserProfileProps) => {
   const { user } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
 
   const getInitials = (name: string) => {
     return name
@@ -33,6 +35,17 @@ const UserProfile = ({ onAddTask, onTabChange, onVoiceCommands, isLoggingOut = f
   const handleLogout = async () => {
     if (onLogout) {
       await onLogout();
+      setIsOpen(false);
+    }
+  };
+
+  const handleQuickAction = (action: (() => void) | undefined) => {
+    if (action) {
+      // Add a small delay to show the click animation before closing
+      setTimeout(() => {
+        action();
+        setIsOpen(false);
+      }, 150);
     }
   };
 
@@ -40,49 +53,49 @@ const UserProfile = ({ onAddTask, onTabChange, onVoiceCommands, isLoggingOut = f
     {
       icon: Plus,
       label: "Add Task",
-      action: onAddTask,
+      action: () => handleQuickAction(onAddTask),
       color: "text-blue-600 dark:text-blue-400"
     },
     {
       icon: CheckSquare,
       label: "Tasks",
-      action: () => onTabChange?.('tasks'),
+      action: () => handleQuickAction(() => onTabChange?.('tasks')),
       color: "text-green-600 dark:text-green-400"
     },
     {
       icon: Calendar,
       label: "Calendar",
-      action: () => onTabChange?.('calendar'),
+      action: () => handleQuickAction(() => onTabChange?.('calendar')),
       color: "text-purple-600 dark:text-purple-400"
     },
     {
       icon: BarChart3,
       label: "Analytics",
-      action: () => onTabChange?.('analytics'),
+      action: () => handleQuickAction(() => onTabChange?.('analytics')),
       color: "text-orange-600 dark:text-orange-400"
     },
     {
       icon: Brain,
       label: "AI Hub",
-      action: () => onTabChange?.('ai-hub'),
+      action: () => handleQuickAction(() => onTabChange?.('ai-hub')),
       color: "text-indigo-600 dark:text-indigo-400"
     },
     {
       icon: Timer,
       label: "Productivity",
-      action: () => onTabChange?.('productivity'),
+      action: () => handleQuickAction(() => onTabChange?.('productivity')),
       color: "text-red-600 dark:text-red-400"
     },
     {
       icon: Mic,
       label: "Voice Commands",
-      action: onVoiceCommands,
+      action: () => handleQuickAction(onVoiceCommands),
       color: "text-pink-600 dark:text-pink-400"
     }
   ];
 
   return (
-    <Popover>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <div className="flex items-center space-x-3 cursor-pointer hover-lift transition-all mobile-friendly-toggle">
           <Avatar className="w-10 h-10 border-2 border-purple-200 dark:border-purple-700 animate-pulse-glow">
@@ -100,7 +113,11 @@ const UserProfile = ({ onAddTask, onTabChange, onVoiceCommands, isLoggingOut = f
           </div>
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50 animate-scale-in">
+      <PopoverContent 
+        className="w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50 animate-scale-in"
+        side="bottom"
+        align="end"
+      >
         <Card className="border-none shadow-none bg-transparent">
           <CardContent className="p-4">
             <div className="flex items-center space-x-4 mb-4">
@@ -146,7 +163,7 @@ const UserProfile = ({ onAddTask, onTabChange, onVoiceCommands, isLoggingOut = f
                     variant="ghost"
                     size="sm"
                     onClick={action.action}
-                    className="flex items-center justify-start space-x-2 h-10 px-3 hover:bg-gray-100 dark:hover:bg-gray-700 mobile-friendly-toggle"
+                    className="flex items-center justify-start space-x-2 h-10 px-3 hover:bg-gray-100 dark:hover:bg-gray-700 mobile-friendly-toggle transition-all duration-200 hover:scale-105"
                   >
                     <action.icon className={`w-4 h-4 ${action.color}`} />
                     <span className="text-sm truncate">{action.label}</span>
@@ -162,7 +179,7 @@ const UserProfile = ({ onAddTask, onTabChange, onVoiceCommands, isLoggingOut = f
               variant="outline"
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="w-full flex items-center justify-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-800 mobile-friendly-toggle"
+              className="w-full flex items-center justify-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-800 mobile-friendly-toggle transition-all duration-200"
             >
               <LogOut className="w-4 h-4" />
               <span>{isLoggingOut ? "Signing out..." : "Logout"}</span>
