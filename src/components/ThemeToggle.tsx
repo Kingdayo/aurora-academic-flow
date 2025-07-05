@@ -15,7 +15,6 @@ const ThemeToggle = () => {
       aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
       name="theme-toggle"
       id="theme-toggle"
-      autoComplete="off"
     >
       {theme === "light" ? (
         <Moon className="h-4 w-4 text-purple-600 animate-bounce-gentle" />
