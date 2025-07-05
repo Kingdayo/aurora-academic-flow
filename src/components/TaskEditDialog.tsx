@@ -95,20 +95,23 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
         </DialogHeader>
         <form onSubmit={handleSave} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="edit-title" className="text-sm">Task Title</Label>
+            <Label htmlFor="edit-task-title" className="text-sm">Task Title</Label>
             <Input
-              id="edit-title"
+              id="edit-task-title"
+              name="title"
               value={editData.title}
               onChange={(e) => setEditData({ ...editData, title: e.target.value })}
               placeholder="Enter task title"
               className="text-sm"
+              autoComplete="off"
               required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="edit-description" className="text-sm">Description</Label>
+            <Label htmlFor="edit-task-description" className="text-sm">Description</Label>
             <Textarea
-              id="edit-description"
+              id="edit-task-description"
+              name="description"
               value={editData.description}
               onChange={(e) => setEditData({ ...editData, description: e.target.value })}
               placeholder="Enter task description"
@@ -118,9 +121,9 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="edit-category" className="text-sm">Category</Label>
+              <Label htmlFor="edit-task-category" className="text-sm">Category</Label>
               <Select value={editData.category} onValueChange={(value) => setEditData({ ...editData, category: value })}>
-                <SelectTrigger className="text-sm">
+                <SelectTrigger id="edit-task-category" className="text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -131,9 +134,9 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-priority" className="text-sm">Priority</Label>
+              <Label htmlFor="edit-task-priority" className="text-sm">Priority</Label>
               <Select value={editData.priority} onValueChange={(value: "low" | "medium" | "high") => setEditData({ ...editData, priority: value })}>
-                <SelectTrigger className="text-sm">
+                <SelectTrigger id="edit-task-priority" className="text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -164,13 +167,15 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
             </Popover>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="edit-time" className="text-sm">Due Time (Optional)</Label>
+            <Label htmlFor="edit-task-time" className="text-sm">Due Time (Optional)</Label>
             <Input
-              id="edit-time"
+              id="edit-task-time"
+              name="dueTime"
               type="time"
               value={editData.dueTime}
               onChange={(e) => setEditData({ ...editData, dueTime: e.target.value })}
               className="text-sm"
+              autoComplete="off"
             />
           </div>
           <div className="flex gap-2">

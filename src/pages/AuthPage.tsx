@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -145,44 +146,47 @@ const AuthPage = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 {!isLogin && (
                   <div className="space-y-2">
-                    <Label htmlFor="name" className="text-sm font-medium">Full Name</Label>
+                    <Label htmlFor="auth-name" className="text-sm font-medium">Full Name</Label>
                     <Input 
-                      id="name" 
+                      id="auth-name" 
                       name="name" 
                       type="text" 
                       placeholder="Enter your full name" 
                       value={formData.name} 
                       onChange={handleInputChange} 
                       className="h-10 text-sm" 
+                      autoComplete="name"
                       required 
                     />
                   </div>
                 )}
                 
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                  <Label htmlFor="auth-email" className="text-sm font-medium">Email</Label>
                   <Input 
-                    id="email" 
+                    id="auth-email" 
                     name="email" 
                     type="email" 
                     placeholder="Enter your email" 
                     value={formData.email} 
                     onChange={handleInputChange} 
                     className="h-10 text-sm" 
+                    autoComplete="email"
                     required 
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+                  <Label htmlFor="auth-password" className="text-sm font-medium">Password</Label>
                   <Input 
-                    id="password" 
+                    id="auth-password" 
                     name="password" 
                     type="password" 
                     placeholder="Enter your password" 
                     value={formData.password} 
                     onChange={handleInputChange} 
                     className="h-10 text-sm" 
+                    autoComplete={isLogin ? "current-password" : "new-password"}
                     required 
                   />
                 </div>
@@ -244,44 +248,47 @@ const AuthPage = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 {!isLogin && (
                   <div className="space-y-2">
-                    <Label htmlFor="name" className="text-sm font-medium">Full Name</Label>
+                    <Label htmlFor="auth-name-mobile" className="text-sm font-medium">Full Name</Label>
                     <Input 
-                      id="name" 
+                      id="auth-name-mobile" 
                       name="name" 
                       type="text" 
                       placeholder="Enter your full name" 
                       value={formData.name} 
                       onChange={handleInputChange} 
                       className="h-10 text-sm" 
+                      autoComplete="name"
                       required 
                     />
                   </div>
                 )}
                 
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                  <Label htmlFor="auth-email-mobile" className="text-sm font-medium">Email</Label>
                   <Input 
-                    id="email" 
+                    id="auth-email-mobile" 
                     name="email" 
                     type="email" 
                     placeholder="Enter your email" 
                     value={formData.email} 
                     onChange={handleInputChange} 
                     className="h-10 text-sm" 
+                    autoComplete="email"
                     required 
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+                  <Label htmlFor="auth-password-mobile" className="text-sm font-medium">Password</Label>
                   <Input 
-                    id="password" 
+                    id="auth-password-mobile" 
                     name="password" 
                     type="password" 
                     placeholder="Enter your password" 
                     value={formData.password} 
                     onChange={handleInputChange} 
                     className="h-10 text-sm" 
+                    autoComplete={isLogin ? "current-password" : "new-password"}
                     required 
                   />
                 </div>
