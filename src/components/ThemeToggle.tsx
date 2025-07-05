@@ -7,14 +7,14 @@ const ThemeToggle = () => {
   const { theme, toggleTheme } = useTheme();
 
   const handleToggle = () => {
-    // Ensure smooth theme transition without blocking UI
-    requestAnimationFrame(() => {
+    // Use setTimeout to completely isolate theme toggle from other UI interactions
+    setTimeout(() => {
       try {
         toggleTheme();
       } catch (error) {
         console.error('Theme toggle error:', error);
       }
-    });
+    }, 0);
   };
 
   return (
@@ -30,7 +30,9 @@ const ThemeToggle = () => {
       style={{
         touchAction: 'manipulation',
         WebkitTapHighlightColor: 'transparent',
-        isolation: 'isolate'
+        isolation: 'isolate',
+        contain: 'layout style',
+        zIndex: 50
       }}
     >
       {theme === "light" ? (

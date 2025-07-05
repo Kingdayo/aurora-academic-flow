@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAuth, useTheme } from "@/App";
 import { toast } from "sonner";
 import { Book, CheckSquare, Calendar, BarChart3, Brain, Timer, Settings, Plus, Mic, LogOut } from "lucide-react";
@@ -30,6 +31,7 @@ const Dashboard = () => {
   const [showVoiceCommands, setShowVoiceCommands] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [navigationLocked, setNavigationLocked] = useState(false);
 
   // Check if user needs tour on first visit
   useEffect(() => {
@@ -77,6 +79,36 @@ const Dashboard = () => {
     };
   }, []);
 
+  // Theme change monitoring to prevent navigation freezing
+  useEffect(() => {
+    const handleThemeChange = () => {
+      setNavigationLocked(true);
+      // Unlock navigation after theme transition
+      setTimeout(() => {
+        setNavigationLocked(false);
+      }, 300);
+    };
+
+    // Listen for theme changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          const target = mutation.target as HTMLElement;
+          if (target === document.documentElement) {
+            handleThemeChange();
+          }
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   const handleVoiceCommandsClick = () => {
     setShowVoiceCommands(true);
   };
@@ -98,13 +130,24 @@ const Dashboard = () => {
     }
   };
 
-  // Improved mobile tab change handler that prevents freezing
-  const handleMobileTabChange = (tabId: string) => {
-    // Use requestAnimationFrame to ensure smooth transition
+  // Enhanced mobile tab change handler with proper isolation
+  const handleMobileTabChange = useCallback((tabId: string) => {
+    if (navigationLocked) return;
+    
+    // Prevent rapid successive clicks
+    setNavigationLocked(true);
+    
+    // Use multiple RAF calls to ensure complete separation from theme toggle
     requestAnimationFrame(() => {
-      setActiveTab(tabId);
+      requestAnimationFrame(() => {
+        setActiveTab(tabId);
+        // Unlock after a short delay
+        setTimeout(() => {
+          setNavigationLocked(false);
+        }, 150);
+      });
     });
-  };
+  }, [navigationLocked]);
 
   const mobileNavTabs = [
     { id: "tasks", label: "Tasks", icon: CheckSquare },
@@ -138,21 +181,25 @@ const Dashboard = () => {
           </div>
         </div>
         
-        {/* Mobile Navigation - Improved with better event handling */}
-        <div className="md:hidden">
-          <div className="flex overflow-x-auto px-4 pb-4 space-x-2">
+        {/* Mobile Navigation - Completely isolated from theme toggle */}
+        <div className="md:hidden mobile-nav-container">
+          <div className="flex overflow-x-auto px-4 pb-4 space-x-2" style={{ isolation: 'isolate' }}>
             {mobileNavTabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => handleMobileTabChange(tab.id)}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 transform active:scale-95 ${
+                disabled={navigationLocked}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 transform ${
+                  navigationLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'
+                } ${
                   activeTab === tab.id 
                     ? "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 shadow-sm" 
                     : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                 }`}
                 style={{ 
                   touchAction: 'manipulation',
-                  WebkitTapHighlightColor: 'transparent'
+                  WebkitTapHighlightColor: 'transparent',
+                  isolation: 'isolate'
                 }}
               >
                 <tab.icon className="w-4 h-4" />
@@ -247,6 +294,9 @@ const Dashboard = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Voice Commands</DialogTitle>
+            <DialogDescription>
+              Use voice commands to control your Aurora dashboard efficiently.
+            </DialogDescription>
           </DialogHeader>
           <VoiceCommands onTabChange={tab => {
             setActiveTab(tab);
@@ -265,33 +315,44 @@ const Dashboard = () => {
       {/* User Tour */}
       <UserTour isOpen={showTour} onClose={() => setShowTour(false)} />
 
-      {/* Enhanced Mobile styles with improved navigation */}
+      {/* Enhanced Mobile styles with complete theme toggle isolation */}
       <div className="mobile-styles">
         <style dangerouslySetInnerHTML={{
           __html: `
             @media (max-width: 1024px) {
-              /* Improved mobile navigation handling */
-              .mobile-nav-button {
-                transition: all 0.2s ease-in-out !important;
-                will-change: transform, background-color !important;
+              /* Complete isolation of mobile navigation from theme toggle */
+              .mobile-nav-container {
+                isolation: isolate !important;
+                position: relative !important;
+                z-index: 35 !important;
+                contain: layout style !important;
               }
               
-              .mobile-nav-button:active {
+              .mobile-nav-container button {
+                isolation: isolate !important;
+                contain: layout style !important;
+                will-change: transform, background-color !important;
+                transition: all 0.15s ease-out !important;
+              }
+              
+              .mobile-nav-container button:not(:disabled):active {
                 transform: scale(0.95) !important;
               }
               
-              /* Prevent theme toggle interference with navigation */
+              .mobile-nav-container button:disabled {
+                opacity: 0.5 !important;
+                cursor: not-allowed !important;
+                pointer-events: none !important;
+              }
+              
+              /* Prevent theme toggle from affecting navigation */
               [data-theme-toggle] {
                 isolation: isolate !important;
+                z-index: 50 !important;
+                contain: layout style !important;
               }
               
-              /* Fix for frozen navigation after theme toggle */
-              .mobile-nav-container {
-                pointer-events: auto !important;
-                z-index: 30 !important;
-              }
-              
-              /* Ensure mobile buttons remain interactive */
+              /* Force mobile buttons to remain interactive */
               button {
                 pointer-events: auto !important;
                 touch-action: manipulation !important;
