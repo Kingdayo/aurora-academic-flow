@@ -50,7 +50,11 @@ export const useAuth = () => {
 };
 
 const App = () => {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    // Initialize theme from localStorage or default to light
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    return savedTheme || "light";
+  });
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,12 +66,6 @@ const App = () => {
     const initialLoadingTimer = setTimeout(() => {
       setInitialLoading(false);
     }, 6000);
-
-    // Check for saved theme
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -99,13 +97,26 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("theme", theme);
+    // Apply theme to document
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    
+    // Save theme to localStorage
+    try {
+      localStorage.setItem("theme", theme);
+    } catch (error) {
+      console.error("Error saving theme to localStorage:", error);
+    }
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => prev === "light" ? "dark" : "light");
-    toast.success(`Switched to ${theme === "light" ? "dark" : "light"} mode! 🌙`);
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    toast.success(`Switched to ${newTheme} mode! ${newTheme === "dark" ? "🌙" : "☀️"}`);
   };
 
   const login = async (email: string, password: string) => {

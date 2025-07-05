@@ -8,10 +8,22 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 import { TrendingUp, Clock, Target, Zap, Calendar, BookOpen } from "lucide-react";
 
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  category: string;
+  priority: "low" | "medium" | "high";
+  dueDate?: Date;
+  dueTime?: string;
+  completed: boolean;
+  createdAt: Date;
+}
+
 const AdvancedAnalytics = () => {
   const [timeRange, setTimeRange] = useState("week");
   const [selectedMetric, setSelectedMetric] = useState("productivity");
-  const [tasks, setTasks] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [analyticsData, setAnalyticsData] = useState<any>({
     productivity: [],
     subjects: [],
@@ -21,19 +33,41 @@ const AdvancedAnalytics = () => {
 
   useEffect(() => {
     loadUserData();
+    
+    // Listen for task updates including deletions
+    const handleTasksUpdate = (event: CustomEvent) => {
+      console.log('Advanced Analytics: Tasks updated', event.detail);
+      const updatedTasks = event.detail.map((task: any) => ({
+        ...task,
+        dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+        createdAt: new Date(task.createdAt)
+      }));
+      setTasks(updatedTasks);
+      generateAnalytics(updatedTasks);
+    };
+
+    window.addEventListener('tasks-updated', handleTasksUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('tasks-updated', handleTasksUpdate as EventListener);
+    };
   }, []);
 
   const loadUserData = () => {
     // Load tasks from localStorage
-    const savedTasks = localStorage.getItem("tasks");
-    const userTasks = savedTasks ? JSON.parse(savedTasks) : [];
+    const savedTasks = localStorage.getItem("aurora-tasks");
+    const userTasks = savedTasks ? JSON.parse(savedTasks).map((task: any) => ({
+      ...task,
+      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+      createdAt: new Date(task.createdAt)
+    })) : [];
     setTasks(userTasks);
     
     // Generate analytics based on real user data
     generateAnalytics(userTasks);
   };
 
-  const generateAnalytics = (userTasks: any[]) => {
+  const generateAnalytics = (userTasks: Task[]) => {
     // Generate productivity data based on user's tasks
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const date = new Date();
@@ -61,7 +95,7 @@ const AdvancedAnalytics = () => {
 
     // Generate subject performance data
     const subjectStats = userTasks.reduce((acc, task) => {
-      const subject = task.subject || 'Other';
+      const subject = task.category || 'Other';
       if (!acc[subject]) {
         acc[subject] = { total: 0, completed: 0 };
       }
@@ -70,7 +104,7 @@ const AdvancedAnalytics = () => {
         acc[subject].completed++;
       }
       return acc;
-    }, {});
+    }, {} as Record<string, any>);
 
     const subjectData = Object.entries(subjectStats).map(([subject, stats]: [string, any], index) => ({
       subject,
@@ -97,6 +131,7 @@ const AdvancedAnalytics = () => {
     
     const highPriorityTasks = userTasks.filter(task => task.priority === 'high').length;
     const overdueTasks = userTasks.filter(task => {
+      if (!task.dueDate) return false;
       const dueDate = new Date(task.dueDate);
       return dueDate < new Date() && !task.completed;
     }).length;
@@ -122,9 +157,9 @@ const AdvancedAnalytics = () => {
       },
       {
         icon: <Zap className="w-4 h-4 text-purple-500" />,
-        title: "Active Subjects",
+        title: "Active Categories",
         value: Object.keys(subjectStats).length.toString(),
-        description: "Different subjects you're working on"
+        description: "Different categories you're working on"
       }
     ];
 
@@ -152,11 +187,25 @@ const AdvancedAnalytics = () => {
 
     const insights = [];
     
-    if (completedTasks > 0) {
+    const completionRate = Math.round((completedTasks / totalTasks) * 100);
+    
+    if (completionRate > 80) {
       insights.push({
         type: "achievement",
-        title: "Great Progress!",
-        content: `You've completed ${completedTasks} tasks. Keep up the momentum!`
+        title: "Excellent Progress!",
+        content: `You've completed ${completedTasks} out of ${totalTasks} tasks (${completionRate}%). Outstanding work!`
+      });
+    } else if (completionRate > 60) {
+      insights.push({
+        type: "good",
+        title: "Good Progress",
+        content: `You've completed ${completedTasks} out of ${totalTasks} tasks (${completionRate}%). Keep it up!`
+      });
+    } else if (completionRate < 40) {
+      insights.push({
+        type: "improvement",
+        title: "Room for Improvement", 
+        content: `Your completion rate is ${completionRate}%. Consider breaking tasks into smaller, manageable chunks.`
       });
     }
 
@@ -170,6 +219,7 @@ const AdvancedAnalytics = () => {
     }
 
     const overdueTasks = tasks.filter(task => {
+      if (!task.dueDate) return false;
       const dueDate = new Date(task.dueDate);
       return dueDate < new Date() && !task.completed;
     }).length;
@@ -177,9 +227,34 @@ const AdvancedAnalytics = () => {
     if (overdueTasks > 0) {
       insights.push({
         type: "urgent",
-        title: "Overdue Tasks",
+        title: "Overdue Alert",
         content: `You have ${overdueTasks} overdue tasks. Consider updating your schedule or priorities.`
       });
+    }
+
+    // Category analysis
+    const categoryStats = tasks.reduce((acc, task) => {
+      const cat = task.category || 'Other';
+      if (!acc[cat]) acc[cat] = { total: 0, completed: 0 };
+      acc[cat].total++;
+      if (task.completed) acc[cat].completed++;
+      return acc;
+    }, {} as Record<string, any>);
+
+    const bestCategory = Object.entries(categoryStats)
+      .filter(([_, stats]: [string, any]) => stats.total >= 2)
+      .sort(([,a]: [string, any], [,b]: [string, any]) => (b.completed/b.total) - (a.completed/a.total))[0];
+
+    if (bestCategory) {
+      const [category, stats] = bestCategory;
+      const rate = Math.round((stats.completed / stats.total) * 100);
+      if (rate > 70) {
+        insights.push({
+          type: "strength",
+          title: "Category Strength",
+          content: `You're excelling in ${category} with a ${rate}% completion rate. Great focus!`
+        });
+      }
     }
 
     return insights;
@@ -210,7 +285,7 @@ const AdvancedAnalytics = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="productivity">Productivity</SelectItem>
-              <SelectItem value="subjects">Subjects</SelectItem>
+              <SelectItem value="subjects">Categories</SelectItem>
               <SelectItem value="time">Time Analysis</SelectItem>
             </SelectContent>
           </Select>
@@ -265,12 +340,12 @@ const AdvancedAnalytics = () => {
           </CardContent>
         </Card>
 
-        {/* Subject Performance */}
+        {/* Category Performance */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
               <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>Subject Performance</span>
+              <span>Category Performance</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -299,8 +374,8 @@ const AdvancedAnalytics = () => {
             ) : (
               <div className="text-center py-8">
                 <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-sm text-gray-500">No subjects data available</p>
-                <p className="text-xs text-gray-400 mt-1">Add tasks with subjects to see performance breakdown</p>
+                <p className="text-sm text-gray-500">No categories data available</p>
+                <p className="text-xs text-gray-400 mt-1">Add tasks with categories to see performance breakdown</p>
               </div>
             )}
           </CardContent>
@@ -313,28 +388,29 @@ const AdvancedAnalytics = () => {
           <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
             <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
             <span>AI-Powered Insights</span>
+            <Badge variant="secondary" className="ml-auto text-xs">Real-time</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {aiInsights.map((insight, index) => (
               <div key={index} className={`p-4 rounded-lg ${
-                insight.type === 'achievement' ? 'bg-green-50' :
-                insight.type === 'priority' ? 'bg-blue-50' :
-                insight.type === 'urgent' ? 'bg-red-50' :
-                'bg-purple-50'
+                insight.type === 'achievement' || insight.type === 'good' || insight.type === 'strength' ? 'bg-green-50 dark:bg-green-900/20' :
+                insight.type === 'priority' || insight.type === 'improvement' ? 'bg-blue-50 dark:bg-blue-900/20' :
+                insight.type === 'urgent' ? 'bg-red-50 dark:bg-red-900/20' :
+                'bg-purple-50 dark:bg-purple-900/20'
               }`}>
                 <h4 className={`font-semibold mb-2 ${
-                  insight.type === 'achievement' ? 'text-green-800' :
-                  insight.type === 'priority' ? 'text-blue-800' :
-                  insight.type === 'urgent' ? 'text-red-800' :
-                  'text-purple-800'
+                  insight.type === 'achievement' || insight.type === 'good' || insight.type === 'strength' ? 'text-green-800 dark:text-green-200' :
+                  insight.type === 'priority' || insight.type === 'improvement' ? 'text-blue-800 dark:text-blue-200' :
+                  insight.type === 'urgent' ? 'text-red-800 dark:text-red-200' :
+                  'text-purple-800 dark:text-purple-200'
                 }`}>{insight.title}</h4>
                 <p className={`text-sm ${
-                  insight.type === 'achievement' ? 'text-green-700' :
-                  insight.type === 'priority' ? 'text-blue-700' :
-                  insight.type === 'urgent' ? 'text-red-700' :
-                  'text-purple-700'
+                  insight.type === 'achievement' || insight.type === 'good' || insight.type === 'strength' ? 'text-green-700 dark:text-green-300' :
+                  insight.type === 'priority' || insight.type === 'improvement' ? 'text-blue-700 dark:text-blue-300' :
+                  insight.type === 'urgent' ? 'text-red-700 dark:text-red-300' :
+                  'text-purple-700 dark:text-purple-300'
                 }`}>{insight.content}</p>
               </div>
             ))}
