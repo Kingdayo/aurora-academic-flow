@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -60,7 +61,9 @@ const Dashboard = () => {
   useEffect(() => {
     const handleVoiceAddTask = () => {
       console.log("Voice add task triggered");
+      // Immediately show add task dialog and switch to tasks tab
       setShowAddTask(true);
+      setActiveTab("tasks");
     };
     const handleVoiceTabChange = (event: CustomEvent) => {
       const { tab } = event.detail;
@@ -168,7 +171,9 @@ const Dashboard = () => {
 
   const handleAddTaskClick = () => {
     console.log("Add task clicked - Dashboard");
+    // Immediately show add task dialog and switch to tasks tab
     setShowAddTask(true);
+    setActiveTab("tasks");
   };
 
   const handleLogout = async () => {

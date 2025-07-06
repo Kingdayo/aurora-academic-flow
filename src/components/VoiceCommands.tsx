@@ -75,8 +75,10 @@ const VoiceCommands = ({ onTabChange, onAddTask, onStartTimer }: VoiceCommandsPr
         case "ADD_TASK":
           if (onAddTask) {
             onAddTask();
+          } else {
+            // Dispatch event as fallback
+            window.dispatchEvent(new CustomEvent('voice-add-task'));
           }
-          // Fallback via localStorage and event dispatch removed as onAddTask should be consistently provided.
           break;
         case "SHOW_TASKS":
           if (onTabChange) {
