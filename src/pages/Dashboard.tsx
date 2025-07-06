@@ -285,7 +285,7 @@ const Dashboard = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="tasks" className="scroll-animate">
+          <TabsContent value="tasks" className="scroll-animate" forceMount>
             <div id="task-section">
               <TaskManager showAddDialog={showAddTask} onShowAddDialogChange={setShowAddTask} />
             </div>
