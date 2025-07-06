@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Bell, Clock, Calendar, AlertTriangle, Zap } from "lucide-react";
 import { toast } from "sonner";
+import useTaskNotifications from '@/hooks/useTaskNotifications'; // Import the hook
 
 interface NotificationSettings {
   smartReminders: boolean;
@@ -24,7 +25,12 @@ const SmartNotifications = () => {
     browserNotifications: false
   });
 
-  const [permission, setPermission] = useState<NotificationPermission>("default");
+  const {
+    notificationPermission,
+    requestNotificationPermission: requestHookPermission,
+    showNotification,
+    isNotificationSupported
+  } = useTaskNotifications();
 
   useEffect(() => {
     // Load settings from localStorage
@@ -32,42 +38,47 @@ const SmartNotifications = () => {
     if (savedSettings) {
       setSettings(JSON.parse(savedSettings));
     }
-
-    // Check current notification permission
-    if ("Notification" in window) {
-      setPermission(Notification.permission);
-      
-      // If permission was granted before, enable browser notifications
-      if (Notification.permission === "granted") {
-        setSettings(prev => ({ ...prev, browserNotifications: true }));
-      }
-    }
   }, []);
+
+  // Sync browserNotifications toggle if permission changes externally (e.g. user revokes in browser settings)
+  useEffect(() => {
+    if (notificationPermission === "granted" && !settings.browserNotifications) {
+      // If permission is granted, but toggle is off, user might have granted it then turned off toggle.
+      // Or, if permission granted via other means, reflect it by trying to set toggle on if appropriate.
+      // This part might need more nuanced logic based on desired UX.
+      // For now, if permission becomes granted, and toggle was off, we might enable it.
+      // setSettings(prev => ({ ...prev, browserNotifications: true }));
+    } else if (notificationPermission !== "granted" && settings.browserNotifications) {
+      // If permission is not granted (denied/default) but toggle is on, turn it off.
+      setSettings(prev => ({ ...prev, browserNotifications: false }));
+    }
+  }, [notificationPermission, settings.browserNotifications]);
+
 
   // Save settings whenever they change
   useEffect(() => {
     localStorage.setItem('notificationSettings', JSON.stringify(settings));
   }, [settings]);
 
-  const requestNotificationPermission = async () => {
-    if ("Notification" in window) {
-      const result = await Notification.requestPermission();
-      setPermission(result);
-      if (result === "granted") {
-        toast.success("Browser notifications enabled permanently! 🔔");
-        setSettings(prev => ({ ...prev, browserNotifications: true }));
-        
-        // Save the permission status
-        localStorage.setItem('notificationPermissionGranted', 'true');
-        
-        // Send a welcome notification
-        new Notification("Aurora Notifications", {
-          body: "You'll now receive smart reminders and updates! 🎉",
-          icon: "/favicon.ico"
-        });
-      } else {
-        toast.error("Notification permission denied. You can enable it later in browser settings.");
-      }
+  const handleRequestPermission = async () => {
+    if (!isNotificationSupported()) {
+      toast.error("Browser notifications are not supported on this device/browser.");
+      return;
+    }
+    const currentPermission = await requestHookPermission();
+    if (currentPermission === "granted") {
+      toast.success("Browser notifications enabled! 🔔");
+      setSettings(prev => ({ ...prev, browserNotifications: true }));
+      // Send a welcome notification via the hook
+      showNotification("Aurora Notifications", {
+        body: "You'll now receive smart reminders and updates! 🎉",
+      });
+    } else if (currentPermission === "denied") {
+      toast.error("Notification permission denied. You can enable it later in browser settings.");
+      setSettings(prev => ({ ...prev, browserNotifications: false }));
+    } else {
+      toast.info("Notification permission pending or dismissed.");
+      setSettings(prev => ({ ...prev, browserNotifications: false }));
     }
   };
 
@@ -76,13 +87,17 @@ const SmartNotifications = () => {
     toast.success("Notification settings updated! ⚙️");
     
     // If enabling browser notifications but permission not granted, request it
-    if (key === 'browserNotifications' && value && permission !== 'granted') {
-      requestNotificationPermission();
+    if (key === 'browserNotifications' && value && notificationPermission !== 'granted') {
+      handleRequestPermission();
+    }
+    // If user is turning off the browserNotifications toggle
+    if (key === 'browserNotifications' && !value) {
+        setSettings(prev => ({ ...prev, browserNotifications: false }));
     }
   };
 
   const sendTestNotification = () => {
-    if (permission === "granted") {
+    if (notificationPermission === "granted" && settings.browserNotifications) {
       const testMessages = [
         "Don't forget to work on your Mathematics homework! 📚",
         "Time for a study break! Take 5 minutes to recharge ☕",
@@ -92,21 +107,29 @@ const SmartNotifications = () => {
       
       const randomMessage = testMessages[Math.floor(Math.random() * testMessages.length)];
       
-      new Notification("Aurora Reminder", {
+      // Use the hook's showNotification method
+      showNotification("Aurora Test Reminder", {
         body: randomMessage,
-        icon: "/favicon.ico",
-        badge: "/favicon.ico"
+        // icon and badge can be part of default options in the hook or passed here
       });
       toast.success("Test notification sent! 🔔");
     } else {
-      toast.error("Please enable browser notifications first!");
+      if (!isNotificationSupported()) {
+        toast.error("Browser notifications are not supported on this device/browser.");
+      } else if (notificationPermission !== "granted") {
+        toast.error("Please grant notification permission first.");
+      } else {
+        toast.error("Please enable the 'Browser Notifications' toggle first.");
+      }
     }
   };
 
   const scheduleSmartReminder = () => {
-    if (permission === "granted" && settings.smartReminders) {
+    // This function's direct notification sending can also be updated to use the hook
+    // For now, focusing on permission integration.
+    if (notificationPermission === "granted" && settings.smartReminders) {
       // Schedule a smart reminder based on user's tasks
-      const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+      const tasks = JSON.parse(localStorage.getItem('aurora-tasks') || '[]'); // Corrected localStorage key
       const pendingTasks = tasks.filter((task: any) => !task.completed);
       
       if (pendingTasks.length > 0) {
@@ -192,15 +215,16 @@ const SmartNotifications = () => {
               </div>
               <Switch
                 id="browser-notifications"
-                checked={settings.browserNotifications && permission === "granted"}
+                checked={settings.browserNotifications && notificationPermission === "granted"}
                 onCheckedChange={(checked) => handleSettingChange('browserNotifications', checked)}
+                disabled={!isNotificationSupported()} // Disable toggle if not supported
               />
             </div>
             
             <div className="space-y-2">
-              {permission !== "granted" && (
+              {isNotificationSupported() && notificationPermission !== "granted" && (
                 <Button 
-                  onClick={requestNotificationPermission}
+                  onClick={handleRequestPermission} // Use the new handler
                   variant="outline" 
                   size="sm"
                   className="w-full"
@@ -209,7 +233,7 @@ const SmartNotifications = () => {
                 </Button>
               )}
               
-              {permission === "granted" && (
+              {notificationPermission === "granted" && settings.browserNotifications && (
                 <div className="flex space-x-2">
                   <Button 
                     onClick={sendTestNotification}
@@ -231,9 +255,19 @@ const SmartNotifications = () => {
               )}
             </div>
             
-            {permission === "granted" && (
+            {isNotificationSupported() && notificationPermission === "granted" && (
               <p className="text-xs text-green-600 mt-2">
-                ✅ Notifications enabled permanently
+                ✅ Browser notifications are enabled.
+              </p>
+            )}
+            {!isNotificationSupported() && (
+              <p className="text-xs text-red-600 mt-2">
+                ❌ Browser notifications are not supported on this device/browser.
+              </p>
+            )}
+             {isNotificationSupported() && notificationPermission === "denied" && (
+              <p className="text-xs text-yellow-600 mt-2">
+                ⚠️ Browser notifications are disabled. You can enable them in your browser settings.
               </p>
             )}
           </div>
