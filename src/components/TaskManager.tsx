@@ -30,9 +30,10 @@ interface Task {
 interface TaskManagerProps {
   showAddDialog?: boolean;
   onShowAddDialogChange?: (show: boolean) => void;
+  activeTab?: string;
 }
 
-const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManagerProps) => {
+const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }: TaskManagerProps) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   // const [showAddTaskDialog, setShowAddTaskDialog] = useState(showAddDialog); // Controlled by prop
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -195,10 +196,14 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Task Manager</h2>
+    <>
+      <div
+        className="space-y-6"
+        style={{ display: activeTab === 'tasks' ? 'block' : 'none' }}
+      >
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Task Manager</h2>
           <p className="text-gray-600 dark:text-gray-300">Organize your academic and personal tasks</p>
         </div>
         <Button 
@@ -489,7 +494,9 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
           onSave={handleTaskUpdate}
         />
       )}
-    </div>
+      </div>
+      {/* Dialogs are here, outside the conditional display wrapper, they rely on DialogPortal */}
+    </>
   );
 };
 
