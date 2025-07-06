@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -60,15 +59,13 @@ const Dashboard = () => {
   // Add voice command event listeners
   useEffect(() => {
     const handleVoiceAddTask = () => {
-      console.log("Voice add task triggered - forcing dialog");
-      // Force immediate state changes with requestAnimationFrame to ensure proper rendering
-      requestAnimationFrame(() => {
+      console.log("Voice add task triggered - forcing dialog immediately");
+      // Force the dialog to show immediately regardless of current tab
+      setShowAddTask(true);
+      // Then switch to tasks tab if not already there
+      if (activeTab !== "tasks") {
         setActiveTab("tasks");
-        requestAnimationFrame(() => {
-          setShowAddTask(true);
-          console.log("Add task dialog should now be visible");
-        });
-      });
+      }
     };
     const handleVoiceTabChange = (event: CustomEvent) => {
       const { tab } = event.detail;
@@ -86,7 +83,7 @@ const Dashboard = () => {
       window.removeEventListener('voice-tab-change', handleVoiceTabChange as EventListener);
       window.removeEventListener('voice-start-timer', handleVoiceStartTimer);
     };
-  }, []);
+  }, [activeTab]);
 
   // Improved mobile tab change handler with proper isolation and debouncing
   const handleMobileTabChange = useCallback((tabId: string) => {
@@ -348,15 +345,14 @@ const Dashboard = () => {
             setActiveTab(tab);
             setShowVoiceCommands(false);
           }} onAddTask={() => {
-            console.log("Voice command add task from dialog");
+            console.log("Voice command add task from dialog - immediate trigger");
             setShowVoiceCommands(false);
-            // Force immediate state changes
-            requestAnimationFrame(() => {
+            // Show dialog immediately
+            setShowAddTask(true);
+            // Switch to tasks tab if needed
+            if (activeTab !== "tasks") {
               setActiveTab("tasks");
-              requestAnimationFrame(() => {
-                setShowAddTask(true);
-              });
-            });
+            }
           }} onStartTimer={() => {
             const timerEvent = new CustomEvent('start-pomodoro-timer');
             window.dispatchEvent(timerEvent);
