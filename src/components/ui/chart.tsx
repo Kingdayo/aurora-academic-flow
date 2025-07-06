@@ -36,17 +36,11 @@ const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
     config: ChartConfig
-    // children: React.ComponentProps< // This line was the source of the error
-    // typeof RechartsPrimitive.ResponsiveContainer // Removed ResponsiveContainer
-    // >["children"]
-    children: React.ReactElement<RechartsPrimitive.ChartProps> // Expect a single Recharts chart element
+    children: React.ReactNode
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId()
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`
-
-  // Ensure children is a single valid React element (the chart)
-  const chartElement = React.Children.only(children) as React.ReactElement<RechartsPrimitive.ChartProps>;
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -55,13 +49,12 @@ const ChartContainer = React.forwardRef<
         ref={ref}
         className={cn(
           "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
-          className // This className should define the dimensions (e.g., h-64)
+          className
         )}
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        {/* Render the chart directly, expecting it to have width/height 100% to fill this div */}
-        {chartElement}
+        {children}
       </div>
     </ChartContext.Provider>
   )

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -318,16 +319,16 @@ const AnalyticsSection = () => {
           </CardHeader>
           <CardContent>
             {categoryChartData.length > 0 ? (
-              // Assuming CardContent provides a constrained width for "100%" to work.
-              // ResponsiveContainer removed as height is fixed and width is expected to be constrained by parent.
-              <BarChart width="100%" height={250} data={categoryChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="category" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#8b5cf6" name="Total" />
-                <Bar dataKey="completed" fill="#10b981" name="Completed" />
-              </BarChart>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={categoryChartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="category" fontSize={12} />
+                  <YAxis fontSize={12} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#8b5cf6" name="Total" />
+                  <Bar dataKey="completed" fill="#10b981" name="Completed" />
+                </BarChart>
+              </ResponsiveContainer>
             ) : (
               <div className="h-64 flex items-center justify-center text-gray-500">
                 <div className="text-center">
@@ -347,11 +348,10 @@ const AnalyticsSection = () => {
           </CardHeader>
           <CardContent>
             {priorityData.length > 0 ? (
-              // Assuming CardContent provides a constrained width for "100%" to work.
-              // ResponsiveContainer removed as height is fixed and width is expected to be constrained by parent.
-              <PieChart width="100%" height={250}>
-                <Pie
-                  data={priorityData}
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={priorityData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -367,6 +367,7 @@ const AnalyticsSection = () => {
                   </Pie>
                   <Tooltip />
                 </PieChart>
+              </ResponsiveContainer>
             ) : (
               <div className="h-64 flex items-center justify-center text-gray-500">
                 <div className="text-center">
@@ -388,16 +389,16 @@ const AnalyticsSection = () => {
             <CardDescription className="text-xs sm:text-sm">Task creation and completion over the past 7 weeks</CardDescription>
           </CardHeader>
           <CardContent>
-             {/* Assuming CardContent provides a constrained width for "100%" to work. */}
-             {/* ResponsiveContainer removed as height is fixed and width is expected to be constrained by parent. */}
-             <LineChart width="100%" height={250} data={weeklyData}>
-               <CartesianGrid strokeDasharray="3 3" />
-               <XAxis dataKey="week" fontSize={12} />
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={weeklyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="week" fontSize={12} />
                 <YAxis fontSize={12} />
                 <Tooltip />
                 <Line type="monotone" dataKey="created" stroke="#8b5cf6" strokeWidth={2} name="Created" />
                 <Line type="monotone" dataKey="completed" stroke="#10b981" strokeWidth={2} name="Completed" />
               </LineChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
