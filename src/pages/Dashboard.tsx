@@ -75,30 +75,58 @@ const Dashboard = () => {
       }
 
       const now = new Date();
+      console.log(`[${now.toISOString()}] Running checkTaskDueTimes. Permission: ${notificationPermission}`);
 
       tasks.forEach(task => {
-        if (task.completed || !task.dueDate || !task.dueTime || hasBeenNotified(task.id)) {
+        // Logging for each task before pre-condition checks
+        console.log(`[TaskCheck] ID: ${task.id}, Title: ${task.title}, DueDate: ${task.dueDate}, DueTime: ${task.dueTime}, Completed: ${task.completed}, Notified: ${hasBeenNotified(task.id)}`);
+
+        if (task.completed) {
+          console.log(`[TaskCheck] ID: ${task.id} - SKIPPING: Already completed.`);
+          return;
+        }
+        if (!task.dueDate) {
+          console.log(`[TaskCheck] ID: ${task.id} - SKIPPING: No dueDate.`);
+          return;
+        }
+        if (!task.dueTime) {
+          console.log(`[TaskCheck] ID: ${task.id} - SKIPPING: No dueTime.`);
+          return;
+        }
+        if (hasBeenNotified(task.id)) {
+          console.log(`[TaskCheck] ID: ${task.id} - SKIPPING: Already notified.`);
           return;
         }
 
         // Ensure dueDate is a Date object
         const dueDateObj = typeof task.dueDate === 'string' ? new Date(task.dueDate) : task.dueDate;
+        console.log(`[TaskCheck] ID: ${task.id} - Raw task.dueDate: ${task.dueDate}, Parsed dueDateObj: ${dueDateObj.toISOString()}`);
+
         if (isNaN(dueDateObj.getTime())) { // Invalid date
-            console.warn(`Task ${task.id} has an invalid dueDate: ${task.dueDate}`);
+            console.warn(`[TaskCheck] ID: ${task.id} - SKIPPING: Invalid dueDate after parsing: ${task.dueDate}`);
             return;
         }
 
-        const [hours, minutes] = task.dueTime.split(':').map(Number);
-        if (isNaN(hours) || isNaN(minutes)) {
-            console.warn(`Task ${task.id} has an invalid dueTime: ${task.dueTime}`);
+        const timeParts = task.dueTime.split(':');
+        const hours = parseInt(timeParts[0], 10);
+        const minutes = parseInt(timeParts[1], 10);
+        console.log(`[TaskCheck] ID: ${task.id} - Raw task.dueTime: ${task.dueTime}, Parsed hours: ${hours}, minutes: ${minutes}`);
+
+        if (isNaN(hours) || isNaN(minutes) || timeParts.length !== 2) {
+            console.warn(`[TaskCheck] ID: ${task.id} - SKIPPING: Invalid dueTime format: ${task.dueTime}`);
             return;
         }
 
-        const dueDateTime = new Date(dueDateObj);
-        dueDateTime.setHours(hours, minutes, 0, 0); // Set time, seconds, and milliseconds
+        // Create a new Date object from dueDateObj to avoid modifying it if it's already a Date
+        const dueDateTime = new Date(dueDateObj.getFullYear(), dueDateObj.getMonth(), dueDateObj.getDate(), hours, minutes, 0, 0);
+        console.log(`[TaskCheck] ID: ${task.id} - Constructed dueDateTime: ${dueDateTime.toISOString()} (local)`);
+        console.log(`[TaskCheck] ID: ${task.id} - Current 'now': ${now.toISOString()} (local)`);
 
-        if (now >= dueDateTime) {
-          console.log(`Task due: ${task.title}`);
+        const isDue = now >= dueDateTime;
+        console.log(`[TaskCheck] ID: ${task.id} - Comparison: now (${now.getTime()}) >= dueDateTime (${dueDateTime.getTime()})? ${isDue}`);
+
+        if (isDue) {
+          console.log(`[TaskCheck] ID: ${task.id} - TRIGGERING NOTIFICATION for task: ${task.title}`);
           showNotification(`Task Due: ${task.title}`, {
             body: task.description || `Your task "${task.title}" is now due.`,
             tag: `task-${task.id}`, // Tag to potentially replace notification if logic changes
