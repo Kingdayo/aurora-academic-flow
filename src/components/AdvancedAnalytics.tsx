@@ -324,18 +324,16 @@ const AdvancedAnalytics = () => {
                 completed: { label: "Completed", color: "#8B5CF6" },
                 planned: { label: "Planned", color: "#E5E7EB" }
               }}
-              className="h-48 sm:h-64"
+              className="h-48 sm:h-64" // This div will be sized, LineChart should fill it.
             >
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={analyticsData.productivity}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line type="monotone" dataKey="completed" stroke="#8B5CF6" strokeWidth={2} />
-                  <Line type="monotone" dataKey="planned" stroke="#E5E7EB" strokeWidth={2} strokeDasharray="5 5" />
-                </LineChart>
-              </ResponsiveContainer>
+              <LineChart width="100%" height="100%" data={analyticsData.productivity}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Line type="monotone" dataKey="completed" stroke="#8B5CF6" strokeWidth={2} />
+                <Line type="monotone" dataKey="planned" stroke="#E5E7EB" strokeWidth={2} strokeDasharray="5 5" />
+              </LineChart>
             </ChartContainer>
           </CardContent>
         </Card>

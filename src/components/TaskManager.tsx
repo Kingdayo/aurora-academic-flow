@@ -34,7 +34,7 @@ interface TaskManagerProps {
 
 const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManagerProps) => {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [showAddTaskDialog, setShowAddTaskDialog] = useState(showAddDialog);
+  // const [showAddTaskDialog, setShowAddTaskDialog] = useState(showAddDialog); // Controlled by prop
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -51,44 +51,6 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
     priority: "medium" as 'low' | 'medium' | 'high',
     category: "General"
   });
-
-  // Check for voice command trigger on mount and listen for voice events
-  useEffect(() => {
-    const checkVoiceTrigger = () => {
-      const voiceTrigger = localStorage.getItem('voice-add-task-trigger');
-      if (voiceTrigger === 'true') {
-        localStorage.removeItem('voice-add-task-trigger');
-        setShowAddTaskDialog(true);
-      }
-    };
-
-    checkVoiceTrigger();
-
-    const handleVoiceAddTask = () => {
-      console.log("Voice add task triggered");
-      setShowAddTaskDialog(true);
-    };
-
-    window.addEventListener('voice-add-task', handleVoiceAddTask);
-
-    return () => {
-      window.removeEventListener('voice-add-task', handleVoiceAddTask);
-    };
-  }, []);
-
-  // Sync with parent prop - fix dialog stability
-  useEffect(() => {
-    if (showAddDialog && !showAddTaskDialog) {
-      setShowAddTaskDialog(true);
-    }
-  }, [showAddDialog]);
-
-  // Notify parent when dialog state changes
-  useEffect(() => {
-    if (onShowAddDialogChange) {
-      onShowAddDialogChange(showAddTaskDialog);
-    }
-  }, [showAddTaskDialog, onShowAddDialogChange]);
 
   // Load tasks from localStorage on component mount
   useEffect(() => {
@@ -162,7 +124,10 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
       priority: "medium",
       category: "General"
     });
-    setShowAddTaskDialog(false);
+    // setShowAddTaskDialog(false); // Now controlled by parent via onShowAddDialogChange
+    if (onShowAddDialogChange) {
+      onShowAddDialogChange(false);
+    }
     toast.success("Task added successfully! 🎉");
   };
 
@@ -237,7 +202,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
           <p className="text-gray-600 dark:text-gray-300">Organize your academic and personal tasks</p>
         </div>
         <Button 
-          onClick={() => setShowAddTaskDialog(true)}
+          onClick={() => onShowAddDialogChange && onShowAddDialogChange(true)}
           className="bg-purple-gradient hover:opacity-90 flex items-center space-x-2"
         >
           <Plus className="w-4 h-4" />
@@ -316,7 +281,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
               </div>
               {tasks.length === 0 && (
                 <Button 
-                  onClick={() => setShowAddTaskDialog(true)}
+                  onClick={() => onShowAddDialogChange && onShowAddDialogChange(true)}
                   className="bg-purple-gradient hover:opacity-90"
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -398,10 +363,11 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
         )}
       </div>
 
-      <Dialog open={showAddTaskDialog} onOpenChange={setShowAddTaskDialog}>
+      <Dialog open={showAddDialog} onOpenChange={onShowAddDialogChange}>
         <DialogContent className="w-[95vw] max-w-md mx-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50">
           <DialogHeader>
             <DialogTitle>Add New Task</DialogTitle>
+            <DialogDescription>Fill in the details below to add a new task to your list.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -488,7 +454,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
             <div className="flex space-x-2 pt-4">
               <Button 
                 variant="outline" 
-                onClick={() => setShowAddTaskDialog(false)}
+                onClick={() => onShowAddDialogChange && onShowAddDialogChange(false)}
                 className="flex-1"
               >
                 Cancel
