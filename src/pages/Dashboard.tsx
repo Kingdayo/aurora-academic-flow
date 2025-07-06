@@ -60,10 +60,15 @@ const Dashboard = () => {
   // Add voice command event listeners
   useEffect(() => {
     const handleVoiceAddTask = () => {
-      console.log("Voice add task triggered");
-      // Immediately show add task dialog and switch to tasks tab
-      setShowAddTask(true);
-      setActiveTab("tasks");
+      console.log("Voice add task triggered - forcing dialog");
+      // Force immediate state changes with requestAnimationFrame to ensure proper rendering
+      requestAnimationFrame(() => {
+        setActiveTab("tasks");
+        requestAnimationFrame(() => {
+          setShowAddTask(true);
+          console.log("Add task dialog should now be visible");
+        });
+      });
     };
     const handleVoiceTabChange = (event: CustomEvent) => {
       const { tab } = event.detail;
@@ -343,8 +348,15 @@ const Dashboard = () => {
             setActiveTab(tab);
             setShowVoiceCommands(false);
           }} onAddTask={() => {
-            setShowAddTask(true);
+            console.log("Voice command add task from dialog");
             setShowVoiceCommands(false);
+            // Force immediate state changes
+            requestAnimationFrame(() => {
+              setActiveTab("tasks");
+              requestAnimationFrame(() => {
+                setShowAddTask(true);
+              });
+            });
           }} onStartTimer={() => {
             const timerEvent = new CustomEvent('start-pomodoro-timer');
             window.dispatchEvent(timerEvent);
