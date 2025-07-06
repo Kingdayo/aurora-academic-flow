@@ -367,7 +367,6 @@ const AnalyticsSection = () => {
                   </Pie>
                   <Tooltip />
                 </PieChart>
-              </ResponsiveContainer>
             ) : (
               <div className="h-64 flex items-center justify-center text-gray-500">
                 <div className="text-center">
@@ -399,7 +398,6 @@ const AnalyticsSection = () => {
                 <Line type="monotone" dataKey="created" stroke="#8b5cf6" strokeWidth={2} name="Created" />
                 <Line type="monotone" dataKey="completed" stroke="#10b981" strokeWidth={2} name="Completed" />
               </LineChart>
-            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
