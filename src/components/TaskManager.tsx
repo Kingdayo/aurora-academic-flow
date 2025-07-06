@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogPortal, DialogOverlay } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -364,12 +364,14 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
       </div>
 
       <Dialog open={showAddDialog} onOpenChange={onShowAddDialogChange}>
-        <DialogContent 
-          className="w-[95vw] max-w-md mx-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50"
-          aria-describedby="add-task-description"
-        >
-          <DialogHeader>
-            <DialogTitle>Add New Task</DialogTitle>
+        <DialogPortal>
+          <DialogOverlay />
+          <DialogContent
+            className="w-[95vw] max-w-md mx-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50"
+            aria-describedby="add-task-description"
+          >
+            <DialogHeader>
+              <DialogTitle>Add New Task</DialogTitle>
             <DialogDescription id="add-task-description">
               Fill in the details below to add a new task to your list.
             </DialogDescription>
@@ -473,6 +475,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
             </div>
           </div>
         </DialogContent>
+        </DialogPortal>
       </Dialog>
 
       {editingTask && (

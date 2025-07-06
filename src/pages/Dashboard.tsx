@@ -62,10 +62,7 @@ const Dashboard = () => {
       console.log("Voice add task triggered - forcing dialog immediately");
       // Force the dialog to show immediately regardless of current tab
       setShowAddTask(true);
-      // Then switch to tasks tab if not already there
-      if (activeTab !== "tasks") {
-        setActiveTab("tasks");
-      }
+      // No longer switching to tasks tab automatically
     };
     const handleVoiceTabChange = (event: CustomEvent) => {
       const { tab } = event.detail;
@@ -349,10 +346,7 @@ const Dashboard = () => {
             setShowVoiceCommands(false);
             // Show dialog immediately
             setShowAddTask(true);
-            // Switch to tasks tab if needed
-            if (activeTab !== "tasks") {
-              setActiveTab("tasks");
-            }
+            // No longer switching to tasks tab automatically
           }} onStartTimer={() => {
             const timerEvent = new CustomEvent('start-pomodoro-timer');
             window.dispatchEvent(timerEvent);
