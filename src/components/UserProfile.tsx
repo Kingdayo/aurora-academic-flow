@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/App";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -41,11 +40,8 @@ const UserProfile = ({ onAddTask, onTabChange, onVoiceCommands, isLoggingOut = f
 
   const handleQuickAction = (action: (() => void) | undefined) => {
     if (action) {
-      // Add a small delay to show the click animation before closing
-      setTimeout(() => {
-        action();
-        setIsOpen(false);
-      }, 150);
+      action();
+      setIsOpen(false);
     }
   };
 

@@ -364,10 +364,15 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange }: TaskManag
       </div>
 
       <Dialog open={showAddDialog} onOpenChange={onShowAddDialogChange}>
-        <DialogContent className="w-[95vw] max-w-md mx-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50">
+        <DialogContent 
+          className="w-[95vw] max-w-md mx-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50"
+          aria-describedby="add-task-description"
+        >
           <DialogHeader>
             <DialogTitle>Add New Task</DialogTitle>
-            <DialogDescription>Fill in the details below to add a new task to your list.</DialogDescription>
+            <DialogDescription id="add-task-description">
+              Fill in the details below to add a new task to your list.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>

@@ -86,10 +86,13 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-md mx-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50 animate-scale-in">
+      <DialogContent 
+        className="w-[95vw] max-w-md mx-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50 animate-scale-in"
+        aria-describedby="edit-task-description"
+      >
         <DialogHeader>
           <DialogTitle className="text-lg">Edit Task</DialogTitle>
-          <DialogDescription className="text-sm">
+          <DialogDescription id="edit-task-description" className="text-sm">
             Update your task details.
           </DialogDescription>
         </DialogHeader>
