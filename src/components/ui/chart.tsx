@@ -36,10 +36,10 @@ const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
     config: ChartConfig
-    children: React.ComponentProps<
+    // children: React.ComponentProps< // This line was the source of the error
     // typeof RechartsPrimitive.ResponsiveContainer // Removed ResponsiveContainer
     // >["children"]
-    React.ReactElement<RechartsPrimitive.ChartProps> // Expect a single Recharts chart element
+    children: React.ReactElement<RechartsPrimitive.ChartProps> // Expect a single Recharts chart element
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId()
