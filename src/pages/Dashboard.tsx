@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -32,6 +31,8 @@ const Dashboard = () => {
   const [showTour, setShowTour] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [navigationLocked, setNavigationLocked] = useState(false);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout>();
+  const lastTabChangeRef = useRef(Date.now());
 
   // Check if user needs tour on first visit
   useEffect(() => {
@@ -79,17 +80,61 @@ const Dashboard = () => {
     };
   }, []);
 
-  // Theme change monitoring to prevent navigation freezing
+  // Improved mobile tab change handler with proper isolation and debouncing
+  const handleMobileTabChange = useCallback((tabId: string) => {
+    const now = Date.now();
+    
+    // Prevent rapid successive clicks (debounce)
+    if (now - lastTabChangeRef.current < 200) return;
+    
+    // Prevent navigation during theme transitions
+    if (navigationLocked) return;
+    
+    lastTabChangeRef.current = now;
+    
+    // Clear any existing timeout
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current);
+    }
+    
+    // Lock navigation temporarily
+    setNavigationLocked(true);
+    
+    // Use multiple RAF calls to ensure complete separation from any theme operations
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setActiveTab(tabId);
+          
+          // Unlock after transition completes
+          navigationTimeoutRef.current = setTimeout(() => {
+            setNavigationLocked(false);
+          }, 300);
+        });
+      });
+    });
+  }, [navigationLocked]);
+
+  // Enhanced theme change monitoring with better isolation
   useEffect(() => {
+    let themeChangeTimeout: NodeJS.Timeout;
+    
     const handleThemeChange = () => {
+      // Lock navigation during theme transitions
       setNavigationLocked(true);
-      // Unlock navigation after theme transition
-      setTimeout(() => {
+      
+      // Clear any existing timeout
+      if (themeChangeTimeout) {
+        clearTimeout(themeChangeTimeout);
+      }
+      
+      // Unlock navigation after theme transition completes
+      themeChangeTimeout = setTimeout(() => {
         setNavigationLocked(false);
-      }, 300);
+      }, 600); // Longer timeout to ensure theme transition completes
     };
 
-    // Listen for theme changes
+    // Listen for theme changes via class mutations
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
@@ -106,7 +151,15 @@ const Dashboard = () => {
       attributeFilter: ['class']
     });
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (themeChangeTimeout) {
+        clearTimeout(themeChangeTimeout);
+      }
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
+    };
   }, []);
 
   const handleVoiceCommandsClick = () => {
@@ -129,25 +182,6 @@ const Dashboard = () => {
       setIsLoggingOut(false);
     }
   };
-
-  // Enhanced mobile tab change handler with proper isolation
-  const handleMobileTabChange = useCallback((tabId: string) => {
-    if (navigationLocked) return;
-    
-    // Prevent rapid successive clicks
-    setNavigationLocked(true);
-    
-    // Use multiple RAF calls to ensure complete separation from theme toggle
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setActiveTab(tabId);
-        // Unlock after a short delay
-        setTimeout(() => {
-          setNavigationLocked(false);
-        }, 150);
-      });
-    });
-  }, [navigationLocked]);
 
   const mobileNavTabs = [
     { id: "tasks", label: "Tasks", icon: CheckSquare },
@@ -183,14 +217,14 @@ const Dashboard = () => {
         
         {/* Mobile Navigation - Completely isolated from theme toggle */}
         <div className="md:hidden mobile-nav-container">
-          <div className="flex overflow-x-auto px-4 pb-4 space-x-2" style={{ isolation: 'isolate' }}>
+          <div className="flex overflow-x-auto px-4 pb-4 space-x-2 mobile-nav-wrapper">
             {mobileNavTabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => handleMobileTabChange(tab.id)}
                 disabled={navigationLocked}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 transform ${
-                  navigationLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'
+                className={`mobile-nav-button flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 ${
+                  navigationLocked ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'active:scale-95 hover:scale-105'
                 } ${
                   activeTab === tab.id 
                     ? "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 shadow-sm" 
@@ -199,11 +233,13 @@ const Dashboard = () => {
                 style={{ 
                   touchAction: 'manipulation',
                   WebkitTapHighlightColor: 'transparent',
-                  isolation: 'isolate'
+                  isolation: 'isolate',
+                  contain: 'layout style paint',
+                  willChange: 'transform, background-color'
                 }}
               >
-                <tab.icon className="w-4 h-4" />
-                <span>{tab.label}</span>
+                <tab.icon className="w-4 h-4 flex-shrink-0" />
+                <span className="select-none">{tab.label}</span>
               </button>
             ))}
           </div>
@@ -315,7 +351,7 @@ const Dashboard = () => {
       {/* User Tour */}
       <UserTour isOpen={showTour} onClose={() => setShowTour(false)} />
 
-      {/* Enhanced Mobile styles with complete theme toggle isolation */}
+      {/* Enhanced Mobile styles with complete isolation */}
       <div className="mobile-styles">
         <style dangerouslySetInnerHTML={{
           __html: `
@@ -325,41 +361,75 @@ const Dashboard = () => {
                 isolation: isolate !important;
                 position: relative !important;
                 z-index: 35 !important;
-                contain: layout style !important;
+                contain: layout style paint !important;
+                pointer-events: auto !important;
               }
               
-              .mobile-nav-container button {
+              .mobile-nav-wrapper {
                 isolation: isolate !important;
-                contain: layout style !important;
+                contain: layout style paint !important;
+                pointer-events: auto !important;
+              }
+              
+              .mobile-nav-button {
+                isolation: isolate !important;
+                contain: layout style paint !important;
                 will-change: transform, background-color !important;
                 transition: all 0.15s ease-out !important;
+                pointer-events: auto !important;
+                user-select: none !important;
+                -webkit-user-select: none !important;
               }
               
-              .mobile-nav-container button:not(:disabled):active {
+              .mobile-nav-button:not(:disabled) {
+                cursor: pointer !important;
+              }
+              
+              .mobile-nav-button:not(:disabled):active {
                 transform: scale(0.95) !important;
               }
               
-              .mobile-nav-container button:disabled {
+              .mobile-nav-button:not(:disabled):hover {
+                transform: scale(1.05) !important;
+              }
+              
+              .mobile-nav-button:disabled {
                 opacity: 0.5 !important;
                 cursor: not-allowed !important;
                 pointer-events: none !important;
+                transform: none !important;
               }
               
-              /* Prevent theme toggle from affecting navigation */
+              /* Complete isolation of theme toggle */
+              .theme-toggle-isolated {
+                isolation: isolate !important;
+                z-index: 100 !important;
+                contain: layout style paint !important;
+                pointer-events: auto !important;
+                position: relative !important;
+              }
+              
+              /* Prevent any interference between components */
               [data-theme-toggle] {
                 isolation: isolate !important;
-                z-index: 50 !important;
-                contain: layout style !important;
+                z-index: 100 !important;
+                contain: layout style paint !important;
+                pointer-events: auto !important;
               }
               
-              /* Force mobile buttons to remain interactive */
-              button {
+              /* Ensure all interactive elements remain functional */
+              button, a, [role="button"] {
                 pointer-events: auto !important;
                 touch-action: manipulation !important;
                 -webkit-tap-highlight-color: transparent !important;
               }
               
-              /* Fixed notification positioning for mobile */
+              /* Improve overall mobile responsiveness */
+              * {
+                -webkit-overflow-scrolling: touch !important;
+              }
+              
+              /* Enhanced notification positioning */
               [data-sonner-toaster] {
                 position: fixed !important;
                 top: env(safe-area-inset-top, 100px) !important;
@@ -368,6 +438,7 @@ const Dashboard = () => {
                 width: calc(100vw - 32px) !important;
                 max-width: none !important;
                 z-index: 9999 !important;
+                pointer-events: none !important;
               }
               
               [data-sonner-toast] {
@@ -378,17 +449,28 @@ const Dashboard = () => {
                 font-size: 14px !important;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
                 backdrop-filter: blur(10px) !important;
+                pointer-events: auto !important;
               }
               
-              /* Ensure popover positioning on mobile */
-              [data-radix-popper-content-wrapper] {
-                z-index: 9998 !important;
+              /* Ensure proper layout containment */
+              .container {
+                contain: layout style !important;
               }
               
-              /* Force analytics content to be visible */
+              /* Force visibility of content */
               .scroll-animate {
                 opacity: 1 !important;
                 transform: translateY(0) !important;
+                contain: layout style !important;
+              }
+              
+              /* Prevent layout shifts during theme changes */
+              html.dark, html:not(.dark) {
+                transition: none !important;
+              }
+              
+              body {
+                transition: background-color 0.3s ease !important;
               }
             }
 
@@ -398,46 +480,14 @@ const Dashboard = () => {
                 padding-right: 0.5rem !important;
               }
               
-              .calendar-responsive .grid-cols-7 > div {
-                min-height: 48px !important;
-                padding: 0.25rem !important;
-                font-size: 0.75rem !important;
-              }
-              
-              .calendar-responsive button {
-                padding: 0.375rem !important;
+              .mobile-nav-button {
+                padding: 0.5rem 0.75rem !important;
                 font-size: 0.875rem !important;
               }
               
-              .calendar-responsive h3 {
-                font-size: 0.875rem !important;
-                min-width: 100px !important;
+              .space-x-2 > * + * {
+                margin-left: 0.375rem !important;
               }
-              
-              .space-y-6 > * + * {
-                margin-top: 1rem !important;
-              }
-              
-              .p-4 {
-                padding: 0.75rem !important;
-              }
-              
-              .text-2xl {
-                font-size: 1.25rem !important;
-              }
-              
-              .rounded-lg {
-                border-radius: 0.5rem !important;
-              }
-            }
-
-            .scroll-animate {
-              transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-            }
-
-            .scroll-animate.animate-fade-in {
-              opacity: 1;
-              transform: translateY(0);
             }
           `
         }} />

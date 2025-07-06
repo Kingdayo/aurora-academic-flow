@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -60,6 +59,47 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
+  }
+}
+
+/* Mobile optimization and isolation */
+@media (max-width: 1024px) {
+  /* Improve touch responsiveness */
+  * {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* Prevent theme transition interference */
+  html {
+    transition: none !important;
+  }
+  
+  body {
+    transition: background-color 0.2s ease;
+  }
+  
+  /* Ensure proper isolation */
+  button, [role="button"] {
+    isolation: isolate;
+    contain: layout style;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Mobile navigation specific optimizations */
+  .mobile-nav-container {
+    isolation: isolate;
+    contain: layout style paint;
+    will-change: scroll-position;
+  }
+  
+  .mobile-nav-container button {
+    isolation: isolate;
+    contain: layout style paint;
+    will-change: transform, background-color;
+    backface-visibility: hidden;
+    transform: translateZ(0);
   }
 }
 
