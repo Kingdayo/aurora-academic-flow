@@ -90,9 +90,25 @@ const App = () => {
       setLoading(false);
     });
 
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => { // Register SW after page load for performance
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('[App] Service Worker registered with scope:', registration.scope);
+          })
+          .catch((error) => {
+            console.error('[App] Service Worker registration failed:', error);
+          });
+      });
+    } else {
+      console.log('[App] Service Worker not supported in this browser.');
+    }
+
     return () => {
       clearTimeout(initialLoadingTimer);
       subscription.unsubscribe();
+      // No specific SW unregistration needed here, browser handles it.
     };
   }, []);
 

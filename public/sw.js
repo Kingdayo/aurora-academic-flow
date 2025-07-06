@@ -12,15 +12,50 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(urlsToCache))
   );
+  console.log('[SW] Service Worker installed with caching.');
+  // self.skipWaiting(); // Optional: activate new SW immediately
+});
+
+self.addEventListener('activate', (event) => {
+  console.log('[SW] Service Worker activating.');
+  // You might want to add logic here to clean up old caches
+  // event.waitUntil(clients.claim()); // Optional: take control of clients immediately
 });
 
 self.addEventListener('fetch', (event) => {
+  // console.log('[SW] Fetching:', event.request.url); // Can be noisy
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
         // Return cached version or fetch from network
-        return response || fetch(event.request);
+        if (response) {
+          // console.log('[SW] Cache hit for:', event.request.url);
+          return response;
+        }
+        // console.log('[SW] Cache miss, fetching from network:', event.request.url);
+        return fetch(event.request);
       })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification click Received for tag:', event.notification.tag);
+  event.notification.close(); // Close the notification
+
+  // Example: Focus an open window or open a new one.
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url === '/' || client.url.startsWith(self.registration.scope)) {
+          if ('focus' in client && typeof client.focus === 'function') {
+            return client.focus();
+          }
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(self.registration.scope || '/');
+      }
+    })
   );
 });
 

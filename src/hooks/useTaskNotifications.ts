@@ -5,7 +5,7 @@ const NOTIFIED_TASKS_STORAGE_KEY = 'aurora-notified-tasks';
 interface UseTaskNotificationsReturn {
   notificationPermission: NotificationPermission | null;
   requestNotificationPermission: () => Promise<NotificationPermission | null>;
-  showNotification: (title: string, options?: NotificationOptions) => void;
+  showNotification: (title: string, options?: NotificationOptions) => Promise<void>; // Changed to Promise<void>
   markAsNotified: (taskId: string) => void;
   hasBeenNotified: (taskId: string) => boolean;
   isNotificationSupported: () => boolean;
@@ -84,15 +84,21 @@ const useTaskNotifications = (): UseTaskNotificationsReturn => {
     return currentPermission; // Should be 'default' if we reached here without requesting.
   }, [isNotificationSupported]);
 
-  const showNotification = useCallback((title: string, options?: NotificationOptions) => {
+  const showNotification = useCallback(async (title: string, options?: NotificationOptions): Promise<void> => {
     console.log('[MobileNotifyDebug] showNotification called. Title:', title);
-    if (!isNotificationSupported()) { // Also logs internally
-        console.warn('[MobileNotifyDebug] showNotification: Notifications not supported.');
-        return;
+    if (!isNotificationSupported()) {
+      console.warn('[MobileNotifyDebug] showNotification: Notifications not supported (isNotificationSupported check).');
+      return;
+    }
+    if (!('serviceWorker' in navigator)) {
+      console.warn('[MobileNotifyDebug] showNotification: Service Worker not supported in navigator.');
+      // Fallback or alternative for non-SW environments if desired, though the error indicates SW is required.
+      // For now, we'll just not show a notification if SW isn't available, as the error implies it's mandatory.
+      return;
     }
 
-    const currentPermission = Notification.permission; // Get the latest permission status
-    setNotificationPermission(currentPermission); // Update state just in case
+    const currentPermission = Notification.permission;
+    setNotificationPermission(currentPermission);
     console.log('[MobileNotifyDebug] showNotification: Current permission state:', currentPermission);
 
     if (currentPermission !== 'granted') {
@@ -105,24 +111,23 @@ const useTaskNotifications = (): UseTaskNotificationsReturn => {
       icon: options?.icon || '/favicon.ico',
       tag: options?.tag,
       timestamp: options?.timestamp,
-      ...options, // Spread other valid options
+      // data: options?.data, // Pass through any custom data
+      ...options,
     };
     console.log('[MobileNotifyDebug] showNotification: Notification options:', notificationOptions);
 
     try {
-      console.log('[MobileNotifyDebug] showNotification: Attempting new Notification(...)');
-      // eslint-disable-next-line no-new
-      const notification = new Notification(title, notificationOptions);
-      notification.onclick = () => {
-        console.log('[MobileNotifyDebug] Notification clicked.');
-        // Optional: window.focus(); or specific app action
-      };
-      notification.onerror = (err) => {
-        console.error('[MobileNotifyDebug] Notification error event:', err);
-      };
-      console.log('[MobileNotifyDebug] showNotification: new Notification(...) call succeeded.');
+      console.log('[MobileNotifyDebug] showNotification: Waiting for service worker registration to be ready...');
+      const registration = await navigator.serviceWorker.ready;
+      console.log('[MobileNotifyDebug] showNotification: Service worker registration ready. Attempting registration.showNotification(...).');
+      await registration.showNotification(title, notificationOptions);
+      console.log('[MobileNotifyDebug] showNotification: registration.showNotification(...) call succeeded.');
     } catch (error) {
-      console.error('[MobileNotifyDebug] showNotification: Error creating notification:', error);
+      console.error('[MobileNotifyDebug] showNotification: Error displaying notification via Service Worker:', error);
+      // Log the error that was specifically indicated by the user
+      if (error instanceof TypeError && error.message.includes("Illegal constructor")) {
+        console.error('[MobileNotifyDebug] Confirmed: TypeError related to constructor. SW method should be preferred.');
+      }
     }
   }, [isNotificationSupported]);
 
