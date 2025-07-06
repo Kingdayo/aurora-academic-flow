@@ -21,6 +21,21 @@ import UserProfile from "@/components/UserProfile";
 import VoiceCommands from "@/components/VoiceCommands";
 import UserTour from "@/components/UserTour";
 import ScrollAnimations from "@/components/ScrollAnimations";
+import useTaskNotifications from "@/hooks/useTaskNotifications"; // Import the hook
+
+// Define a type for the task structure based on TaskManager.tsx
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  dueDate?: string | Date; // Can be string from JSON or Date object
+  dueTime?: string;
+  priority: 'low' | 'medium' | 'high';
+  category: string;
+  completed: boolean;
+  createdAt: string | Date; // Can be string from JSON or Date object
+}
+
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -33,6 +48,76 @@ const Dashboard = () => {
   const [navigationLocked, setNavigationLocked] = useState(false);
   const navigationTimeoutRef = useRef<NodeJS.Timeout>();
   const lastTabChangeRef = useRef(Date.now());
+
+  const {
+    showNotification,
+    hasBeenNotified,
+    markAsNotified,
+    notificationPermission
+  } = useTaskNotifications();
+
+  // Task Due Time Monitoring
+  useEffect(() => {
+    const checkTaskDueTimes = () => {
+      if (notificationPermission !== 'granted') {
+        return; // Don't run if permission not granted
+      }
+
+      const savedTasks = localStorage.getItem('aurora-tasks');
+      if (!savedTasks) return;
+
+      let tasks: Task[] = [];
+      try {
+        tasks = JSON.parse(savedTasks);
+      } catch (error) {
+        console.error("Error parsing tasks from localStorage for notifications:", error);
+        return;
+      }
+
+      const now = new Date();
+
+      tasks.forEach(task => {
+        if (task.completed || !task.dueDate || !task.dueTime || hasBeenNotified(task.id)) {
+          return;
+        }
+
+        // Ensure dueDate is a Date object
+        const dueDateObj = typeof task.dueDate === 'string' ? new Date(task.dueDate) : task.dueDate;
+        if (isNaN(dueDateObj.getTime())) { // Invalid date
+            console.warn(`Task ${task.id} has an invalid dueDate: ${task.dueDate}`);
+            return;
+        }
+
+        const [hours, minutes] = task.dueTime.split(':').map(Number);
+        if (isNaN(hours) || isNaN(minutes)) {
+            console.warn(`Task ${task.id} has an invalid dueTime: ${task.dueTime}`);
+            return;
+        }
+
+        const dueDateTime = new Date(dueDateObj);
+        dueDateTime.setHours(hours, minutes, 0, 0); // Set time, seconds, and milliseconds
+
+        if (now >= dueDateTime) {
+          console.log(`Task due: ${task.title}`);
+          showNotification(`Task Due: ${task.title}`, {
+            body: task.description || `Your task "${task.title}" is now due.`,
+            tag: `task-${task.id}`, // Tag to potentially replace notification if logic changes
+            timestamp: dueDateTime.getTime() // Add timestamp of when it was due
+          });
+          markAsNotified(task.id);
+        }
+      });
+    };
+
+    // Check immediately on load and then set an interval
+    checkTaskDueTimes();
+    const intervalId = setInterval(checkTaskDueTimes, 60000); // Check every 60 seconds
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [notificationPermission, showNotification, hasBeenNotified, markAsNotified]);
+
 
   // Check if user needs tour on first visit
   useEffect(() => {
