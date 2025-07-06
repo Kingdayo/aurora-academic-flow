@@ -106,10 +106,18 @@ const App = () => {
     }
     
     // Save theme to localStorage
-    try {
-      localStorage.setItem("theme", theme);
-    } catch (error) {
-      console.error("Error saving theme to localStorage:", error);
+    const saveThemeToStorage = () => {
+      try {
+        localStorage.setItem("theme", theme);
+      } catch (error) {
+        console.error("Error saving theme to localStorage:", error);
+      }
+    };
+
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(saveThemeToStorage);
+    } else {
+      setTimeout(saveThemeToStorage, 0);
     }
   }, [theme]);
 
