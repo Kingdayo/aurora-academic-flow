@@ -214,9 +214,7 @@ const Dashboard = () => {
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 {/* Desktop Tabs */}
                 <div className="hidden sm:block">
-                  <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border border-purple-200/50 dark:border-purple-800/30 shadow-lg">
-                    {navigationItems.map(item => {})}
-                  </TabsList>
+                  
                 </div>
 
                 {/* Mobile Tabs */}
