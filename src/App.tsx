@@ -12,7 +12,17 @@ import Dashboard from "./pages/Dashboard";
 import LoadingScreen from "./components/LoadingScreen";
 import { toast } from "sonner";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error: any) => {
+        // Don't retry on 401 errors
+        if (error?.status === 401) return false;
+        return failureCount < 3;
+      },
+    },
+  },
+});
 
 interface ThemeContextType {
   theme: "light" | "dark";
@@ -51,9 +61,12 @@ export const useAuth = () => {
 
 const App = () => {
   const [theme, setTheme] = useState<"light" | "dark">(() => {
-    // Initialize theme from localStorage or default to light
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    return savedTheme || "light";
+    try {
+      const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+      return savedTheme || "light";
+    } catch {
+      return "light";
+    }
   });
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -62,14 +75,14 @@ const App = () => {
   const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
-    // Initial loading screen for 6 seconds
     const initialLoadingTimer = setTimeout(() => {
       setInitialLoading(false);
     }, 6000);
 
-    // Set up auth state listener
+    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('[App] Auth event:', event, 'Session:', !!session);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -79,20 +92,40 @@ const App = () => {
         } else if (event === 'SIGNED_OUT') {
           toast.success("Logged out successfully! See you soon! 👋");
           setLoggingOut(false);
+        } else if (event === 'TOKEN_REFRESHED') {
+          console.log('[App] Token refreshed successfully');
         }
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Then check for existing session
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('[App] Error getting session:', error);
+          // Clear any stale auth data on error
+          setSession(null);
+          setUser(null);
+        } else {
+          console.log('[App] Initial session:', !!session);
+          setSession(session);
+          setUser(session?.user ?? null);
+        }
+      } catch (error) {
+        console.error('[App] Error initializing auth:', error);
+        setSession(null);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
 
     // Register Service Worker
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => { // Register SW after page load for performance
+      window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
           .then((registration) => {
             console.log('[App] Service Worker registered with scope:', registration.scope);
@@ -101,14 +134,11 @@ const App = () => {
             console.error('[App] Service Worker registration failed:', error);
           });
       });
-    } else {
-      console.log('[App] Service Worker not supported in this browser.');
     }
 
     return () => {
       clearTimeout(initialLoadingTimer);
       subscription.unsubscribe();
-      // No specific SW unregistration needed here, browser handles it.
     };
   }, []);
 
@@ -144,35 +174,67 @@ const App = () => {
   };
 
   const login = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
+    try {
+      console.log('[App] Attempting login for:', email);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        console.error('[App] Login error:', error);
+      }
+      
+      return { error };
+    } catch (error) {
+      console.error('[App] Login exception:', error);
+      return { error };
+    }
   };
 
   const register = async (name: string, email: string, password: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: name,
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      console.log('[App] Attempting registration for:', email, 'with redirect:', redirectUrl);
+      
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: name,
+          }
         }
+      });
+      
+      if (error) {
+        console.error('[App] Registration error:', error);
       }
-    });
-    return { error };
+      
+      return { error };
+    } catch (error) {
+      console.error('[App] Registration exception:', error);
+      return { error };
+    }
   };
 
   const logout = async () => {
-    setLoggingOut(true);
-    // Add a delay to show the loading animation
-    setTimeout(async () => {
-      await supabase.auth.signOut();
-    }, 2000);
+    try {
+      setLoggingOut(true);
+      console.log('[App] Attempting logout');
+      
+      setTimeout(async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          console.error('[App] Logout error:', error);
+          setLoggingOut(false);
+        }
+      }, 2000);
+    } catch (error) {
+      console.error('[App] Logout exception:', error);
+      setLoggingOut(false);
+    }
   };
 
   if (initialLoading || loading) {
