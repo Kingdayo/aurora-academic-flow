@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,12 +50,20 @@ const SmartNotifications = () => {
   };
 
   const handleTestNotification = () => {
+    // Trigger vibration separately for mobile
+    if (isMobile && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([200, 100, 200]);
+      } catch (error) {
+        console.warn('Vibration not supported:', error);
+      }
+    }
+
     showNotification('🧪 Test Notification', {
       body: 'This is a test notification from Aurora! Your notifications are working perfectly.',
       icon: '/favicon.ico',
       tag: 'test',
-      requireInteraction: false,
-      vibrationPattern: isMobile ? [200, 100, 200] : undefined
+      requireInteraction: false
     });
   };
 

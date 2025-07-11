@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -205,17 +206,7 @@ const TaskCountdown = () => {
       icon,
       tag: `task-${task.id}-${type}`,
       requireInteraction: true,
-      silent: false,
-      actions: [
-        {
-          action: 'view',
-          title: 'View Task'
-        },
-        {
-          action: 'dismiss',
-          title: 'Dismiss'
-        }
-      ]
+      silent: false
     };
 
     // Trigger vibration separately
