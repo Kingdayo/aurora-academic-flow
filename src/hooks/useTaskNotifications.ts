@@ -110,7 +110,6 @@ const useTaskNotifications = (): UseTaskNotificationsReturn => {
       body: options?.body || 'You have a new notification.',
       icon: options?.icon || '/favicon.ico',
       tag: options?.tag,
-      timestamp: options?.timestamp,
       // data: options?.data, // Pass through any custom data
       ...options,
     };

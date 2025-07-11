@@ -130,7 +130,6 @@ const Dashboard = () => {
           showNotification(`Task Due: ${task.title}`, {
             body: task.description || `Your task "${task.title}" is now due.`,
             tag: `task-${task.id}`, // Tag to potentially replace notification if logic changes
-            timestamp: dueDateTime.getTime() // Add timestamp of when it was due
           });
           markAsNotified(task.id);
         }
@@ -145,7 +144,6 @@ const Dashboard = () => {
       clearInterval(intervalId);
     };
   }, [notificationPermission, showNotification, hasBeenNotified, markAsNotified]);
-
 
   // Check if user needs tour on first visit
   useEffect(() => {
