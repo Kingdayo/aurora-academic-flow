@@ -168,17 +168,6 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Features */}
-        <div className="space-y-4">
-          <OfflineSync />
-          <SmartNotifications />
-          <VoiceCommands 
-            onTabChange={handleVoiceTabChange}
-            onAddTask={handleVoiceAddTask}
-            onStartTimer={handleVoiceStartTimer}
-          />
-        </div>
-
         <Separator className="bg-purple-200/50 dark:bg-purple-800/30" />
 
         {/* Navigation */}
@@ -280,6 +269,18 @@ const Dashboard = () => {
                 {/* Tab Content */}
                 <div className="mt-6 space-y-6">
                   <TabsContent value="tasks" className="space-y-6 animate-fade-in-up">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                      <div className="lg:col-span-2">
+                        <OfflineSync />
+                      </div>
+                      <div>
+                        <VoiceCommands 
+                          onTabChange={handleVoiceTabChange}
+                          onAddTask={handleVoiceAddTask}
+                          onStartTimer={handleVoiceStartTimer}
+                        />
+                      </div>
+                    </div>
                     <TaskManager
                       showAddDialog={showAddDialog}
                       onShowAddDialogChange={setShowAddDialog}
@@ -292,7 +293,10 @@ const Dashboard = () => {
                   </TabsContent>
 
                   <TabsContent value="analytics" className="animate-fade-in-up">
-                    <AnalyticsSection />
+                    <div className="space-y-6">
+                      <SmartNotifications />
+                      <AnalyticsSection />
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="advanced-analytics" className="animate-fade-in-up">
