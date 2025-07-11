@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -62,8 +63,8 @@
   }
 }
 
-/* Mobile optimization and isolation */
-@media (max-width: 1024px) {
+/* Enhanced Mobile Responsiveness */
+@media (max-width: 640px) {
   /* Improve touch responsiveness */
   * {
     -webkit-overflow-scrolling: touch;
@@ -79,8 +80,10 @@
     transition: background-color 0.2s ease;
   }
   
-  /* Ensure proper isolation */
+  /* Ensure proper touch targets */
   button, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
     isolation: isolate;
     contain: layout style;
     touch-action: manipulation;
@@ -100,6 +103,25 @@
     will-change: transform, background-color;
     backface-visibility: hidden;
     transform: translateZ(0);
+  }
+
+  /* Mobile text scaling */
+  .mobile-text {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+  }
+
+  /* Mobile cards */
+  .mobile-card {
+    margin: 0.5rem;
+    border-radius: 0.75rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  /* Tablet optimizations */
+  .tablet-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
   }
 }
 
@@ -140,11 +162,11 @@
 @keyframes pulse-3d {
   0%, 100% { 
     transform: scale(1) translateZ(0px);
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
   }
   50% { 
     transform: scale(1.2) translateZ(10px);
-    box-shadow: 0 0 40px rgba(255, 255, 255, 0.6), 0 0 60px rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 40px rgba(139, 92, 246, 0.6), 0 0 60px rgba(139, 92, 246, 0.4);
   }
 }
 
@@ -178,11 +200,11 @@
 @keyframes bounce-3d {
   0%, 100% { 
     transform: translateY(0) scale(1) rotateY(0deg);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
   }
   50% { 
     transform: translateY(-12px) scale(1.1) rotateY(180deg);
-    box-shadow: 0 5px 20px rgba(255, 255, 255, 0.5);
+    box-shadow: 0 5px 20px rgba(139, 92, 246, 0.5);
   }
 }
 
@@ -406,4 +428,42 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, #7c3aed, #8b5cf6);
+}
+
+/* Responsive utilities */
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 1rem;
+}
+
+.responsive-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.mobile-full {
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+/* Safe area handling for mobile devices */
+@supports (padding: max(0px)) {
+  .safe-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  
+  .safe-left {
+    padding-left: max(1rem, env(safe-area-inset-left));
+  }
+  
+  .safe-right {
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
 }
