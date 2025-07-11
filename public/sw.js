@@ -1,14 +1,14 @@
 
 // public/sw.js
 
-const CACHE_NAME = 'aurora-v1.2'; // Incremented cache name for proper updates
+const CACHE_NAME = 'aurora-v1.3'; // Incremented cache name for mobile notification fixes
 const urlsToCache = [
   '/', // Cache the root HTML
   '/manifest.json', // Cache the manifest (ensure it exists)
 ];
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Service Worker (v4 - notification fixes) installing.');
+  console.log('[SW] Service Worker (v5 - mobile notification fixes) installing.');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -31,7 +31,7 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Service Worker (v4 - notification fixes) activating.');
+  console.log('[SW] Service Worker (v5 - mobile notification fixes) activating.');
   event.waitUntil(
     Promise.all([
       clients.claim(),
@@ -104,7 +104,7 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Fixed background sync - removed localStorage dependency
+// Enhanced background sync with mobile optimizations
 self.addEventListener('sync', (event) => {
   console.log('[SW] Background sync event triggered with tag:', event.tag);
   
@@ -137,7 +137,7 @@ async function syncTasks() {
   }
 }
 
-// Handle messages from the main thread
+// Handle messages from the main thread with mobile enhancements
 self.addEventListener('message', (event) => {
   console.log('[SW] Message received:', event.data);
   
@@ -150,19 +150,38 @@ self.addEventListener('message', (event) => {
     const { title, options } = event.data;
     console.log('[SW] Showing notification via message:', title);
     
-    // Show the notification
-    self.registration.showNotification(title, {
+    // Enhanced notification options for mobile
+    const notificationOptions = {
       body: options?.body || 'You have a new notification.',
       icon: options?.icon || '/favicon.ico',
       tag: options?.tag || 'default',
-      timestamp: options?.timestamp || Date.now(),
       badge: '/favicon.ico',
-      requireInteraction: true,
+      requireInteraction: options?.requireInteraction !== false, // Default to true for mobile
+      silent: options?.silent === true, // Default to false for better mobile experience
+      vibrate: options?.vibrate || [200, 100, 200], // Default vibration pattern
+      actions: options?.actions || [],
+      data: {
+        url: self.location.origin,
+        timestamp: Date.now()
+      },
       ...options
-    }).catch(error => {
-      console.error('[SW] Error showing notification:', error);
-    });
+    };
+    
+    // Show the notification with mobile-optimized settings
+    self.registration.showNotification(title, notificationOptions)
+      .then(() => {
+        console.log('[SW] Notification shown successfully:', title);
+      })
+      .catch(error => {
+        console.error('[SW] Error showing notification:', error);
+      });
   }
 });
 
-console.log('[SW] Service Worker script (v4 - notification fixes) loaded and parsed.');
+// Add notification close handler for mobile
+self.addEventListener('notificationclose', (event) => {
+  console.log('[SW] Notification closed:', event.notification.tag);
+  // Track notification dismissals if needed
+});
+
+console.log('[SW] Service Worker script (v5 - mobile notification fixes) loaded and parsed.');

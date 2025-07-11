@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bell, BellOff, Settings, Clock } from 'lucide-react';
+import { Bell, BellOff, Settings, Clock, Smartphone, AlertTriangle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import useTaskNotifications from '@/hooks/useTaskNotifications';
 
@@ -11,7 +11,8 @@ const SmartNotifications = () => {
   const { 
     notificationPermission, 
     requestPermission, 
-    showNotification 
+    showNotification,
+    isSupported
   } = useTaskNotifications();
   
   const [notificationSettings, setNotificationSettings] = useState({
@@ -22,12 +23,24 @@ const SmartNotifications = () => {
     onOverdue: true
   });
 
+  const [isMobile, setIsMobile] = useState(false);
+
   useEffect(() => {
+    // Detect mobile device
+    const checkMobile = () => {
+      setIsMobile(navigator.userAgent.match(/Mobile|Android|iPhone|iPad/i) !== null);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
     // Load notification settings from localStorage
     const savedSettings = localStorage.getItem('aurora-notification-settings');
     if (savedSettings) {
       setNotificationSettings(JSON.parse(savedSettings));
     }
+
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const updateNotificationSetting = (key: keyof typeof notificationSettings, value: boolean) => {
@@ -41,11 +54,16 @@ const SmartNotifications = () => {
       body: 'This is a test notification from Aurora! Your notifications are working perfectly.',
       icon: '/favicon.ico',
       tag: 'test',
-      requireInteraction: false
+      requireInteraction: false,
+      vibrate: isMobile ? [200, 100, 200] : undefined
     });
   };
 
   const getPermissionStatus = () => {
+    if (!isSupported) {
+      return { text: 'Not Supported', variant: 'destructive' as const, color: 'text-red-600' };
+    }
+    
     switch (notificationPermission) {
       case 'granted':
         return { text: 'Enabled', variant: 'default' as const, color: 'text-green-600' };
@@ -58,6 +76,33 @@ const SmartNotifications = () => {
 
   const permissionStatus = getPermissionStatus();
 
+  if (!isSupported) {
+    return (
+      <Card className="hover-lift transition-all duration-300 border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-300">
+            <AlertTriangle className="h-5 w-5" />
+            Notifications Not Supported
+          </CardTitle>
+          <CardDescription className="text-orange-600 dark:text-orange-400">
+            Your browser or device doesn't support web notifications
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3 text-sm text-orange-700 dark:text-orange-300">
+            <p>To enable notifications, try:</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>Update your browser to the latest version</li>
+              <li>Enable JavaScript if disabled</li>
+              <li>Try a different browser (Chrome, Firefox, Safari)</li>
+              {isMobile && <li>Add this site to your home screen</li>}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="hover-lift transition-all duration-300">
       <CardHeader>
@@ -68,9 +113,11 @@ const SmartNotifications = () => {
             <BellOff className="h-5 w-5 text-gray-500" />
           )}
           Smart Notifications
+          {isMobile && <Smartphone className="h-4 w-4 text-blue-500" />}
         </CardTitle>
         <CardDescription>
           Get timely reminders for your tasks and deadlines
+          {isMobile && " (Mobile optimized)"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -84,6 +131,16 @@ const SmartNotifications = () => {
             {permissionStatus.text}
           </Badge>
         </div>
+        
+        {/* Mobile-specific info */}
+        {isMobile && notificationPermission === 'default' && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
+              <Smartphone className="h-3 w-3" />
+              On mobile, you may need to interact with the page first, then enable notifications.
+            </p>
+          </div>
+        )}
         
         {/* Permission Actions */}
         <div className="space-y-3">
@@ -176,9 +233,20 @@ const SmartNotifications = () => {
                 Notifications are blocked. To enable them:
               </p>
               <div className="text-xs text-gray-400 dark:text-gray-500 space-y-1">
-                <p>1. Click the lock icon in your browser's address bar</p>
-                <p>2. Change notifications to "Allow"</p>
-                <p>3. Refresh the page</p>
+                {isMobile ? (
+                  <>
+                    <p>1. Open your browser settings</p>
+                    <p>2. Find "Site Settings" or "Permissions"</p>
+                    <p>3. Allow notifications for this site</p>
+                    <p>4. Refresh the page</p>
+                  </>
+                ) : (
+                  <>
+                    <p>1. Click the lock icon in your browser's address bar</p>
+                    <p>2. Change notifications to "Allow"</p>
+                    <p>3. Refresh the page</p>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -187,8 +255,9 @@ const SmartNotifications = () => {
         {/* Information */}
         {notificationPermission === 'granted' && (
           <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="text-xs text-blue-700 dark:text-blue-300">
+            <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1">
               💡 You'll receive notifications at the times specified above for all your upcoming tasks.
+              {isMobile && " Vibration patterns are enabled for mobile devices."}
             </p>
           </div>
         )}
