@@ -1,618 +1,405 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { useAuth, useTheme } from "@/App";
-import { toast } from "sonner";
-import { Book, CheckSquare, Calendar, BarChart3, Brain, Timer, Settings, Plus, Mic, LogOut } from "lucide-react";
-import TaskManager from "@/components/TaskManager";
-import CalendarSection from "@/components/CalendarSection";
-import AnalyticsSection from "@/components/AnalyticsSection";
-import AdvancedAnalytics from "@/components/AdvancedAnalytics";
-import AIAssistant from "@/components/AIAssistant";
-import PomodoroTimer from "@/components/PomodoroTimer";
-import TaskCountdown from "@/components/TaskCountdown";
-import SmartNotifications from "@/components/SmartNotifications";
-import OfflineSync from "@/components/OfflineSync";
-import GestureControls from "@/components/GestureControls";
-import ThemeToggle from "@/components/ThemeToggle";
-import UserProfile from "@/components/UserProfile";
-import VoiceCommands from "@/components/VoiceCommands";
-import UserTour from "@/components/UserTour";
-import ScrollAnimations from "@/components/ScrollAnimations";
-import useTaskNotifications from "@/hooks/useTaskNotifications"; // Import the hook
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ListBullet, Plus, CheckCircle, Circle, Trash2, Edit } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/App";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { OfflineSync } from "@/components/OfflineSync";
+import useTaskNotifications from "@/hooks/useTaskNotifications";
 
-// Define a type for the task structure based on TaskManager.tsx
 interface Task {
   id: string;
   title: string;
   description?: string;
-  dueDate?: string | Date; // Can be string from JSON or Date object
+  dueDate?: Date;
   dueTime?: string;
-  priority: 'low' | 'medium' | 'high';
-  category: string;
   completed: boolean;
-  createdAt: string | Date; // Can be string from JSON or Date object
 }
 
-
 const Dashboard = () => {
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    try {
+      const storedTasks = localStorage.getItem('tasks');
+      return storedTasks ? JSON.parse(storedTasks) : [];
+    } catch (error) {
+      console.error("Error loading tasks from localStorage:", error);
+      return [];
+    }
+  });
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedTime, setSelectedTime] = useState("09:00");
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [editedTaskTitle, setEditedTaskTitle] = useState("");
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const { user, logout } = useAuth();
-  const { theme } = useTheme();
-  const [activeTab, setActiveTab] = useState("tasks");
-  const [showAddTask, setShowAddTask] = useState(false);
-  const [showVoiceCommands, setShowVoiceCommands] = useState(false);
-  const [showTour, setShowTour] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [navigationLocked, setNavigationLocked] = useState(false);
-  const navigationTimeoutRef = useRef<NodeJS.Timeout>();
-  const lastTabChangeRef = useRef(Date.now());
+  const { notificationPermission, requestPermission, showNotification, hasBeenNotified, markAsNotified } = useTaskNotifications();
 
-  const {
-    showNotification,
-    hasBeenNotified,
-    markAsNotified,
-    notificationPermission
-  } = useTaskNotifications();
-
-  // Task Due Time Monitoring
   useEffect(() => {
-    const checkTaskDueTimes = () => {
-      if (notificationPermission !== 'granted') {
-        return; // Don't run if permission not granted
-      }
+    if (notificationPermission === 'default') {
+      requestPermission();
+    }
+  }, [notificationPermission, requestPermission]);
 
-      const savedTasks = localStorage.getItem('aurora-tasks');
-      if (!savedTasks) return;
+  useEffect(() => {
+    try {
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+    } catch (error) {
+      console.error("Error saving tasks to localStorage:", error);
+    }
+  }, [tasks]);
 
-      let tasks: Task[] = [];
-      try {
-        tasks = JSON.parse(savedTasks);
-      } catch (error) {
-        console.error("Error parsing tasks from localStorage for notifications:", error);
-        return;
-      }
-
-      const now = new Date();
-      console.log(`[${now.toISOString()}] Running checkTaskDueTimes. Permission: ${notificationPermission}`);
-
-      tasks.forEach(task => {
-        // Logging for each task before pre-condition checks
-        console.log(`[TaskCheck] ID: ${task.id}, Title: ${task.title}, DueDate: ${task.dueDate}, DueTime: ${task.dueTime}, Completed: ${task.completed}, Notified: ${hasBeenNotified(task.id)}`);
-
-        if (task.completed) {
-          console.log(`[TaskCheck] ID: ${task.id} - SKIPPING: Already completed.`);
-          return;
-        }
-        if (!task.dueDate) {
-          console.log(`[TaskCheck] ID: ${task.id} - SKIPPING: No dueDate.`);
-          return;
-        }
-        if (!task.dueTime) {
-          console.log(`[TaskCheck] ID: ${task.id} - SKIPPING: No dueTime.`);
-          return;
-        }
-        if (hasBeenNotified(task.id)) {
-          console.log(`[TaskCheck] ID: ${task.id} - SKIPPING: Already notified.`);
-          return;
-        }
-
-        // Ensure dueDate is a Date object
-        const dueDateObj = typeof task.dueDate === 'string' ? new Date(task.dueDate) : task.dueDate;
-        console.log(`[TaskCheck] ID: ${task.id} - Raw task.dueDate: ${task.dueDate}, Parsed dueDateObj: ${dueDateObj.toISOString()}`);
-
-        if (isNaN(dueDateObj.getTime())) { // Invalid date
-            console.warn(`[TaskCheck] ID: ${task.id} - SKIPPING: Invalid dueDate after parsing: ${task.dueDate}`);
-            return;
-        }
-
-        const timeParts = task.dueTime.split(':');
-        const hours = parseInt(timeParts[0], 10);
-        const minutes = parseInt(timeParts[1], 10);
-        console.log(`[TaskCheck] ID: ${task.id} - Raw task.dueTime: ${task.dueTime}, Parsed hours: ${hours}, minutes: ${minutes}`);
-
-        if (isNaN(hours) || isNaN(minutes) || timeParts.length !== 2) {
-            console.warn(`[TaskCheck] ID: ${task.id} - SKIPPING: Invalid dueTime format: ${task.dueTime}`);
-            return;
-        }
-
-        // Create a new Date object from dueDateObj to avoid modifying it if it's already a Date
-        const dueDateTime = new Date(dueDateObj.getFullYear(), dueDateObj.getMonth(), dueDateObj.getDate(), hours, minutes, 0, 0);
-        console.log(`[TaskCheck] ID: ${task.id} - Constructed dueDateTime: ${dueDateTime.toISOString()} (local)`);
-        console.log(`[TaskCheck] ID: ${task.id} - Current 'now': ${now.toISOString()} (local)`);
-
-        const isDue = now >= dueDateTime;
-        console.log(`[TaskCheck] ID: ${task.id} - Comparison: now (${now.getTime()}) >= dueDateTime (${dueDateTime.getTime()})? ${isDue}`);
-
-        if (isDue) {
-          console.log(`[TaskCheck] ID: ${task.id} - TRIGGERING NOTIFICATION for task: ${task.title}`);
-          showNotification(`Task Due: ${task.title}`, {
-            body: task.description || `Your task "${task.title}" is now due.`,
-            tag: `task-${task.id}`, // Tag to potentially replace notification if logic changes
-          });
-          markAsNotified(task.id);
-        }
+  const addTask = () => {
+    if (!newTaskTitle.trim()) {
+      toast({
+        title: "Error",
+        description: "Task title cannot be empty.",
+        variant: "destructive",
       });
+      return;
+    }
+
+    const newTask: Task = {
+      id: crypto.randomUUID(),
+      title: newTaskTitle,
+      completed: false,
+      dueDate: selectedDate,
+      dueTime: selectedTime,
     };
 
-    // Check immediately on load and then set an interval
-    checkTaskDueTimes();
-    const intervalId = setInterval(checkTaskDueTimes, 60000); // Check every 60 seconds
+    setTasks([...tasks, newTask]);
+    setNewTaskTitle("");
+    setIsAddingTask(false);
+    toast({
+      title: "Success",
+      description: "Task added successfully!",
+    });
+  };
+
+  const toggleComplete = (id: string) => {
+    setTasks(
+      tasks.map((task) =>
+        task.id === id ? { ...task, completed: !task.completed } : task
+      )
+    );
+  };
+
+  const deleteTask = (id: string) => {
+    setTasks(tasks.filter((task) => task.id !== id));
+    toast({
+      title: "Success",
+      description: "Task deleted successfully!",
+    });
+  };
+
+  const startEditing = (task: Task) => {
+    setEditingTask(task.id);
+    setEditedTaskTitle(task.title);
+  };
+
+  const saveEditedTask = () => {
+    setTasks(
+      tasks.map((task) =>
+        task.id === editingTask ? { ...task, title: editedTaskTitle } : task
+      )
+    );
+    setEditingTask(null);
+    setEditedTaskTitle("");
+    toast({
+      title: "Success",
+      description: "Task updated successfully!",
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingTask(null);
+    setEditedTaskTitle("");
+  };
+
+  // Task due time checking with reduced frequency
+  useEffect(() => {
+    if (notificationPermission !== 'granted') return;
+
+    let intervalId: NodeJS.Timeout;
+    
+    const checkTasks = () => {
+      try {
+        const storedTasks = localStorage.getItem('tasks');
+        if (!storedTasks) return;
+
+        const tasks = JSON.parse(storedTasks);
+        const currentTime = new Date();
+
+        tasks.forEach((task: any) => {
+          if (task.completed || hasBeenNotified(task.id)) return;
+
+          if (task.dueDate && task.dueTime) {
+            const dueDateTime = new Date(`${task.dueDate}T${task.dueTime}`);
+            const timeDiff = dueDateTime.getTime() - currentTime.getTime();
+            
+            // Only notify if within 1 minute window
+            if (timeDiff <= 60000 && timeDiff >= -60000) {
+              showNotification(`Task Due: ${task.title}`, {
+                body: task.description || `Your task "${task.title}" is now due.`,
+                tag: `task-${task.id}`,
+              });
+              markAsNotified(task.id);
+            }
+          }
+        });
+      } catch (error) {
+        console.error('[Dashboard] Error checking tasks:', error);
+      }
+    };
+
+    // Check every 30 seconds instead of every second
+    intervalId = setInterval(checkTasks, 30000);
+    
+    // Initial check
+    checkTasks();
 
     return () => {
       clearInterval(intervalId);
     };
   }, [notificationPermission, showNotification, hasBeenNotified, markAsNotified]);
 
-  // Check if user needs tour on first visit
-  useEffect(() => {
-    const tourCompleted = localStorage.getItem('aurora-tour-completed');
-    if (!tourCompleted) {
-      // Show tour after a brief delay
-      setTimeout(() => setShowTour(true), 1000);
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
-        event.preventDefault();
-        toast.info("Search function coming soon! 🚀");
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
-
-  // Add voice command event listeners
-  useEffect(() => {
-    const handleVoiceAddTask = () => {
-      console.log("Voice add task triggered - forcing dialog immediately");
-      // Force the dialog to show immediately regardless of current tab
-      setShowAddTask(true);
-      // No longer switching to tasks tab automatically
-    };
-    const handleVoiceTabChange = (event: CustomEvent) => {
-      const { tab } = event.detail;
-      setActiveTab(tab);
-    };
-    const handleVoiceStartTimer = () => {
-      const timerEvent = new CustomEvent('start-pomodoro-timer');
-      window.dispatchEvent(timerEvent);
-    };
-    window.addEventListener('voice-add-task', handleVoiceAddTask);
-    window.addEventListener('voice-tab-change', handleVoiceTabChange as EventListener);
-    window.addEventListener('voice-start-timer', handleVoiceStartTimer);
-    return () => {
-      window.removeEventListener('voice-add-task', handleVoiceAddTask);
-      window.removeEventListener('voice-tab-change', handleVoiceTabChange as EventListener);
-      window.removeEventListener('voice-start-timer', handleVoiceStartTimer);
-    };
-  }, [activeTab]);
-
-  // Improved mobile tab change handler with proper isolation and debouncing
-  const handleMobileTabChange = useCallback((tabId: string) => {
-    const now = Date.now();
-    
-    // Prevent rapid successive clicks (debounce)
-    if (now - lastTabChangeRef.current < 200) return;
-    
-    // Prevent navigation during theme transitions
-    if (navigationLocked) return;
-    
-    lastTabChangeRef.current = now;
-    
-    // Clear any existing timeout
-    if (navigationTimeoutRef.current) {
-      clearTimeout(navigationTimeoutRef.current);
-    }
-    
-    // Lock navigation temporarily
-    setNavigationLocked(true);
-    
-    // Use multiple RAF calls to ensure complete separation from any theme operations
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setActiveTab(tabId);
-          
-          // Unlock after transition completes
-          navigationTimeoutRef.current = setTimeout(() => {
-            setNavigationLocked(false);
-          }, 300);
-        });
-      });
-    });
-  }, [navigationLocked]);
-
-  // Enhanced theme change monitoring with better isolation
-  useEffect(() => {
-    let themeChangeTimeout: NodeJS.Timeout;
-    
-    const handleThemeChange = () => {
-      // Lock navigation during theme transitions
-      setNavigationLocked(true);
-      
-      // Clear any existing timeout
-      if (themeChangeTimeout) {
-        clearTimeout(themeChangeTimeout);
-      }
-      
-      // Unlock navigation after theme transition completes
-      themeChangeTimeout = setTimeout(() => {
-        setNavigationLocked(false);
-      }, 600); // Longer timeout to ensure theme transition completes
-    };
-
-    // Listen for theme changes via class mutations
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          const target = mutation.target as HTMLElement;
-          if (target === document.documentElement) {
-            handleThemeChange();
-          }
-        }
-      });
-    });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class']
-    });
-
-    return () => {
-      observer.disconnect();
-      if (themeChangeTimeout) {
-        clearTimeout(themeChangeTimeout);
-      }
-      if (navigationTimeoutRef.current) {
-        clearTimeout(navigationTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const handleVoiceCommandsClick = () => {
-    setShowVoiceCommands(true);
-  };
-
-  const handleAddTaskClick = () => {
-    console.log("Add task clicked - Dashboard");
-    // Immediately show add task dialog and switch to tasks tab
-    setShowAddTask(true);
-    setActiveTab("tasks");
-  };
-
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await logout();
-      toast.success("Logged out successfully! 👋");
-    } catch (error) {
-      toast.error("Error logging out");
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
-
-  const mobileNavTabs = [
-    { id: "tasks", label: "Tasks", icon: CheckSquare },
-    { id: "calendar", label: "Calendar", icon: Calendar },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
-    { id: "ai-hub", label: "AI Hub", icon: Brain },
-    { id: "productivity", label: "Productivity", icon: Timer },
-    { id: "settings", label: "Settings", icon: Settings }
-  ];
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800">
-      <ScrollAnimations />
-      
-      {/* Header */}
-      <header id="header" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-b border-purple-200/50 dark:border-purple-700/50 sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-purple-gradient rounded-full flex items-center justify-center">
-              <Book className="w-5 h-5 text-white" />
+    <div className="min-h-screen bg-background">
+      <div className="flex">
+        {/* Sidebar */}
+        <div className="w-64 flex-shrink-0 border-r border-border dark:bg-gray-900">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold tracking-tight">Aurora</h1>
+              <ThemeToggle />
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Aurora</h1>
-              <p className="text-xs text-gray-600 dark:text-gray-300">Welcome back, {user?.user_metadata?.full_name || user?.email}</p>
+
+            <div className="mb-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Profile</CardTitle>
+                  <CardDescription>Manage your account settings.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center space-x-4">
+                    <Avatar>
+                      <AvatarImage src="https://github.com/shadcn.png" />
+                      <AvatarFallback>{user?.email?.[0].toUpperCase() || '?'}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-medium leading-none">{user?.email || "No Email"}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {user?.email ? "Logged In" : "Not Logged In"}
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="secondary" className="mt-4 w-full" onClick={logout}>
+                    Logout
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <ThemeToggle />
-            <UserProfile onAddTask={handleAddTaskClick} onTabChange={setActiveTab} onVoiceCommands={handleVoiceCommandsClick} isLoggingOut={isLoggingOut} onLogout={handleLogout} />
+
+            <OfflineSync />
+
+            <Separator className="my-4" />
+
+            <div className="space-y-2">
+              <h4 className="font-medium tracking-tight">Navigation</h4>
+              <Button variant="ghost" className="w-full justify-start" onClick={() => navigate("/dashboard")}>
+                <ListBullet className="mr-2 h-4 w-4" />
+                Tasks
+              </Button>
+              {/* Add more navigation items here */}
+            </div>
           </div>
         </div>
-        
-        {/* Mobile Navigation - Completely isolated from theme toggle */}
-        <div className="md:hidden mobile-nav-container">
-          <div className="flex overflow-x-auto px-4 pb-4 space-x-2 mobile-nav-wrapper">
-            {mobileNavTabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => handleMobileTabChange(tab.id)}
-                disabled={navigationLocked}
-                className={`mobile-nav-button flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 ${
-                  navigationLocked ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'active:scale-95 hover:scale-105'
-                } ${
-                  activeTab === tab.id 
-                    ? "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 shadow-sm" 
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}
-                style={{ 
-                  touchAction: 'manipulation',
-                  WebkitTapHighlightColor: 'transparent',
-                  isolation: 'isolate',
-                  contain: 'layout style paint',
-                  willChange: 'transform, background-color'
-                }}
-              >
-                <tab.icon className="w-4 h-4 flex-shrink-0" />
-                <span className="select-none">{tab.label}</span>
-              </button>
-            ))}
+
+        {/* Main Content */}
+        <div className="flex-1 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold tracking-tight">Tasks</h2>
+            <Badge variant="secondary">
+              {tasks.filter((task) => !task.completed).length} pending
+            </Badge>
           </div>
+
+          {/* Add Task Section */}
+          <Card className="mb-4">
+            <CardHeader>
+              <CardTitle>Add Task</CardTitle>
+              <CardDescription>Add a new task to your list.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!isAddingTask ? (
+                <Button onClick={() => setIsAddingTask(true)}><Plus className="mr-2 h-4 w-4" /> Add Task</Button>
+              ) : (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="task-title">Task Title</Label>
+                    <Input
+                      id="task-title"
+                      placeholder="Enter task title"
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex space-x-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-[240px] justify-start text-left font-normal",
+                            !selectedDate && "text-muted-foreground"
+                          )}
+                        >
+                          {selectedDate ? format(selectedDate, "PPP") : (
+                            <span>Pick a date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="center" side="bottom">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={setSelectedDate}
+                          disabled={(date) =>
+                            date > new Date()
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    <Select value={selectedTime} onValueChange={setSelectedTime}>
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="Select Time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }, (_, i) => i)
+                          .map((hour) => {
+                            const time = String(hour).padStart(2, '0') + ":00";
+                            return <SelectItem key={time} value={time}>{time}</SelectItem>;
+                          })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="ghost" onClick={() => setIsAddingTask(false)}>Cancel</Button>
+                    <Button onClick={addTask}>Add</Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Task List Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Task List</CardTitle>
+              <CardDescription>Your current tasks.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="rounded-md border">
+                <div className="divide-y divide-border">
+                  {tasks.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground">No tasks yet. Add some!</div>
+                  ) : (
+                    tasks.map((task) => (
+                      <div key={task.id} className="flex items-center justify-between p-4">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`task-${task.id}`}
+                            checked={task.completed}
+                            onCheckedChange={() => toggleComplete(task.id)}
+                          />
+                          <Label htmlFor={`task-${task.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed">
+                            {editingTask === task.id ? (
+                              <Input
+                                value={editedTaskTitle}
+                                onChange={(e) => setEditedTaskTitle(e.target.value)}
+                                onBlur={saveEditedTask}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    saveEditedTask();
+                                  } else if (e.key === 'Escape') {
+                                    cancelEditing();
+                                  }
+                                }}
+                                autoFocus
+                                className="text-sm"
+                              />
+                            ) : (
+                              <div className="flex items-center">
+                                {task.completed ? (
+                                  <CheckCircle className="mr-1 h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Circle className="mr-1 h-4 w-4 text-gray-400" />
+                                )}
+                                <span>{task.title}</span>
+                              </div>
+                            )}
+                          </Label>
+                          {task.dueDate && (
+                            <Badge variant="outline">
+                              {format(task.dueDate, "MMM dd, yyyy")} {task.dueTime}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex space-x-2">
+                          {editingTask !== task.id ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => startEditing(task)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteTask(task.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button variant="ghost" size="sm" onClick={saveEditedTask}>
+                                Save
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                                Cancel
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </div>
-      </header>
-
-      {/* Mobile Scroll Indicator */}
-      <div className="md:hidden bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-center py-2 text-xs text-gray-600 dark:text-gray-300 animate-pulse">
-        ↓ Scroll down to see more content ↓
-      </div>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList id="tabs" className="hidden md:grid w-full grid-cols-6 mb-8">
-            <TabsTrigger value="tasks" className="flex items-center space-x-2">
-              <CheckSquare className="w-4 h-4" />
-              <span>Tasks</span>
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4" />
-              <span>Calendar</span>
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center space-x-2">
-              <BarChart3 className="w-4 h-4" />
-              <span>Analytics</span>
-            </TabsTrigger>
-            <TabsTrigger value="ai-hub" className="flex items-center space-x-2">
-              <Brain className="w-4 h-4" />
-              <span>AI Hub</span>
-            </TabsTrigger>
-            <TabsTrigger value="productivity" className="flex items-center space-x-2">
-              <Timer className="w-4 h-4" />
-              <span>Productivity</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center space-x-2">
-              <Settings className="w-4 h-4" />
-              <span>Settings</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="tasks" className="scroll-animate" forceMount>
-            <div id="task-section">
-              <TaskManager
-                showAddDialog={showAddTask}
-                onShowAddDialogChange={setShowAddTask}
-                activeTab={activeTab}
-              />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="calendar" className="scroll-animate calendar-responsive">
-            <CalendarSection />
-          </TabsContent>
-
-          <TabsContent value="analytics" className="scroll-animate opacity-100 animate-fade-in">
-            <div className="space-y-6">
-              <AnalyticsSection />
-              <AdvancedAnalytics />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="ai-hub" className="scroll-animate">
-            <div className="space-y-6">
-              <AIAssistant />
-              <VoiceCommands onTabChange={setActiveTab} onAddTask={() => setShowAddTask(true)} onStartTimer={() => {
-                const timerEvent = new CustomEvent('start-pomodoro-timer');
-                window.dispatchEvent(timerEvent);
-              }} />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="productivity" className="scroll-animate">
-            <div className="space-y-6">
-              <PomodoroTimer />
-              <TaskCountdown />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="settings" className="scroll-animate">
-            <div className="space-y-6">
-              <SmartNotifications />
-              <OfflineSync />
-              <GestureControls />
-            </div>
-          </TabsContent>
-        </Tabs>
-      </main>
-
-      {/* Voice Commands Dialog */}
-      <Dialog open={showVoiceCommands} onOpenChange={setShowVoiceCommands}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Voice Commands</DialogTitle>
-            <DialogDescription>
-              Use voice commands to control your Aurora dashboard efficiently.
-            </DialogDescription>
-          </DialogHeader>
-          <VoiceCommands onTabChange={tab => {
-            setActiveTab(tab);
-            setShowVoiceCommands(false);
-          }} onAddTask={() => {
-            console.log("Voice command add task from dialog - immediate trigger");
-            setShowVoiceCommands(false);
-            // Show dialog immediately
-            setShowAddTask(true);
-            // No longer switching to tasks tab automatically
-          }} onStartTimer={() => {
-            const timerEvent = new CustomEvent('start-pomodoro-timer');
-            window.dispatchEvent(timerEvent);
-            setShowVoiceCommands(false);
-          }} />
-        </DialogContent>
-      </Dialog>
-
-      {/* User Tour */}
-      <UserTour isOpen={showTour} onClose={() => setShowTour(false)} />
-
-      {/* Enhanced Mobile styles with complete isolation */}
-      <div className="mobile-styles">
-        <style dangerouslySetInnerHTML={{
-          __html: `
-            @media (max-width: 1024px) {
-              /* Complete isolation of mobile navigation from theme toggle */
-              .mobile-nav-container {
-                isolation: isolate !important;
-                position: relative !important;
-                z-index: 35 !important;
-                contain: layout style paint !important;
-                pointer-events: auto !important;
-              }
-              
-              .mobile-nav-wrapper {
-                isolation: isolate !important;
-                contain: layout style paint !important;
-                pointer-events: auto !important;
-              }
-              
-              .mobile-nav-button {
-                isolation: isolate !important;
-                contain: layout style paint !important;
-                will-change: transform, background-color !important;
-                transition: all 0.15s ease-out !important;
-                pointer-events: auto !important;
-                user-select: none !important;
-                -webkit-user-select: none !important;
-              }
-              
-              .mobile-nav-button:not(:disabled) {
-                cursor: pointer !important;
-              }
-              
-              .mobile-nav-button:not(:disabled):active {
-                transform: scale(0.95) !important;
-              }
-              
-              .mobile-nav-button:not(:disabled):hover {
-                transform: scale(1.05) !important;
-              }
-              
-              .mobile-nav-button:disabled {
-                opacity: 0.5 !important;
-                cursor: not-allowed !important;
-                pointer-events: none !important;
-                transform: none !important;
-              }
-              
-              /* Complete isolation of theme toggle */
-              .theme-toggle-isolated {
-                isolation: isolate !important;
-                z-index: 100 !important;
-                contain: layout style paint !important;
-                pointer-events: auto !important;
-                position: relative !important;
-              }
-              
-              /* Prevent any interference between components */
-              [data-theme-toggle] {
-                isolation: isolate !important;
-                z-index: 100 !important;
-                contain: layout style paint !important;
-                pointer-events: auto !important;
-              }
-              
-              /* Ensure all interactive elements remain functional */
-              button, a, [role="button"] {
-                pointer-events: auto !important;
-                touch-action: manipulation !important;
-                -webkit-tap-highlight-color: transparent !important;
-              }
-              
-              /* Improve overall mobile responsiveness */
-              * {
-                -webkit-overflow-scrolling: touch !important;
-              }
-              
-              /* Enhanced notification positioning */
-              [data-sonner-toaster] {
-                position: fixed !important;
-                top: env(safe-area-inset-top, 100px) !important;
-                left: 16px !important;
-                right: 16px !important;
-                width: calc(100vw - 32px) !important;
-                max-width: none !important;
-                z-index: 9999 !important;
-                pointer-events: none !important;
-              }
-              
-              [data-sonner-toast] {
-                width: 100% !important;
-                max-width: none !important;
-                margin: 0 !important;
-                border-radius: 8px !important;
-                font-size: 14px !important;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-                backdrop-filter: blur(10px) !important;
-                pointer-events: auto !important;
-              }
-              
-              /* Ensure proper layout containment */
-              .container {
-                contain: layout style !important;
-              }
-              
-              /* Force visibility of content */
-              .scroll-animate {
-                opacity: 1 !important;
-                transform: translateY(0) !important;
-                contain: layout style !important;
-              }
-              
-              /* Prevent layout shifts during theme changes */
-              html.dark, html:not(.dark) {
-                transition: none !important;
-              }
-              
-              body {
-                transition: background-color 0.3s ease !important;
-              }
-            }
-
-            @media (max-width: 400px) {
-              .container {
-                padding-left: 0.5rem !important;
-                padding-right: 0.5rem !important;
-              }
-              
-              .mobile-nav-button {
-                padding: 0.5rem 0.75rem !important;
-                font-size: 0.875rem !important;
-              }
-              
-              .space-x-2 > * + * {
-                margin-left: 0.375rem !important;
-              }
-            }
-          `
-        }} />
       </div>
     </div>
   );
