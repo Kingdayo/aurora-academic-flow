@@ -68,6 +68,7 @@ const Dashboard = () => {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [editingTask, setEditingTask] = useState<string | null>(null);
   const [editedTaskTitle, setEditedTaskTitle] = useState("");
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, logout } = useAuth();
@@ -167,7 +168,7 @@ const Dashboard = () => {
 
   // Voice command handlers
   const handleVoiceAddTask = useCallback(() => {
-    setIsAddingTask(true);
+    setShowAddDialog(true);
     setActiveTab("tasks");
   }, []);
 
@@ -362,144 +363,15 @@ const Dashboard = () => {
             </TabsList>
 
             <TabsContent value="tasks" className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-3xl font-bold tracking-tight">Tasks</h2>
-                <Badge variant="secondary" className="text-lg px-3 py-1">
-                  {tasks.filter((task) => !task.completed).length} pending
-                </Badge>
-              </div>
-
-              {/* Add Task Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Add New Task</CardTitle>
-                  <CardDescription>Create a new task with advanced scheduling and categorization.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {!isAddingTask ? (
-                    <Button onClick={() => setIsAddingTask(true)} className="w-full">
-                      <Plus className="mr-2 h-4 w-4" /> Add Task
-                    </Button>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="task-title">Task Title</Label>
-                          <Input
-                            id="task-title"
-                            placeholder="Enter task title"
-                            value={newTaskTitle}
-                            onChange={(e) => setNewTaskTitle(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="task-category">Category</Label>
-                          <Select value={newTaskCategory} onValueChange={setNewTaskCategory}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="General">General</SelectItem>
-                              <SelectItem value="Work">Work</SelectItem>
-                              <SelectItem value="Study">Study</SelectItem>
-                              <SelectItem value="Personal">Personal</SelectItem>
-                              <SelectItem value="Health">Health</SelectItem>
-                              <SelectItem value="Shopping">Shopping</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="task-description">Description (Optional)</Label>
-                        <Input
-                          id="task-description"
-                          placeholder="Enter task description"
-                          value={newTaskDescription}
-                          onChange={(e) => setNewTaskDescription(e.target.value)}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label>Priority</Label>
-                          <Select value={newTaskPriority} onValueChange={(value: "low" | "medium" | "high") => setNewTaskPriority(value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select priority" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="low">Low</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="high">High</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Due Date</Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !selectedDate && "text-muted-foreground"
-                                )}
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {selectedDate ? format(selectedDate, "PPP") : (
-                                  <span>Pick a date</span>
-                                )}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={selectedDate}
-                                onSelect={setSelectedDate}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Due Time</Label>
-                          <Select value={selectedTime} onValueChange={setSelectedTime}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Time" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Array.from({ length: 24 }, (_, i) => i)
-                                .map((hour) => {
-                                  const time = String(hour).padStart(2, '0') + ":00";
-                                  return <SelectItem key={time} value={time}>{time}</SelectItem>;
-                                })}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end space-x-2">
-                        <Button variant="ghost" onClick={() => setIsAddingTask(false)}>Cancel</Button>
-                        <Button onClick={addTask}>Add Task</Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Task List */}
               <TaskManager
-                tasks={tasks}
-                onToggleComplete={toggleComplete}
-                onDeleteTask={deleteTask}
-                onEditTask={startEditing}
+                showAddDialog={showAddDialog}
+                onShowAddDialogChange={setShowAddDialog}
+                activeTab={activeTab}
               />
             </TabsContent>
 
             <TabsContent value="calendar">
-              <CalendarSection tasks={tasks} />
+              <CalendarSection />
             </TabsContent>
 
             <TabsContent value="analytics">
