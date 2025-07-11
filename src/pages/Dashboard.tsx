@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +22,6 @@ import PomodoroTimer from "@/components/PomodoroTimer";
 import TaskCountdown from "@/components/TaskCountdown";
 import useTaskNotifications from "@/hooks/useTaskNotifications";
 import { useIsMobile } from "@/hooks/use-mobile";
-
 interface Task {
   id: string;
   title: string;
@@ -35,7 +33,6 @@ interface Task {
   completed: boolean;
   createdAt: Date;
 }
-
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("tasks");
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -87,7 +84,6 @@ const Dashboard = () => {
       window.removeEventListener('voice-start-timer', handleVoiceStartTimerEvent);
     };
   }, [handleVoiceAddTask, handleVoiceTabChange, handleVoiceStartTimer]);
-
   const navigationItems = [{
     id: "tasks",
     label: "Tasks",
@@ -113,7 +109,6 @@ const Dashboard = () => {
     label: "Pomodoro",
     icon: CalendarIcon
   }];
-
   const Sidebar = () => <div className={`
       ${isMobile ? `fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-500 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}` : 'w-80 flex-shrink-0'} 
       bg-gradient-to-br from-purple-50 via-white to-purple-100 
@@ -131,7 +126,7 @@ const Dashboard = () => {
         {/* Header */}
         <div className="flex items-center justify-between animate-fade-in-up">
           <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-purple-600 via-purple-500 to-blue-600 bg-clip-text text-transparent animate-gradient">Aurora</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mx-[50px]">
             <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200 animate-pulse-glow transition-all duration-300">
               <Bell className="w-3 h-3 mr-1" />
               Live
@@ -174,12 +169,16 @@ const Dashboard = () => {
         <Separator className="bg-purple-200/50 dark:bg-purple-800/30" />
 
         {/* Navigation */}
-        <div className="space-y-3 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+        <div className="space-y-3 animate-fade-in-up" style={{
+        animationDelay: '0.2s'
+      }}>
           <h4 className="font-semibold text-purple-800 dark:text-purple-200 text-sm uppercase tracking-wider">
             Navigation
           </h4>
           <div className="space-y-1">
-            {navigationItems.map((item, index) => <Button key={item.id} variant={activeTab === item.id ? "default" : "ghost"} className={`w-full justify-start transition-all duration-300 hover:scale-105 ${activeTab === item.id ? "bg-purple-gradient text-white shadow-lg hover:shadow-xl transform animate-bounce-gentle" : "text-purple-700 dark:text-purple-300 hover:bg-purple-100/70 dark:hover:bg-purple-900/30 hover:text-purple-800 dark:hover:text-purple-200"}`} style={{ animationDelay: `${index * 0.1}s` }} onClick={() => {
+            {navigationItems.map((item, index) => <Button key={item.id} variant={activeTab === item.id ? "default" : "ghost"} className={`w-full justify-start transition-all duration-300 hover:scale-105 ${activeTab === item.id ? "bg-purple-gradient text-white shadow-lg hover:shadow-xl transform animate-bounce-gentle" : "text-purple-700 dark:text-purple-300 hover:bg-purple-100/70 dark:hover:bg-purple-900/30 hover:text-purple-800 dark:hover:text-purple-200"}`} style={{
+            animationDelay: `${index * 0.1}s`
+          }} onClick={() => {
             setActiveTab(item.id);
             if (isMobile) setSidebarOpen(false);
           }}>
@@ -190,7 +189,6 @@ const Dashboard = () => {
         </div>
       </div>
     </div>;
-
   return <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/10 dark:to-gray-800 transition-all duration-500">
       {/* Mobile overlay */}
       {isMobile && sidebarOpen && <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity duration-300" onClick={() => setSidebarOpen(false)} />}
@@ -303,5 +301,4 @@ const Dashboard = () => {
       </div>
     </div>;
 };
-
 export default Dashboard;
