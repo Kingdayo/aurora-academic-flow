@@ -1,18 +1,14 @@
+
 // public/sw.js
 
-const CACHE_NAME = 'aurora-v1.1'; // Incremented cache name to help with updates
-// Simplified urlsToCache for debugging SW activation.
-// Ensure manifest.json exists at public root, or remove it too if unsure.
-// For a Vite app, you'd typically use a plugin like vite-plugin-pwa to generate this list.
+const CACHE_NAME = 'aurora-v1.2'; // Incremented cache name for proper updates
 const urlsToCache = [
   '/', // Cache the root HTML
   '/manifest.json', // Cache the manifest (ensure it exists)
-  // '/favicon.ico' // Often good to cache the favicon
-  // Temporarily removed '/static/js/bundle.js' and '/static/css/main.css' as they are likely incorrect for Vite prod builds
 ];
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Service Worker (v3 - simplified cache) installing.');
+  console.log('[SW] Service Worker (v4 - notification fixes) installing.');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -20,40 +16,36 @@ self.addEventListener('install', (event) => {
         return cache.addAll(urlsToCache)
           .catch(error => {
             console.error('[SW] Caching failed during install for urls:', urlsToCache, error);
-            // If addAll fails, the SW installation will fail.
-            // This catch helps log the error but doesn't prevent install failure.
-            // To allow SW to install even if some assets fail, you'd cache them individually
-            // and not let the promise chain reject. For debugging, failing is okay.
-            throw error; // Re-throw to ensure install fails if caching crucial assets fails
+            throw error;
           });
       })
       .then(() => {
-        console.log('[SW] Caching successful (or no critical caching errors). Attempting skipWaiting().');
+        console.log('[SW] Caching successful. Attempting skipWaiting().');
         return self.skipWaiting();
       })
       .catch(error => {
-        // This catch is if caches.open fails or if the re-thrown error from cache.addAll is caught.
         console.error('[SW] Overall installation process failed:', error);
-        // Do not call self.skipWaiting() if installation failed critically.
       })
   );
   console.log('[SW] Service Worker installation steps queued.');
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Service Worker (v3 - simplified cache) activating.');
-  event.waitUntil(clients.claim());
+  console.log('[SW] Service Worker (v4 - notification fixes) activating.');
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('[SW] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    Promise.all([
+      clients.claim(),
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              console.log('[SW] Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      })
+    ])
   );
   console.log('[SW] Service Worker activation complete and old caches cleaned.');
 });
@@ -79,32 +71,43 @@ self.addEventListener('fetch', (event) => {
       })
       .catch(error => {
         console.error('[SW] Fetch error:', error, 'for request:', event.request.url);
-        // Optionally, return a fallback page for offline if appropriate
-        // return caches.match('/offline.html');
       })
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification click Received for tag:', event.notification.tag);
+  console.log('[SW] Notification click received for tag:', event.notification.tag);
   event.notification.close();
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    clients.matchAll({ 
+      type: 'window', 
+      includeUncontrolled: true 
+    }).then((clientList) => {
+      // Try to find an existing window with the app
       for (const client of clientList) {
-        if (client.url.startsWith(self.registration.scope) && 'focus' in client) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          console.log('[SW] Focusing existing client:', client.url);
           return client.focus();
         }
       }
+      
+      // If no existing window, open a new one
       if (clients.openWindow) {
-        return clients.openWindow(self.registration.scope || '/');
+        const appUrl = self.location.origin + '/';
+        console.log('[SW] Opening new window:', appUrl);
+        return clients.openWindow(appUrl);
       }
+    }).catch(error => {
+      console.error('[SW] Error handling notification click:', error);
     })
   );
 });
 
-// Background sync for offline tasks (existing code - with noted localStorage issue)
+// Fixed background sync - removed localStorage dependency
 self.addEventListener('sync', (event) => {
+  console.log('[SW] Background sync event triggered with tag:', event.tag);
+  
   if (event.tag === 'sync-tasks') {
     event.waitUntil(syncTasks());
   }
@@ -112,38 +115,54 @@ self.addEventListener('sync', (event) => {
 
 async function syncTasks() {
   try {
-    const pendingTasks = await getStoredTasks();
-    if (pendingTasks.length > 0) {
-      await syncWithServer(pendingTasks);
-    }
+    console.log('[SW] Starting background sync for tasks');
+    
+    // Get all clients (browser tabs) to communicate with them
+    const clients = await self.clients.matchAll({
+      includeUncontrolled: true,
+      type: 'window'
+    });
+    
+    // Send message to all clients to trigger task sync
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'SYNC_TASKS_REQUEST',
+        timestamp: Date.now()
+      });
+    });
+    
+    console.log('[SW] Background sync request sent to clients');
   } catch (error) {
     console.error('[SW] Background sync failed:', error);
   }
 }
 
-function getStoredTasks() {
-  return new Promise((resolve) => {
-    console.warn('[SW] getStoredTasks attempting to access localStorage, which is not available in SW. This part of sync might fail.');
-    try {
-        // This will fail as localStorage is not available.
-        // const stored = localStorage.getItem('pendingTasks');
-        // resolve(stored ? JSON.parse(stored) : []);
-        resolve([]); // Default to empty as localStorage won't work.
-    } catch (e) {
-        console.error('[SW] Error accessing localStorage in getStoredTasks:', e);
-        resolve([]);
-    }
-  });
-}
+// Handle messages from the main thread
+self.addEventListener('message', (event) => {
+  console.log('[SW] Message received:', event.data);
+  
+  if (event.data && event.data.type === 'SYNC_TASKS_RESPONSE') {
+    console.log('[SW] Received task sync response from client');
+    // Handle the response if needed
+  }
+  
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    const { title, options } = event.data;
+    console.log('[SW] Showing notification via message:', title);
+    
+    // Show the notification
+    self.registration.showNotification(title, {
+      body: options?.body || 'You have a new notification.',
+      icon: options?.icon || '/favicon.ico',
+      tag: options?.tag || 'default',
+      timestamp: options?.timestamp || Date.now(),
+      badge: '/favicon.ico',
+      requireInteraction: true,
+      ...options
+    }).catch(error => {
+      console.error('[SW] Error showing notification:', error);
+    });
+  }
+});
 
-function syncWithServer(tasks) {
-  console.log('[SW] Simulating syncWithServer for tasks:', tasks);
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      console.log('[SW] Simulated server sync complete.');
-      resolve();
-    }, 1000);
-  });
-}
-
-console.log('[SW] Service Worker script (v3 - simplified cache) loaded and parsed.');
+console.log('[SW] Service Worker script (v4 - notification fixes) loaded and parsed.');
