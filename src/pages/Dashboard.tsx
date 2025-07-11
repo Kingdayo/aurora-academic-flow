@@ -8,17 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ListBullet, Plus, CheckCircle, Circle, Trash2, Edit } from "lucide-react";
+import { List, Plus, CheckCircle, Circle, Trash2, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/App";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import ThemeToggle from "@/components/ThemeToggle";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { OfflineSync } from "@/components/OfflineSync";
+import OfflineSync from "@/components/OfflineSync";
 import useTaskNotifications from "@/hooks/useTaskNotifications";
 
 interface Task {
@@ -223,10 +223,9 @@ const Dashboard = () => {
             <div className="space-y-2">
               <h4 className="font-medium tracking-tight">Navigation</h4>
               <Button variant="ghost" className="w-full justify-start" onClick={() => navigate("/dashboard")}>
-                <ListBullet className="mr-2 h-4 w-4" />
+                <List className="mr-2 h-4 w-4" />
                 Tasks
               </Button>
-              {/* Add more navigation items here */}
             </div>
           </div>
         </div>

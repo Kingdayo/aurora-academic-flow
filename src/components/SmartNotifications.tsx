@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Bell, Clock, Calendar, AlertTriangle, Zap } from "lucide-react";
 import { toast } from "sonner";
-import useTaskNotifications from '@/hooks/useTaskNotifications'; // Import the hook
+import useTaskNotifications from '@/hooks/useTaskNotifications';
 
 interface NotificationSettings {
   smartReminders: boolean;
@@ -27,10 +27,14 @@ const SmartNotifications = () => {
 
   const {
     notificationPermission,
-    requestNotificationPermission: requestHookPermission,
+    requestPermission,
     showNotification,
-    isNotificationSupported
   } = useTaskNotifications();
+
+  // Check if notifications are supported
+  const isNotificationSupported = () => {
+    return 'Notification' in window;
+  };
 
   useEffect(() => {
     // Load settings from localStorage
@@ -40,20 +44,12 @@ const SmartNotifications = () => {
     }
   }, []);
 
-  // Sync browserNotifications toggle if permission changes externally (e.g. user revokes in browser settings)
+  // Sync browserNotifications toggle if permission changes externally
   useEffect(() => {
-    if (notificationPermission === "granted" && !settings.browserNotifications) {
-      // If permission is granted, but toggle is off, user might have granted it then turned off toggle.
-      // Or, if permission granted via other means, reflect it by trying to set toggle on if appropriate.
-      // This part might need more nuanced logic based on desired UX.
-      // For now, if permission becomes granted, and toggle was off, we might enable it.
-      // setSettings(prev => ({ ...prev, browserNotifications: true }));
-    } else if (notificationPermission !== "granted" && settings.browserNotifications) {
-      // If permission is not granted (denied/default) but toggle is on, turn it off.
+    if (notificationPermission !== "granted" && settings.browserNotifications) {
       setSettings(prev => ({ ...prev, browserNotifications: false }));
     }
   }, [notificationPermission, settings.browserNotifications]);
-
 
   // Save settings whenever they change
   useEffect(() => {
@@ -65,15 +61,14 @@ const SmartNotifications = () => {
       toast.error("Browser notifications are not supported on this device/browser.");
       return;
     }
-    const currentPermission = await requestHookPermission();
-    if (currentPermission === "granted") {
+    await requestPermission();
+    if (notificationPermission === "granted") {
       toast.success("Browser notifications enabled! 🔔");
       setSettings(prev => ({ ...prev, browserNotifications: true }));
-      // Send a welcome notification via the hook
       showNotification("Aurora Notifications", {
         body: "You'll now receive smart reminders and updates! 🎉",
       });
-    } else if (currentPermission === "denied") {
+    } else if (notificationPermission === "denied") {
       toast.error("Notification permission denied. You can enable it later in browser settings.");
       setSettings(prev => ({ ...prev, browserNotifications: false }));
     } else {
@@ -86,11 +81,9 @@ const SmartNotifications = () => {
     setSettings(prev => ({ ...prev, [key]: value }));
     toast.success("Notification settings updated! ⚙️");
     
-    // If enabling browser notifications but permission not granted, request it
     if (key === 'browserNotifications' && value && notificationPermission !== 'granted') {
       handleRequestPermission();
     }
-    // If user is turning off the browserNotifications toggle
     if (key === 'browserNotifications' && !value) {
         setSettings(prev => ({ ...prev, browserNotifications: false }));
     }
@@ -107,10 +100,8 @@ const SmartNotifications = () => {
       
       const randomMessage = testMessages[Math.floor(Math.random() * testMessages.length)];
       
-      // Use the hook's showNotification method
       showNotification("Aurora Test Reminder", {
         body: randomMessage,
-        // icon and badge can be part of default options in the hook or passed here
       });
       toast.success("Test notification sent! 🔔");
     } else {
@@ -125,11 +116,8 @@ const SmartNotifications = () => {
   };
 
   const scheduleSmartReminder = () => {
-    // This function's direct notification sending can also be updated to use the hook
-    // For now, focusing on permission integration.
     if (notificationPermission === "granted" && settings.smartReminders) {
-      // Schedule a smart reminder based on user's tasks
-      const tasks = JSON.parse(localStorage.getItem('aurora-tasks') || '[]'); // Corrected localStorage key
+      const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
       const pendingTasks = tasks.filter((task: any) => !task.completed);
       
       if (pendingTasks.length > 0) {
@@ -137,10 +125,10 @@ const SmartNotifications = () => {
         
         setTimeout(() => {
           new Notification("Smart Reminder", {
-            body: `Don't forget: ${randomTask.title} (${randomTask.subject})`,
+            body: `Don't forget: ${randomTask.title}`,
             icon: "/favicon.ico"
           });
-        }, 30000); // 30 seconds delay for demo
+        }, 30000);
         
         toast.success("Smart reminder scheduled! 🧠");
       } else {
@@ -217,14 +205,14 @@ const SmartNotifications = () => {
                 id="browser-notifications"
                 checked={settings.browserNotifications && notificationPermission === "granted"}
                 onCheckedChange={(checked) => handleSettingChange('browserNotifications', checked)}
-                disabled={!isNotificationSupported()} // Disable toggle if not supported
+                disabled={!isNotificationSupported()}
               />
             </div>
             
             <div className="space-y-2">
               {isNotificationSupported() && notificationPermission !== "granted" && (
                 <Button 
-                  onClick={handleRequestPermission} // Use the new handler
+                  onClick={handleRequestPermission}
                   variant="outline" 
                   size="sm"
                   className="w-full"
