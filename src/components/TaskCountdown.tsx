@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -120,6 +119,17 @@ const TaskCountdown = () => {
     return () => clearInterval(timer);
   }, [nextTask, notifiedTasks]);
 
+  const triggerVibration = (pattern: number[]) => {
+    // Check if device supports vibration and is mobile
+    if ('vibrate' in navigator && navigator.userAgent.match(/Mobile|Android|iPhone|iPad/i)) {
+      try {
+        navigator.vibrate(pattern);
+      } catch (error) {
+        console.warn('[TaskCountdown] Vibration not supported:', error);
+      }
+    }
+  };
+
   const checkAndSendNotifications = (timeRemaining: number, task: Task) => {
     const minutesRemaining = Math.floor(timeRemaining / (1000 * 60));
     const hoursRemaining = Math.floor(timeRemaining / (1000 * 60 * 60));
@@ -157,7 +167,7 @@ const TaskCountdown = () => {
     let title = '';
     let body = '';
     let icon = '/favicon.ico';
-    let vibrate: number[] = [];
+    let vibrationPattern: number[] = [];
 
     // Check if mobile for vibration
     const isMobile = navigator.userAgent.match(/Mobile|Android|iPhone|iPad/i);
@@ -166,27 +176,27 @@ const TaskCountdown = () => {
       case '1hour':
         title = '⏰ Task Due in 1 Hour';
         body = `"${task.title}" is due in 1 hour. Time to prepare!`;
-        vibrate = isMobile ? [300, 100, 300] : [];
+        vibrationPattern = isMobile ? [300, 100, 300] : [];
         break;
       case '15min':
         title = '🚨 Task Due in 15 Minutes';
         body = `"${task.title}" is due soon. Get ready to complete it!`;
-        vibrate = isMobile ? [400, 100, 400, 100, 400] : [];
+        vibrationPattern = isMobile ? [400, 100, 400, 100, 400] : [];
         break;
       case '5min':
         title = '🔥 Task Due in 5 Minutes';
         body = `"${task.title}" is due very soon. Time to act!`;
-        vibrate = isMobile ? [500, 200, 500, 200, 500] : [];
+        vibrationPattern = isMobile ? [500, 200, 500, 200, 500] : [];
         break;
       case 'due':
         title = '⚡ Task is Due Now!';
         body = `"${task.title}" is due right now. Complete it immediately!`;
-        vibrate = isMobile ? [1000, 500, 1000] : [];
+        vibrationPattern = isMobile ? [1000, 500, 1000] : [];
         break;
       case 'overdue':
         title = '❌ Task is Overdue!';
         body = `"${task.title}" is overdue. Please complete it as soon as possible.`;
-        vibrate = isMobile ? [200, 100, 200, 100, 200, 100, 200] : [];
+        vibrationPattern = isMobile ? [200, 100, 200, 100, 200, 100, 200] : [];
         break;
     }
 
@@ -196,7 +206,6 @@ const TaskCountdown = () => {
       tag: `task-${task.id}-${type}`,
       requireInteraction: true,
       silent: false,
-      vibrate: vibrate,
       actions: [
         {
           action: 'view',
@@ -208,6 +217,11 @@ const TaskCountdown = () => {
         }
       ]
     };
+
+    // Trigger vibration separately
+    if (vibrationPattern.length > 0) {
+      triggerVibration(vibrationPattern);
+    }
 
     // Use service worker if available for better mobile handling
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {

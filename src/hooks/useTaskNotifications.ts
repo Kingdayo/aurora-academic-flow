@@ -16,6 +16,14 @@ const useTaskNotifications = (): NotificationState => {
   const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
   const [isSupported, setIsSupported] = useState(false);
 
+  const hasBeenNotified = useCallback((taskId: string) => {
+    return notifiedTasks.has(taskId);
+  }, [notifiedTasks]);
+
+  const markAsNotified = useCallback((taskId: string) => {
+    setNotifiedTasks(prev => new Set([...prev, taskId]));
+  }, []);
+
   useEffect(() => {
     // Check if notifications are supported
     const checkSupport = () => {
@@ -86,7 +94,18 @@ const useTaskNotifications = (): NotificationState => {
     }
   }, [isSupported]);
 
-  const showNotification = useCallback((title: string, options?: NotificationOptions) => {
+  const triggerVibration = useCallback((pattern: number[]) => {
+    // Check if device supports vibration and is mobile
+    if ('vibrate' in navigator && navigator.userAgent.match(/Mobile|Android|iPhone|iPad/i)) {
+      try {
+        navigator.vibrate(pattern);
+      } catch (error) {
+        console.warn('[useTaskNotifications] Vibration not supported:', error);
+      }
+    }
+  }, []);
+
+  const showNotification = useCallback((title: string, options?: NotificationOptions & { vibrationPattern?: number[] }) => {
     if (!isSupported) {
       console.warn('[useTaskNotifications] Notifications not supported');
       return;
@@ -98,25 +117,32 @@ const useTaskNotifications = (): NotificationState => {
     }
 
     try {
-      const notificationOptions: NotificationOptions = {
+      // Extract vibration pattern if provided
+      const { vibrationPattern, ...notificationOptions } = options || {};
+      
+      const finalOptions: NotificationOptions = {
         icon: '/favicon.ico',
         badge: '/favicon.ico',
         requireInteraction: true,
         silent: false,
-        vibrate: [200, 100, 200], // Vibration pattern for mobile
-        ...options
+        ...notificationOptions
       };
+
+      // Trigger vibration if pattern is provided
+      if (vibrationPattern) {
+        triggerVibration(vibrationPattern);
+      }
 
       // Use service worker for better mobile support
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({
           type: 'SHOW_NOTIFICATION',
           title,
-          options: notificationOptions
+          options: finalOptions
         });
       } else {
         // Fallback to direct notification
-        const notification = new Notification(title, notificationOptions);
+        const notification = new Notification(title, finalOptions);
 
         // Handle notification click
         notification.onclick = function(event) {
@@ -126,7 +152,7 @@ const useTaskNotifications = (): NotificationState => {
         };
 
         // Auto-close notification after 8 seconds on desktop (mobile handles this automatically)
-        if (!options?.requireInteraction && !navigator.userAgent.match(/Mobile|Android|iPhone|iPad/i)) {
+        if (!finalOptions?.requireInteraction && !navigator.userAgent.match(/Mobile|Android|iPhone|iPad/i)) {
           setTimeout(() => {
             notification.close();
           }, 8000);
@@ -137,15 +163,7 @@ const useTaskNotifications = (): NotificationState => {
     } catch (error) {
       console.error('[useTaskNotifications] Error showing notification:', error);
     }
-  }, [isSupported]);
-
-  const hasBeenNotified = useCallback((taskId: string) => {
-    return notifiedTasks.has(taskId);
-  }, [notifiedTasks]);
-
-  const markAsNotified = useCallback((taskId: string) => {
-    setNotifiedTasks(prev => new Set([...prev, taskId]));
-  }, []);
+  }, [isSupported, triggerVibration]);
 
   const checkTaskDueTimes = useCallback(() => {
     if (!isSupported || notificationPermission !== 'granted') {
@@ -179,7 +197,7 @@ const useTaskNotifications = (): NotificationState => {
             body: `"${task.title}" is due in 1 hour`,
             tag: `task-${task.id}-1hour`,
             requireInteraction: true,
-            vibrate: [300, 100, 300]
+            vibrationPattern: [300, 100, 300]
           });
           markAsNotified(`${task.id}-1hour`);
         }
@@ -189,7 +207,7 @@ const useTaskNotifications = (): NotificationState => {
             body: `"${task.title}" is due in 15 minutes`,
             tag: `task-${task.id}-15min`,
             requireInteraction: true,
-            vibrate: [400, 100, 400, 100, 400]
+            vibrationPattern: [400, 100, 400, 100, 400]
           });
           markAsNotified(`${task.id}-15min`);
         }
@@ -199,7 +217,7 @@ const useTaskNotifications = (): NotificationState => {
             body: `"${task.title}" is due in 5 minutes`,
             tag: `task-${task.id}-5min`,
             requireInteraction: true,
-            vibrate: [500, 200, 500, 200, 500]
+            vibrationPattern: [500, 200, 500, 200, 500]
           });
           markAsNotified(`${task.id}-5min`);
         }
@@ -209,7 +227,7 @@ const useTaskNotifications = (): NotificationState => {
             body: `"${task.title}" is due right now!`,
             tag: `task-${task.id}-due`,
             requireInteraction: true,
-            vibrate: [1000, 500, 1000]
+            vibrationPattern: [1000, 500, 1000]
           });
           markAsNotified(`${task.id}-due`);
         }
@@ -220,7 +238,7 @@ const useTaskNotifications = (): NotificationState => {
             body: `"${task.title}" is overdue. Please complete it soon.`,
             tag: `task-${task.id}-overdue`,
             requireInteraction: true,
-            vibrate: [200, 100, 200, 100, 200, 100, 200]
+            vibrationPattern: [200, 100, 200, 100, 200, 100, 200]
           });
           markAsNotified(`${task.id}-overdue`);
         }

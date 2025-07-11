@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,7 +54,7 @@ const SmartNotifications = () => {
       icon: '/favicon.ico',
       tag: 'test',
       requireInteraction: false,
-      vibrate: isMobile ? [200, 100, 200] : undefined
+      vibrationPattern: isMobile ? [200, 100, 200] : undefined
     });
   };
 
