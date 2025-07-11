@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -183,12 +182,20 @@ const App = () => {
       
       if (error) {
         console.error('[App] Login error:', error);
+        // Provide more specific error messages
+        if (error.message.includes('Invalid login credentials')) {
+          return { error: { message: 'Invalid email or password. Please check your credentials and try again.' } };
+        } else if (error.message.includes('Email not confirmed')) {
+          return { error: { message: 'Please check your email and click the confirmation link before signing in.' } };
+        } else if (error.message.includes('Invalid API key')) {
+          return { error: { message: 'Authentication service is temporarily unavailable. Please try again later.' } };
+        }
       }
       
       return { error };
     } catch (error) {
       console.error('[App] Login exception:', error);
-      return { error };
+      return { error: { message: 'An unexpected error occurred. Please try again.' } };
     }
   };
 
@@ -210,12 +217,18 @@ const App = () => {
       
       if (error) {
         console.error('[App] Registration error:', error);
+        // Provide more specific error messages for registration
+        if (error.message.includes('User already registered')) {
+          return { error: { message: 'An account with this email already exists. Please sign in instead.' } };
+        } else if (error.message.includes('Invalid API key')) {
+          return { error: { message: 'Authentication service is temporarily unavailable. Please try again later.' } };
+        }
       }
       
       return { error };
     } catch (error) {
       console.error('[App] Registration exception:', error);
-      return { error };
+      return { error: { message: 'An unexpected error occurred during registration. Please try again.' } };
     }
   };
 
