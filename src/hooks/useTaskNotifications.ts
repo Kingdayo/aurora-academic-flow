@@ -72,7 +72,6 @@ const useTaskNotifications = (): NotificationState => {
           options: {
             icon: '/favicon.ico',
             badge: '/favicon.ico',
-            timestamp: Date.now(),
             requireInteraction: false,
             ...options
           }
@@ -82,7 +81,6 @@ const useTaskNotifications = (): NotificationState => {
         const notification = new Notification(title, {
           icon: '/favicon.ico',
           badge: '/favicon.ico',
-          timestamp: Date.now(),
           requireInteraction: false,
           ...options
         });
@@ -97,6 +95,14 @@ const useTaskNotifications = (): NotificationState => {
     } catch (error) {
       console.error('[useTaskNotifications] Error showing notification:', error);
     }
+  }, []);
+
+  const hasBeenNotified = useCallback((taskId: string) => {
+    return notifiedTasks.has(taskId);
+  }, [notifiedTasks]);
+
+  const markAsNotified = useCallback((taskId: string) => {
+    setNotifiedTasks(prev => new Set([...prev, taskId]));
   }, []);
 
   const checkTaskDueTimes = useCallback(() => {
@@ -134,14 +140,6 @@ const useTaskNotifications = (): NotificationState => {
       console.error('[useTaskNotifications] Error checking task due times:', error);
     }
   }, [showNotification, hasBeenNotified, markAsNotified]);
-
-  const hasBeenNotified = useCallback((taskId: string) => {
-    return notifiedTasks.has(taskId);
-  }, [notifiedTasks]);
-
-  const markAsNotified = useCallback((taskId: string) => {
-    setNotifiedTasks(prev => new Set([...prev, taskId]));
-  }, []);
 
   // Periodically check for due tasks
   useEffect(() => {

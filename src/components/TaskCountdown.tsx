@@ -189,7 +189,6 @@ const TaskCountdown = () => {
           body,
           icon,
           tag: `task-${task.id}-${type}`,
-          timestamp: Date.now(),
           requireInteraction: true,
           actions: [
             {
@@ -209,7 +208,6 @@ const TaskCountdown = () => {
         body,
         icon,
         tag: `task-${task.id}-${type}`,
-        timestamp: Date.now(),
         requireInteraction: true
       });
     }
