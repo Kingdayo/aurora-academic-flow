@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +23,7 @@ const TaskCountdown = () => {
     minutes: 0,
     seconds: 0
   });
+  const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const loadNextTask = () => {
@@ -100,8 +100,16 @@ const TaskCountdown = () => {
         const seconds = Math.floor((difference % (1000 * 60)) / 1000);
 
         setTimeLeft({ days, hours, minutes, seconds });
+
+        // Check if we should send notifications
+        checkAndSendNotifications(difference, nextTask);
       } else {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        // Task is overdue - send overdue notification
+        if (!notifiedTasks.has(`${nextTask.id}-overdue`)) {
+          sendTaskNotification(nextTask, 'overdue');
+          setNotifiedTasks(prev => new Set([...prev, `${nextTask.id}-overdue`]));
+        }
       }
     };
 
@@ -109,7 +117,105 @@ const TaskCountdown = () => {
     const timer = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(timer);
-  }, [nextTask]);
+  }, [nextTask, notifiedTasks]);
+
+  const checkAndSendNotifications = (timeRemaining: number, task: Task) => {
+    const minutesRemaining = Math.floor(timeRemaining / (1000 * 60));
+    const hoursRemaining = Math.floor(timeRemaining / (1000 * 60 * 60));
+    
+    // Send notification 1 hour before (if not already sent)
+    if (hoursRemaining === 1 && minutesRemaining <= 60 && !notifiedTasks.has(`${task.id}-1hour`)) {
+      sendTaskNotification(task, '1hour');
+      setNotifiedTasks(prev => new Set([...prev, `${task.id}-1hour`]));
+    }
+    
+    // Send notification 15 minutes before (if not already sent) 
+    if (minutesRemaining === 15 && !notifiedTasks.has(`${task.id}-15min`)) {
+      sendTaskNotification(task, '15min');
+      setNotifiedTasks(prev => new Set([...prev, `${task.id}-15min`]));
+    }
+    
+    // Send notification 5 minutes before (if not already sent)
+    if (minutesRemaining === 5 && !notifiedTasks.has(`${task.id}-5min`)) {
+      sendTaskNotification(task, '5min');
+      setNotifiedTasks(prev => new Set([...prev, `${task.id}-5min`]));
+    }
+    
+    // Send notification when task is due (if not already sent)
+    if (minutesRemaining === 0 && !notifiedTasks.has(`${task.id}-due`)) {
+      sendTaskNotification(task, 'due');
+      setNotifiedTasks(prev => new Set([...prev, `${task.id}-due`]));
+    }
+  };
+
+  const sendTaskNotification = (task: Task, type: 'due' | 'overdue' | '1hour' | '15min' | '5min') => {
+    if (!('Notification' in window) || Notification.permission !== 'granted') {
+      return;
+    }
+
+    let title = '';
+    let body = '';
+    let icon = '/favicon.ico';
+
+    switch (type) {
+      case '1hour':
+        title = '⏰ Task Due in 1 Hour';
+        body = `"${task.title}" is due in 1 hour. Time to prepare!`;
+        break;
+      case '15min':
+        title = '🚨 Task Due in 15 Minutes';
+        body = `"${task.title}" is due soon. Get ready to complete it!`;
+        break;
+      case '5min':
+        title = '🔥 Task Due in 5 Minutes';
+        body = `"${task.title}" is due very soon. Time to act!`;
+        break;
+      case 'due':
+        title = '⚡ Task is Due Now!';
+        body = `"${task.title}" is due right now. Complete it immediately!`;
+        break;
+      case 'overdue':
+        title = '❌ Task is Overdue!';
+        body = `"${task.title}" is overdue. Please complete it as soon as possible.`;
+        break;
+    }
+
+    // Use service worker to show notification with proper handling
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SHOW_NOTIFICATION',
+        title,
+        options: {
+          body,
+          icon,
+          tag: `task-${task.id}-${type}`,
+          timestamp: Date.now(),
+          requireInteraction: true,
+          actions: [
+            {
+              action: 'view',
+              title: 'View Task'
+            },
+            {
+              action: 'dismiss',
+              title: 'Dismiss'
+            }
+          ]
+        }
+      });
+    } else {
+      // Fallback to direct notification
+      new Notification(title, {
+        body,
+        icon,
+        tag: `task-${task.id}-${type}`,
+        timestamp: Date.now(),
+        requireInteraction: true
+      });
+    }
+
+    console.log(`[TaskCountdown] Sent ${type} notification for task:`, task.title);
+  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
