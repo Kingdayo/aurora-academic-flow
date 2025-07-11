@@ -124,9 +124,7 @@ const Dashboard = () => {
       <div className="p-4 space-y-6 h-full overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-purple-600 via-purple-500 to-blue-600 bg-clip-text text-transparent animate-gradient">
-            Aurora AI
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-purple-600 via-purple-500 to-blue-600 bg-clip-text text-transparent animate-gradient">Aurora</h1>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200 animate-pulse-glow">
               <Bell className="w-3 h-3 mr-1" />
