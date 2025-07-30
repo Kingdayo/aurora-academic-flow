@@ -4,13 +4,19 @@
 import { createClient } from '@supabase/supabase-js';
 
 // PWA Manifest injection point - required for vite-plugin-pwa
-const manifest = self.__WB_MANIFEST;
+const manifest = self.__WB_MANIFEST || [];
 
 const CACHE_NAME = 'aurora-v1.4'; // Incremented cache name for PWA fixes
+
+// Extract valid URLs from manifest
+const manifestUrls = manifest
+  .filter(entry => entry && typeof entry.url === 'string')
+  .map(entry => entry.url);
+
 const urlsToCache = [
   '/', // Cache the root HTML
   '/manifest.json', // Cache the manifest (ensure it exists)
-  ...manifest // Include PWA manifest files
+  ...manifestUrls // Include valid PWA manifest URLs
 ];
 
 // Initialize Supabase client in the service worker
@@ -128,19 +134,28 @@ setupRealtimeNotifications();
 
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Service Worker (v5 - mobile notification fixes) installing.');
+  console.log('[SW] Service Worker (v6 - PWA manifest fixes) installing.');
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[SW] Caching app shell with simplified list:', urlsToCache);
-        return cache.addAll(urlsToCache)
-          .catch(error => {
-            console.error('[SW] Caching failed during install for urls:', urlsToCache, error);
-            throw error;
-          });
+      .then(async (cache) => {
+        console.log('[SW] Caching app shell. URLs to cache:', urlsToCache);
+        
+        // Cache files individually with error handling
+        const cachePromises = urlsToCache.map(async (url) => {
+          try {
+            await cache.add(url);
+            console.log('[SW] Successfully cached:', url);
+          } catch (error) {
+            console.warn('[SW] Failed to cache:', url, error.message);
+            // Don't throw - continue with other files
+          }
+        });
+        
+        await Promise.allSettled(cachePromises);
+        console.log('[SW] Caching process completed (some files may have failed).');
       })
       .then(() => {
-        console.log('[SW] Caching successful. Attempting skipWaiting().');
+        console.log('[SW] Attempting skipWaiting().');
         return self.skipWaiting();
       })
       .catch(error => {
