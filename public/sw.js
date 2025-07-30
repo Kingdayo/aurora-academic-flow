@@ -3,10 +3,14 @@
 // Import Supabase
 import { createClient } from '@supabase/supabase-js';
 
-const CACHE_NAME = 'aurora-v1.3'; // Incremented cache name for mobile notification fixes
+// PWA Manifest injection point - required for vite-plugin-pwa
+const manifest = self.__WB_MANIFEST;
+
+const CACHE_NAME = 'aurora-v1.4'; // Incremented cache name for PWA fixes
 const urlsToCache = [
   '/', // Cache the root HTML
   '/manifest.json', // Cache the manifest (ensure it exists)
+  ...manifest // Include PWA manifest files
 ];
 
 // Initialize Supabase client in the service worker
