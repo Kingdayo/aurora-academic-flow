@@ -1,11 +1,60 @@
-
 // public/sw.js
+
+// Import Supabase
+import { createClient } from '@supabase/supabase-js';
 
 const CACHE_NAME = 'aurora-v1.3'; // Incremented cache name for mobile notification fixes
 const urlsToCache = [
   '/', // Cache the root HTML
   '/manifest.json', // Cache the manifest (ensure it exists)
 ];
+
+// Initialize Supabase client in the service worker
+const supabaseUrl = "https://ptglxbqaucefcjdewsrd.supabase.co"; // Replace with your Supabase URL
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB0Z2x4YnFhdWNlZmNqZGV3c3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzODk0NzgsImV4cCI6MjA2Njk2NTQ3OH0.4bZPcxklqAkXQHjfM7LQjr7mMad7nbKhPixDbtNAYWM"; // Replace with your Supabase anonymous key
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
+
+// Subscribe to Realtime changes in the 'tasks' table
+supabase
+  .channel('tasks')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
+    console.log('[SW] Realtime change received:', payload);
+
+    // Handle the change and trigger a notification
+    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+      const task = payload.new; // Get the new or updated task data
+
+      // Customize notification based on task data
+      const notificationTitle = task.title || 'New Task Notification';
+      const notificationOptions = {
+        body: task.description || 'You have a new or updated task.',
+        icon: '/favicon.ico', // Use your app's icon
+        vibrate: [200, 100, 200],
+        data: {
+          taskId: task.id, // Include task ID in data
+          url: self.location.origin + '/dashboard', // Link to your dashboard or task details page
+          timestamp: Date.now()
+        }
+      };
+
+      self.registration.showNotification(notificationTitle, notificationOptions)
+        .then(() => {
+          console.log('[SW] Notification shown for task:', task.id);
+        })
+        .catch(error => {
+          console.error('[SW] Error showing notification for task:', task.id, error);
+        });
+    }
+  })
+  .subscribe();
+
 
 self.addEventListener('install', (event) => {
   console.log('[SW] Service Worker (v5 - mobile notification fixes) installing.');
@@ -80,9 +129,9 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   event.waitUntil(
-    clients.matchAll({ 
-      type: 'window', 
-      includeUncontrolled: true 
+    clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
     }).then((clientList) => {
       // Try to find an existing window with the app
       for (const client of clientList) {
@@ -91,7 +140,7 @@ self.addEventListener('notificationclick', (event) => {
           return client.focus();
         }
       }
-      
+
       // If no existing window, open a new one
       if (clients.openWindow) {
         const appUrl = self.location.origin + '/';
@@ -107,7 +156,7 @@ self.addEventListener('notificationclick', (event) => {
 // Enhanced background sync with mobile optimizations
 self.addEventListener('sync', (event) => {
   console.log('[SW] Background sync event triggered with tag:', event.tag);
-  
+
   if (event.tag === 'sync-tasks') {
     event.waitUntil(syncTasks());
   }
@@ -116,13 +165,13 @@ self.addEventListener('sync', (event) => {
 async function syncTasks() {
   try {
     console.log('[SW] Starting background sync for tasks');
-    
+
     // Get all clients (browser tabs) to communicate with them
     const clients = await self.clients.matchAll({
       includeUncontrolled: true,
       type: 'window'
     });
-    
+
     // Send message to all clients to trigger task sync
     clients.forEach(client => {
       client.postMessage({
@@ -130,7 +179,7 @@ async function syncTasks() {
         timestamp: Date.now()
       });
     });
-    
+
     console.log('[SW] Background sync request sent to clients');
   } catch (error) {
     console.error('[SW] Background sync failed:', error);
@@ -140,16 +189,16 @@ async function syncTasks() {
 // Handle messages from the main thread with mobile enhancements
 self.addEventListener('message', (event) => {
   console.log('[SW] Message received:', event.data);
-  
+
   if (event.data && event.data.type === 'SYNC_TASKS_RESPONSE') {
     console.log('[SW] Received task sync response from client');
     // Handle the response if needed
   }
-  
+
   if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
     const { title, options } = event.data;
     console.log('[SW] Showing notification via message:', title);
-    
+
     // Enhanced notification options for mobile
     const notificationOptions = {
       body: options?.body || 'You have a new notification.',
@@ -166,7 +215,7 @@ self.addEventListener('message', (event) => {
       },
       ...options
     };
-    
+
     // Show the notification with mobile-optimized settings
     self.registration.showNotification(title, notificationOptions)
       .then(() => {
@@ -183,5 +232,42 @@ self.addEventListener('notificationclose', (event) => {
   console.log('[SW] Notification closed:', event.notification.tag);
   // Track notification dismissals if needed
 });
+
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push received:', event);
+
+  const options = {
+    body: 'You have a new task notification.', // Default message
+    icon: '/favicon.ico', // Default icon
+    vibrate: [200, 100, 200], // Default vibration pattern
+    data: {
+      dateOfArrival: Date.now(),
+      primaryKey: '2'
+    }
+  };
+
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      console.log('[SW] Push data:', data);
+
+      // Customize notification based on push data
+      options.body = data.body || options.body;
+      options.title = data.title || 'New Notification'; // Add title from data
+      options.icon = data.icon || options.icon;
+      options.image = data.image; // Add image support
+      options.tag = data.tag; // Add tag support for grouping/replacing
+      options.url = data.url; // Add URL for notification click
+    } catch (e) {
+      console.error('[SW] Failed to parse push data:', e);
+      options.body = 'You have a new notification.'; // Fallback message
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(options.title || 'New Notification', options)
+  );
+});
+
 
 console.log('[SW] Service Worker script (v5 - mobile notification fixes) loaded and parsed.');
