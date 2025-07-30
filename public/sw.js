@@ -239,14 +239,6 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Enhanced background sync with mobile optimizations
-self.addEventListener('sync', (event) => {
-  console.log('[SW] Background sync event triggered with tag:', event.tag);
-
-  if (event.tag === 'sync-tasks') {
-    event.waitUntil(syncTasks());
-  }
-});
 
 async function syncTasks() {
   try {
@@ -282,34 +274,111 @@ self.addEventListener('message', (event) => {
   }
 
   if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
-    const { title, options } = event.data;
+    const { title, body, options } = event.data;
     console.log('[SW] Showing notification via message:', title);
 
-    // Enhanced notification options for mobile
-    const notificationOptions = {
-      body: options?.body || 'You have a new notification.',
-      icon: options?.icon || '/favicon.ico',
-      tag: options?.tag || 'default',
-      badge: '/favicon.ico',
-      requireInteraction: options?.requireInteraction !== false, // Default to true for mobile
-      silent: options?.silent === true, // Default to false for better mobile experience
-      vibrate: options?.vibrate || [200, 100, 200], // Default vibration pattern
-      actions: options?.actions || [],
-      data: {
-        url: self.location.origin,
-        timestamp: Date.now()
-      },
-      ...options
-    };
-
-    // Show the notification with mobile-optimized settings
-    self.registration.showNotification(title, notificationOptions)
-      .then(() => {
-        console.log('[SW] Notification shown successfully:', title);
-      })
-      .catch(error => {
-        console.error('[SW] Error showing notification:', error);
+    // Check if online - if offline, queue the notification
+    if (!navigator.onLine) {
+      queueNotification({
+        title,
+        body,
+        icon: '/favicon.ico',
+        tag: `task-${Date.now()}`,
+        ...options
       });
+    } else {
+      // Enhanced notification options for mobile
+      const notificationOptions = {
+        body: body || 'You have a new notification.',
+        icon: options?.icon || '/favicon.ico',
+        tag: options?.tag || 'default',
+        badge: '/favicon.ico',
+        requireInteraction: options?.requireInteraction !== false,
+        silent: options?.silent === true,
+        vibrate: options?.vibrate || [200, 100, 200],
+        actions: options?.actions || [],
+        data: {
+          url: self.location.origin,
+          timestamp: Date.now()
+        },
+        ...options
+      };
+
+      // Show the notification with mobile-optimized settings
+      self.registration.showNotification(title, notificationOptions)
+        .then(() => {
+          console.log('[SW] Notification shown successfully:', title);
+        })
+        .catch(error => {
+          console.error('[SW] Error showing notification:', error);
+        });
+    }
+  } else if (event.data && event.data.type === 'QUEUE_NOTIFICATION') {
+    // Queue notification for offline delivery
+    queueNotification(event.data.notification);
+  }
+});
+
+// IndexedDB for offline notification queue
+const openDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('NotificationQueue', 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('notifications')) {
+        db.createObjectStore('notifications', { keyPath: 'id', autoIncrement: true });
+      }
+    };
+  });
+};
+
+const queueNotification = async (notification) => {
+  try {
+    const db = await openDB();
+    const transaction = db.transaction(['notifications'], 'readwrite');
+    const store = transaction.objectStore('notifications');
+    await store.add({ ...notification, timestamp: Date.now() });
+    console.log('[SW] Notification queued for offline delivery');
+  } catch (error) {
+    console.error('[SW] Failed to queue notification:', error);
+  }
+};
+
+const processQueuedNotifications = async () => {
+  try {
+    const db = await openDB();
+    const transaction = db.transaction(['notifications'], 'readwrite');
+    const store = transaction.objectStore('notifications');
+    const notifications = await store.getAll();
+    
+    for (const notification of notifications) {
+      await self.registration.showNotification(notification.title, {
+        body: notification.body,
+        icon: notification.icon || '/favicon.ico',
+        tag: notification.tag,
+        data: notification.data,
+        requireInteraction: false,
+        actions: notification.actions || []
+      });
+      await store.delete(notification.id);
+    }
+    
+    console.log(`[SW] Processed ${notifications.length} queued notifications`);
+  } catch (error) {
+    console.error('[SW] Failed to process queued notifications:', error);
+  }
+};
+
+// Enhanced background sync with notification processing
+self.addEventListener('sync', (event) => {
+  console.log('[SW] Background sync event triggered with tag:', event.tag);
+
+  if (event.tag === 'sync-tasks') {
+    event.waitUntil(syncTasks());
+  } else if (event.tag === 'process-notifications') {
+    event.waitUntil(processQueuedNotifications());
   }
 });
 

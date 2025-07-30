@@ -1,5 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { useOfflineNotifications } from '@/hooks/useOfflineNotifications';
 
 export interface NotificationState {
   notificationPermission: NotificationPermission;
@@ -15,6 +17,8 @@ const useTaskNotifications = (): NotificationState => {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
   const [isSupported, setIsSupported] = useState(false);
+  const { toast } = useToast();
+  const { queueNotification } = useOfflineNotifications();
 
   const hasBeenNotified = useCallback((taskId: string) => {
     return notifiedTasks.has(taskId);
@@ -116,65 +120,26 @@ const useTaskNotifications = (): NotificationState => {
     }
   }, []);
 
-  const showNotification = useCallback((title: string, options?: NotificationOptions & { vibrationPattern?: number[] }) => {
-    if (!isSupported) {
-      console.warn('[useTaskNotifications] Notifications not supported');
-      return;
+  const showNotification = useCallback(async (title: string, options?: NotificationOptions & { vibrationPattern?: number[] }) => {
+    // Always show toast notification as primary feedback
+    toast({
+      title,
+      description: options?.body as string || '',
+    });
+
+    // Use offline notification system for better reliability
+    await queueNotification({
+      title,
+      body: options?.body as string || '',
+      tag: options?.tag || `notification-${Date.now()}`,
+      data: options?.data
+    });
+
+    // Trigger vibration if requested and supported
+    if (options?.vibrationPattern && 'vibrate' in navigator) {
+      navigator.vibrate(options.vibrationPattern);
     }
-
-    if (Notification.permission !== 'granted') {
-      console.warn('[useTaskNotifications] Notification permission not granted');
-      return;
-    }
-
-    try {
-      // Extract vibration pattern if provided
-      const { vibrationPattern, ...notificationOptions } = options || {};
-      
-      const finalOptions: NotificationOptions = {
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
-        requireInteraction: true,
-        silent: false,
-        ...notificationOptions
-      };
-
-      // Trigger vibration if pattern is provided
-      if (vibrationPattern) {
-        triggerVibration(vibrationPattern);
-      }
-
-      // Use service worker for better mobile support
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'SHOW_NOTIFICATION',
-          title,
-          options: finalOptions
-        });
-      } else {
-        // Fallback to direct notification
-        const notification = new Notification(title, finalOptions);
-
-        // Handle notification click
-        notification.onclick = function(event) {
-          event.preventDefault();
-          window.focus();
-          notification.close();
-        };
-
-        // Auto-close notification after 8 seconds on desktop (mobile handles this automatically)
-        if (!finalOptions?.requireInteraction && !navigator.userAgent.match(/Mobile|Android|iPhone|iPad/i)) {
-          setTimeout(() => {
-            notification.close();
-          }, 8000);
-        }
-      }
-
-      console.log('[useTaskNotifications] Notification sent:', title);
-    } catch (error) {
-      console.error('[useTaskNotifications] Error showing notification:', error);
-    }
-  }, [isSupported, triggerVibration]);
+  }, [toast, queueNotification]);
 
   const checkTaskDueTimes = useCallback(() => {
     if (!isSupported || notificationPermission !== 'granted') {
