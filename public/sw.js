@@ -21,39 +21,106 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Subscribe to Realtime changes in the 'tasks' table
-supabase
-  .channel('tasks')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
-    console.log('[SW] Realtime change received:', payload);
+// Enhanced Realtime notification handling for tasks
+const setupRealtimeNotifications = () => {
+  const channel = supabase
+    .channel('sw-tasks-notifications')
+    .on('postgres_changes', { 
+      event: '*', 
+      schema: 'public', 
+      table: 'tasks' 
+    }, (payload) => {
+      console.log('[SW] Realtime change received:', payload);
+      handleTaskNotification(payload);
+    })
+    .subscribe((status) => {
+      console.log('[SW] Realtime subscription status:', status);
+    });
 
-    // Handle the change and trigger a notification
-    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-      const task = payload.new; // Get the new or updated task data
+  return channel;
+};
 
-      // Customize notification based on task data
-      const notificationTitle = task.title || 'New Task Notification';
-      const notificationOptions = {
-        body: task.description || 'You have a new or updated task.',
-        icon: '/favicon.ico', // Use your app's icon
-        vibrate: [200, 100, 200],
-        data: {
-          taskId: task.id, // Include task ID in data
-          url: self.location.origin + '/dashboard', // Link to your dashboard or task details page
-          timestamp: Date.now()
+const handleTaskNotification = (payload) => {
+  const { eventType, new: newTask, old: oldTask } = payload;
+  
+  let notificationTitle = '';
+  let notificationBody = '';
+  let shouldNotify = false;
+
+  switch (eventType) {
+    case 'INSERT':
+      notificationTitle = 'New Task Created';
+      notificationBody = `"${newTask.title}" has been added to your tasks`;
+      shouldNotify = true;
+      break;
+      
+    case 'UPDATE':
+      // Notify on completion
+      if (!oldTask.completed && newTask.completed) {
+        notificationTitle = 'Task Completed! 🎉';
+        notificationBody = `"${newTask.title}" has been marked as completed`;
+        shouldNotify = true;
+      }
+      // Notify on due date changes
+      else if (oldTask.due_date !== newTask.due_date || oldTask.due_time !== newTask.due_time) {
+        notificationTitle = 'Task Due Date Updated';
+        notificationBody = `Due date for "${newTask.title}" has been updated`;
+        shouldNotify = true;
+      }
+      // Notify on high priority tasks
+      else if (newTask.priority === 'high' && oldTask.priority !== 'high') {
+        notificationTitle = 'High Priority Task';
+        notificationBody = `"${newTask.title}" has been marked as high priority`;
+        shouldNotify = true;
+      }
+      break;
+
+    case 'DELETE':
+      notificationTitle = 'Task Deleted';
+      notificationBody = `Task has been removed from your list`;
+      shouldNotify = true;
+      break;
+  }
+
+  if (shouldNotify) {
+    const notificationOptions = {
+      body: notificationBody,
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+      tag: `task-${newTask?.id || 'deleted'}`,
+      requireInteraction: false,
+      silent: false,
+      data: {
+        taskId: newTask?.id,
+        url: self.location.origin + '/dashboard',
+        timestamp: Date.now(),
+        eventType
+      },
+      actions: eventType === 'INSERT' ? [
+        {
+          action: 'view',
+          title: 'View Task',
+          icon: '/favicon.ico'
+        },
+        {
+          action: 'dismiss',
+          title: 'Dismiss'
         }
-      };
+      ] : []
+    };
 
-      self.registration.showNotification(notificationTitle, notificationOptions)
-        .then(() => {
-          console.log('[SW] Notification shown for task:', task.id);
-        })
-        .catch(error => {
-          console.error('[SW] Error showing notification for task:', task.id, error);
-        });
-    }
-  })
-  .subscribe();
+    self.registration.showNotification(notificationTitle, notificationOptions)
+      .then(() => {
+        console.log('[SW] Notification shown for task:', newTask?.id);
+      })
+      .catch(error => {
+        console.error('[SW] Error showing notification:', error);
+      });
+  }
+};
+
+// Initialize realtime notifications
+setupRealtimeNotifications();
 
 
 self.addEventListener('install', (event) => {
