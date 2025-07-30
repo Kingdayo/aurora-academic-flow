@@ -27,30 +27,41 @@ const useTaskNotifications = (): NotificationState => {
   useEffect(() => {
     // Check if notifications are supported
     const checkSupport = () => {
-      const supported = 'Notification' in window && 
-                       'serviceWorker' in navigator && 
-                       'PushManager' in window;
+      const hasNotificationAPI = 'Notification' in window;
+      const hasServiceWorker = 'serviceWorker' in navigator;
+      const hasPushManager = 'PushManager' in window;
+      
+      const supported = hasNotificationAPI && hasServiceWorker && hasPushManager;
       setIsSupported(supported);
-      return supported;
+      
+      if (!hasNotificationAPI) {
+        console.log('[useTaskNotifications] Browser notifications not supported, using toast notifications only');
+      } else {
+        console.log('[useTaskNotifications] Notifications supported');
+      }
+      
+      return { supported, hasNotificationAPI, hasServiceWorker };
     };
 
-    if (checkSupport()) {
-      setNotificationPermission(Notification.permission);
-      
-      // Register service worker and listen for messages
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then(() => {
-          console.log('[useTaskNotifications] Service Worker is ready');
-        });
+    const { supported, hasNotificationAPI, hasServiceWorker } = checkSupport();
 
-        navigator.serviceWorker.addEventListener('message', (event) => {
-          if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
-            console.log('[useTaskNotifications] Notification clicked:', event.data);
-            // Handle notification click - could navigate to tasks or show specific task
-            window.focus();
-          }
-        });
-      }
+    if (hasNotificationAPI) {
+      setNotificationPermission(Notification.permission);
+    }
+    
+    // Register service worker regardless of notification API support
+    if (hasServiceWorker) {
+      navigator.serviceWorker.ready.then(() => {
+        console.log('[useTaskNotifications] Service Worker is ready');
+      });
+
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
+          console.log('[useTaskNotifications] Notification clicked:', event.data);
+          // Handle notification click - could navigate to tasks or show specific task
+          window.focus();
+        }
+      });
     }
   }, []);
 
