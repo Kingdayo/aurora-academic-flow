@@ -19,9 +19,16 @@ export default defineConfig(({ mode }) => ({
       filename: 'sw.js',
       strategies: 'injectManifest',
       injectManifest: {
-        // You can uncomment and configure this if you have specific files to precache
-        // import './skip-waiting';
-        // import './clients-claim';
+        maximumFileSizeToCacheInBytes: 50 * 1024 * 1024, // 50MB limit for AI models
+        manifestTransforms: [
+          (entries) => {
+            // Filter out very large AI model files from precaching
+            const filteredEntries = entries.filter(entry => {
+              return !entry.url.includes('ort-wasm') && entry.size < 10 * 1024 * 1024;
+            });
+            return { manifest: filteredEntries };
+          }
+        ]
       },
       devOptions: {
         enabled: true
