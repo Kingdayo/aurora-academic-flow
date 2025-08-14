@@ -149,22 +149,24 @@ const VoiceCommands = ({ onTabChange, onAddTask, onStartTimer }: VoiceCommandsPr
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
+        <div className="flex flex-col space-y-3 lg:space-y-2">
           <Button
             onClick={toggleListening}
-            className={`w-full sm:w-auto ${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-purple-gradient hover:opacity-90'}`}
+            className={`w-full text-sm ${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-purple-gradient hover:opacity-90'}`}
+            size="sm"
           >
-            {isListening ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
-            {isListening ? "Stop Listening" : "Start Listening"}
+            {isListening ? <MicOff className="w-4 h-4 mr-2 shrink-0" /> : <Mic className="w-4 h-4 mr-2 shrink-0" />}
+            <span className="truncate">{isListening ? "Stop Listening" : "Start Listening"}</span>
           </Button>
           
           <Button
             onClick={() => speakText("Voice commands are ready. Say 'add task' to create a new task.")}
             variant="outline"
-            className="w-full sm:w-auto"
+            className="w-full text-sm"
+            size="sm"
           >
-            <Volume2 className="w-4 h-4 mr-2" />
-            Test Voice
+            <Volume2 className="w-4 h-4 mr-2 shrink-0" />
+            <span className="truncate">Test Voice</span>
           </Button>
         </div>
 
@@ -184,13 +186,11 @@ const VoiceCommands = ({ onTabChange, onAddTask, onStartTimer }: VoiceCommandsPr
           <h4 className="font-semibold text-sm">Supported Commands:</h4>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {commands.map((command, index) => (
-              <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-gray-50 rounded gap-2">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                  <Badge variant="secondary" className="text-xs w-fit">
-                    "{command.phrase}"
-                  </Badge>
-                  <span className="text-xs text-gray-600">{command.description}</span>
-                </div>
+              <div key={index} className="flex flex-col p-2 bg-gray-50 rounded gap-1">
+                <Badge variant="secondary" className="text-xs w-fit shrink-0">
+                  "{command.phrase}"
+                </Badge>
+                <span className="text-xs text-gray-600 leading-relaxed break-words">{command.description}</span>
               </div>
             ))}
           </div>
