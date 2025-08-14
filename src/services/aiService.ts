@@ -113,6 +113,15 @@ class AIService {
     modelKey: string = 'flan-t5'
   ): Promise<string> {
     try {
+      // First check if this is a known educational concept
+      if (this.isEducationalConcept(query)) {
+        const fallbackResponse = this.getEducationalFallback(query);
+        if (fallbackResponse.length > 50) { // If we have a good fallback, use it
+          console.log('Using educational fallback for:', query);
+          return fallbackResponse;
+        }
+      }
+
       // Ensure model is loaded
       if (!this.pipelines.has(modelKey)) {
         await this.initializeModel(modelKey);
@@ -144,7 +153,13 @@ class AIService {
       }
 
       // Clean up response
-      response = this.cleanResponse(response);
+      response = this.cleanResponse(response, query);
+      
+      // If cleaned response is too generic or short, use fallback
+      if (response.length < 20 || this.isGenericResponse(response)) {
+        console.log('AI response too generic, using fallback');
+        return this.getFallbackResponse(category, query);
+      }
       
       // Add to conversation history
       this.conversationHistory.push(`Q: ${query}`);
@@ -158,11 +173,11 @@ class AIService {
       return response;
     } catch (error) {
       console.error('AI generation error:', error);
-      throw error;
+      return this.getFallbackResponse(category, query);
     }
   }
 
-  private cleanResponse(response: string): string {
+  private cleanResponse(response: string, originalQuery?: string): string {
     // Remove common artifacts
     response = response
       .replace(/^(Answer:|Response:|A:)/i, '')
@@ -170,12 +185,26 @@ class AIService {
       .replace(/\s+/g, ' ')
       .trim();
 
-    // Ensure it's not too short or just repeated text
-    if (response.length < 10 || response.includes('...')) {
-      return "I'd be happy to help you with that! Could you provide a bit more detail about what specific aspect you'd like me to focus on?";
+    // If response is too short or generic, don't return it
+    if (response.length < 10) {
+      return '';
     }
 
     return response;
+  }
+
+  private isGenericResponse(response: string): boolean {
+    const genericPhrases = [
+      'great job',
+      'lifelong adventure',
+      'staying on top',
+      'what\'s your biggest challenge',
+      'i can provide',
+      'personalized advice'
+    ];
+    
+    const lowerResponse = response.toLowerCase();
+    return genericPhrases.some(phrase => lowerResponse.includes(phrase));
   }
 
   clearConversationHistory(): void {
