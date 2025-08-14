@@ -26,14 +26,14 @@ class AIService {
 
   private configs: Record<string, AIServiceConfig> = {
     'flan-t5': {
-      model: 'Xenova/flan-t5-small',
+      model: 'Xenova/flan-t5-base',
       task: 'text2text-generation',
-      maxTokens: 150
+      maxTokens: 200
     },
-    'gpt2': {
-      model: 'Xenova/gpt2',
+    'distilgpt2': {
+      model: 'Xenova/distilgpt2',
       task: 'text-generation',
-      maxTokens: 100
+      maxTokens: 150
     }
   };
 
@@ -49,8 +49,8 @@ class AIService {
       console.log(`Loading AI model: ${config.model}`);
       
       const pipe = await pipeline(config.task, config.model, {
-        device: 'webgpu',
-        dtype: 'fp16'
+        device: 'wasm',
+        dtype: 'fp32'
       });
       
       this.pipelines.set(modelKey, pipe);
@@ -68,37 +68,42 @@ class AIService {
   }
 
   private buildAcademicPrompt(query: string, category: string, context?: AcademicContext): string {
+    // Enhanced prompts for better educational responses
     const basePrompts = {
-      study: "You are an academic study advisor. Provide helpful, actionable study advice.",
-      tasks: "You are a task management expert for students. Help with academic task organization.",
-      subjects: "You are a subject matter expert. Provide clear explanations and learning guidance.",
-      exam: "You are an exam preparation specialist. Give practical exam strategies and tips.",
-      research: "You are a research methodology expert. Help with research techniques and academic writing.",
-      time: "You are a time management coach for students. Provide scheduling and productivity advice."
+      study: "Explain the following educational concept clearly and provide practical learning tips:",
+      tasks: "Help organize this academic task or provide study management advice for:",
+      subjects: "Provide a clear, educational explanation of:",
+      exam: "Give exam preparation strategies and tips for:",
+      research: "Explain research methods and academic writing guidance for:",
+      time: "Provide time management and study scheduling advice for:"
     };
 
-    let prompt = basePrompts[category as keyof typeof basePrompts] || basePrompts.study;
+    let prompt = basePrompts[category as keyof typeof basePrompts] || basePrompts.subjects;
     
-    // Add context if available
-    if (context?.tasks && context.tasks.length > 0) {
-      const taskCount = context.tasks.length;
-      const completedTasks = context.tasks.filter(t => t.completed).length;
-      prompt += ` The student currently has ${taskCount} tasks, with ${completedTasks} completed.`;
+    // For educational concepts, use a more direct approach
+    if (this.isEducationalConcept(query)) {
+      prompt = "Provide a clear, comprehensive explanation of:";
+    }
+    
+    // Add academic context
+    if (context?.userProfile?.academicLevel) {
+      prompt += ` (for ${context.userProfile.academicLevel} level)`;
     }
 
-    if (context?.userProfile?.subjects && context.userProfile.subjects.length > 0) {
-      prompt += ` They are studying: ${context.userProfile.subjects.join(', ')}.`;
-    }
-
-    // Add conversation context
-    if (this.conversationHistory.length > 0) {
-      const recentContext = this.conversationHistory.slice(-2).join(' ');
-      prompt += ` Previous context: ${recentContext}`;
-    }
-
-    prompt += ` Question: ${query}`;
+    prompt += ` ${query}`;
     
     return prompt;
+  }
+
+  private isEducationalConcept(query: string): boolean {
+    const educationalKeywords = [
+      'what is', 'define', 'explain', 'technique', 'method', 'theory', 'principle', 
+      'concept', 'approach', 'strategy', 'framework', 'model', 'law', 'rule'
+    ];
+    
+    return educationalKeywords.some(keyword => 
+      query.toLowerCase().includes(keyword.toLowerCase())
+    );
   }
 
   async generateResponse(
@@ -181,8 +186,13 @@ class AIService {
     return Object.keys(this.configs);
   }
 
-  // Fallback responses for when AI fails
-  getFallbackResponse(category: string): string {
+  // Enhanced fallback responses with educational content
+  getFallbackResponse(category: string, query?: string): string {
+    // Check for specific educational concepts
+    if (query && this.isEducationalConcept(query)) {
+      return this.getEducationalFallback(query);
+    }
+
     const fallbacks = {
       study: "Here's a proven study strategy: Use the Pomodoro Technique (25 min focus + 5 min break), create summaries of key concepts, and test yourself regularly. Active recall is more effective than passive reading.",
       tasks: "Break large tasks into smaller, manageable chunks. Set specific deadlines for each part. Use a priority system: urgent & important first, then important but not urgent.",
@@ -193,6 +203,29 @@ class AIService {
     };
     
     return fallbacks[category as keyof typeof fallbacks] || fallbacks.study;
+  }
+
+  private getEducationalFallback(query: string): string {
+    const lowerQuery = query.toLowerCase();
+    
+    // Specific educational concept responses
+    if (lowerQuery.includes('feynman technique')) {
+      return "The Feynman Technique is a learning method where you explain a concept in simple terms as if teaching a child. Steps: 1) Choose a concept 2) Explain it simply 3) Identify gaps in understanding 4) Review and simplify further. This helps identify knowledge gaps and improves retention through active recall.";
+    }
+    
+    if (lowerQuery.includes('pomodoro technique')) {
+      return "The Pomodoro Technique is a time management method: Work for 25 minutes focused on one task, then take a 5-minute break. After 4 cycles, take a longer 15-30 minute break. This helps maintain focus, reduces mental fatigue, and improves productivity by breaking work into manageable intervals.";
+    }
+    
+    if (lowerQuery.includes('active recall')) {
+      return "Active recall is a learning technique where you actively retrieve information from memory rather than passively reading. Methods include: flashcards, practice tests, explaining concepts aloud, and writing summaries from memory. It's more effective than re-reading because it strengthens memory pathways.";
+    }
+    
+    if (lowerQuery.includes('spaced repetition')) {
+      return "Spaced repetition is reviewing information at increasing intervals over time. Review after 1 day, 3 days, 1 week, 2 weeks, 1 month, etc. This technique leverages the spacing effect - we remember better when learning is distributed over time rather than crammed in one session.";
+    }
+    
+    return "I'd be happy to explain this educational concept! Could you provide a bit more context about what specific aspect you'd like me to focus on?";
   }
 }
 

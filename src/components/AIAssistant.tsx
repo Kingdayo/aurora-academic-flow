@@ -93,7 +93,7 @@ const AIAssistant = () => {
       }
     } catch (error) {
       console.error('AI generation failed, using fallback:', error);
-      return aiService.getFallbackResponse(category);
+      return aiService.getFallbackResponse(category, userQuery);
     }
   };
 
