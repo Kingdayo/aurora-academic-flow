@@ -156,7 +156,7 @@ const VoiceCommands = ({ onTabChange, onAddTask, onStartTimer }: VoiceCommandsPr
             size="sm"
           >
             {isListening ? <MicOff className="w-4 h-4 lg:w-3 lg:h-3 mr-2 lg:mr-1 shrink-0" /> : <Mic className="w-4 h-4 lg:w-3 lg:h-3 mr-2 lg:mr-1 shrink-0" />}
-            <span className="truncate lg:text-xs">{isListening ? (<><span className="lg:hidden">Stop Listening</span><span className="hidden lg:inline">Stop</span></>) : (<><span className="lg:hidden">Start Listening</span><span className="hidden lg:inline">Listen</span></>)}</span>
+            <span className="truncate lg:text-xs">{isListening ? "Stop Listening" : "Start Listening"}</span>
           </Button>
           
           <Button
@@ -166,7 +166,7 @@ const VoiceCommands = ({ onTabChange, onAddTask, onStartTimer }: VoiceCommandsPr
             size="sm"
           >
             <Volume2 className="w-4 h-4 lg:w-3 lg:h-3 mr-2 lg:mr-1 shrink-0" />
-            <span className="truncate lg:text-xs"><span className="lg:hidden">Test Voice</span><span className="hidden lg:inline">Test</span></span>
+            <span className="truncate lg:text-xs">Test Voice</span>
           </Button>
         </div>
 
@@ -184,7 +184,7 @@ const VoiceCommands = ({ onTabChange, onAddTask, onStartTimer }: VoiceCommandsPr
 
         <div className="space-y-2">
           <h4 className="font-semibold text-sm">Supported Commands:</h4>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-2 max-h-64 overflow-y-auto">
             {commands.map((command, index) => (
               <div key={index} className="flex flex-col p-2 bg-gray-50 rounded gap-1">
                 <Badge variant="secondary" className="text-xs w-fit shrink-0">
