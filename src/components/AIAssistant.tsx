@@ -253,7 +253,7 @@ const AIAssistant = () => {
       </div>
 
       {/* AI Responses */}
-      <div className="space-y-4 max-h-96 overflow-y-auto">
+      <div className="space-y-4 overflow-y-auto">
         {responses.length === 0 && !isLoading && (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             <Brain className="w-12 h-12 mx-auto mb-3 opacity-50" />
