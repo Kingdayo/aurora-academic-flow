@@ -149,24 +149,24 @@ const VoiceCommands = ({ onTabChange, onAddTask, onStartTimer }: VoiceCommandsPr
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-col space-y-3 lg:space-y-2">
+        <div className="flex flex-col space-y-2">
           <Button
             onClick={toggleListening}
-            className={`w-full text-sm ${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-purple-gradient hover:opacity-90'}`}
+            className={`w-full text-xs ${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-purple-gradient hover:opacity-90'}`}
             size="sm"
           >
-            {isListening ? <MicOff className="w-4 h-4 mr-2 shrink-0" /> : <Mic className="w-4 h-4 mr-2 shrink-0" />}
-            <span className="truncate">{isListening ? "Stop Listening" : "Start Listening"}</span>
+            {isListening ? <MicOff className="w-3 h-3 mr-1 shrink-0" /> : <Mic className="w-3 h-3 mr-1 shrink-0" />}
+            <span className="truncate text-xs">{isListening ? "Stop" : "Listen"}</span>
           </Button>
           
           <Button
             onClick={() => speakText("Voice commands are ready. Say 'add task' to create a new task.")}
             variant="outline"
-            className="w-full text-sm"
+            className="w-full text-xs"
             size="sm"
           >
-            <Volume2 className="w-4 h-4 mr-2 shrink-0" />
-            <span className="truncate">Test Voice</span>
+            <Volume2 className="w-3 h-3 mr-1 shrink-0" />
+            <span className="truncate text-xs">Test</span>
           </Button>
         </div>
 
