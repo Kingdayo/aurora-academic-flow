@@ -279,11 +279,11 @@ const Dashboard = () => {
 
                   <TabsContent value="ai-assistant" className="animate-fade-in-up">
                     <div className="space-y-6">
-                       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
-                         <div className="xl:col-span-2">
+                       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 mb-6">
+                         <div className="xl:col-span-3">
                            <AIAssistant />
                          </div>
-                         <div className="min-w-0">
+                         <div className="xl:col-span-2 min-w-0">
                            <VoiceCommands onTabChange={handleVoiceTabChange} onAddTask={handleVoiceAddTask} onStartTimer={handleVoiceStartTimer} />
                          </div>
                        </div>
