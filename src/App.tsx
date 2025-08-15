@@ -280,11 +280,11 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeContext.Provider value={{ theme, toggleTheme }}>
-        <AuthContext.Provider value={{ user, session, login, register, logout, loading, loggingOut }}>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthContext.Provider value={{ user, session, login, register, logout, loading, loggingOut }}>
               <Routes>
                 <Route 
                   path="/" 
@@ -296,9 +296,9 @@ const App = () => {
                 />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </AuthContext.Provider>
+            </AuthContext.Provider>
+          </BrowserRouter>
+        </TooltipProvider>
       </ThemeContext.Provider>
     </QueryClientProvider>
   );
