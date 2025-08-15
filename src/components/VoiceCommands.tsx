@@ -152,21 +152,21 @@ const VoiceCommands = ({ onTabChange, onAddTask, onStartTimer }: VoiceCommandsPr
         <div className="flex flex-col space-y-2">
           <Button
             onClick={toggleListening}
-            className={`w-full text-xs ${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-purple-gradient hover:opacity-90'}`}
+            className={`w-full text-sm lg:text-xs ${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-purple-gradient hover:opacity-90'}`}
             size="sm"
           >
-            {isListening ? <MicOff className="w-3 h-3 mr-1 shrink-0" /> : <Mic className="w-3 h-3 mr-1 shrink-0" />}
-            <span className="truncate text-xs">{isListening ? "Stop" : "Listen"}</span>
+            {isListening ? <MicOff className="w-4 h-4 lg:w-3 lg:h-3 mr-2 lg:mr-1 shrink-0" /> : <Mic className="w-4 h-4 lg:w-3 lg:h-3 mr-2 lg:mr-1 shrink-0" />}
+            <span className="truncate lg:text-xs">{isListening ? (<><span className="lg:hidden">Stop Listening</span><span className="hidden lg:inline">Stop</span></>) : (<><span className="lg:hidden">Start Listening</span><span className="hidden lg:inline">Listen</span></>)}</span>
           </Button>
           
           <Button
             onClick={() => speakText("Voice commands are ready. Say 'add task' to create a new task.")}
             variant="outline"
-            className="w-full text-xs"
+            className="w-full text-sm lg:text-xs"
             size="sm"
           >
-            <Volume2 className="w-3 h-3 mr-1 shrink-0" />
-            <span className="truncate text-xs">Test</span>
+            <Volume2 className="w-4 h-4 lg:w-3 lg:h-3 mr-2 lg:mr-1 shrink-0" />
+            <span className="truncate lg:text-xs"><span className="lg:hidden">Test Voice</span><span className="hidden lg:inline">Test</span></span>
           </Button>
         </div>
 
