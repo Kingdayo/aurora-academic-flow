@@ -13,12 +13,14 @@ import ThemeToggle from "@/components/ThemeToggle";
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: ""
   });
-  const { login, register } = useAuth();
+  const { login, register, resetPassword } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +64,30 @@ const AuthPage = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotPasswordEmail) {
+      toast.error("Please enter your email address");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await resetPassword(forgotPasswordEmail);
+      if (result.error) {
+        toast.error(result.error.message);
+      } else {
+        toast.success("Password reset email sent! Check your inbox.");
+        setShowForgotPassword(false);
+        setForgotPasswordEmail("");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isLoading && isLogin) {
@@ -200,6 +226,18 @@ const AuthPage = () => {
                 </Button>
               </form>
 
+              {isLogin && (
+                <div className="mt-4 text-center">
+                  <Button 
+                    variant="link" 
+                    onClick={() => setShowForgotPassword(true)} 
+                    className="text-purple-600 hover:text-purple-800 p-0 h-auto text-xs"
+                  >
+                    Forgot your password?
+                  </Button>
+                </div>
+              )}
+
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {isLogin ? "Don't have an account?" : "Already have an account?"}
@@ -302,6 +340,18 @@ const AuthPage = () => {
                 </Button>
               </form>
 
+              {isLogin && (
+                <div className="mt-4 text-center">
+                  <Button 
+                    variant="link" 
+                    onClick={() => setShowForgotPassword(true)} 
+                    className="text-purple-600 hover:text-purple-800 p-0 h-auto text-xs"
+                  >
+                    Forgot your password?
+                  </Button>
+                </div>
+              )}
+
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {isLogin ? "Don't have an account?" : "Already have an account?"}
@@ -316,6 +366,56 @@ const AuthPage = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Forgot Password Modal */}
+          {showForgotPassword && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+              <Card className="w-full max-w-md bg-white dark:bg-gray-800">
+                <CardHeader>
+                  <CardTitle className="text-xl">Reset Password</CardTitle>
+                  <CardDescription>
+                    Enter your email address and we'll send you a link to reset your password.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="forgot-email">Email</Label>
+                      <Input 
+                        id="forgot-email"
+                        type="email" 
+                        placeholder="Enter your email" 
+                        value={forgotPasswordEmail}
+                        onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                        required 
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        onClick={() => {
+                          setShowForgotPassword(false);
+                          setForgotPasswordEmail("");
+                        }}
+                        className="flex-1"
+                        disabled={isLoading}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        className="flex-1 bg-purple-gradient hover:opacity-90"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? "Sending..." : "Send Reset Link"}
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Features Grid - Responsive */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">

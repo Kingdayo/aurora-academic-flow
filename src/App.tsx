@@ -43,6 +43,7 @@ interface AuthContextType {
   session: Session | null;
   login: (email: string, password: string) => Promise<{ error: any }>;
   register: (name: string, email: string, password: string) => Promise<{ error: any }>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
   logout: () => Promise<void>;
   loading: boolean;
   loggingOut: boolean;
@@ -232,6 +233,29 @@ const App = () => {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      console.log('[App] Attempting password reset for:', email);
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl
+      });
+      
+      if (error) {
+        console.error('[App] Password reset error:', error);
+        if (error.message.includes('Invalid API key')) {
+          return { error: { message: 'Authentication service is temporarily unavailable. Please try again later.' } };
+        }
+      }
+      
+      return { error };
+    } catch (error) {
+      console.error('[App] Password reset exception:', error);
+      return { error: { message: 'An unexpected error occurred. Please try again.' } };
+    }
+  };
+
   const logout = async () => {
     try {
       setLoggingOut(true);
@@ -284,7 +308,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <AuthContext.Provider value={{ user, session, login, register, logout, loading, loggingOut }}>
+            <AuthContext.Provider value={{ user, session, login, register, resetPassword, logout, loading, loggingOut }}>
               <Routes>
                 <Route 
                   path="/" 
