@@ -21,7 +21,7 @@ const AIAssistant = () => {
   const [responses, setResponses] = useState<AIResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('flan-t5');
+  const [selectedModel, setSelectedModel] = useState('academic-qa');
   const [isInitialized, setIsInitialized] = useState(false);
   const { toast } = useToast();
 
