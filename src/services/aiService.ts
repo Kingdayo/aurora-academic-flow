@@ -26,7 +26,7 @@ class AIService {
 
   private configs: Record<string, AIServiceConfig> = {
     'academic-qa': {
-      model: 'distilbert-base-cased-distilled-squad',
+      model: 'Xenova/distilbert-base-cased-distilled-squad',
       task: 'question-answering',
       maxTokens: 100,
     },
