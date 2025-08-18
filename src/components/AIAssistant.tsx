@@ -21,7 +21,7 @@ const AIAssistant = () => {
   const [responses, setResponses] = useState<AIResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('academic-qa');
+  const [selectedModel, setSelectedModel] = useState('phi-3-chat');
   const [isInitialized, setIsInitialized] = useState(false);
   const { toast } = useToast();
 
