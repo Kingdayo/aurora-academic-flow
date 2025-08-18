@@ -25,14 +25,14 @@ class AIService {
   private conversationHistory: string[] = [];
 
   private configs: Record<string, AIServiceConfig> = {
-    'academic-qa': {
-      model: 'Xenova/distilbert-base-cased-distilled-squad',
-      task: 'question-answering',
-      maxTokens: 100,
+    'phi-3-chat': {
+      model: 'Xenova/Phi-3-mini-4k-instruct_fp16',
+      task: 'text-generation',
+      maxTokens: 512,
     },
   };
 
-  async initializeModel(modelKey: string = 'academic-qa'): Promise<void> {
+  async initializeModel(modelKey: string = 'phi-3-chat'): Promise<void> {
     if (this.pipelines.has(modelKey)) return;
     
     if (this.loadingStates.get(modelKey)) return;
@@ -58,14 +58,18 @@ class AIService {
     }
   }
 
-  isModelLoading(modelKey: string = 'academic-qa'): boolean {
+  isModelLoading(modelKey: string = 'phi-3-chat'): boolean {
     return this.loadingStates.get(modelKey) || false;
   }
 
-  private buildAcademicPrompt(query: string, category: string, context?: AcademicContext): string {
-    // The question-answering pipeline does not require a complex prompt.
-    // We will use the query as the question and provide a generic context.
-    return query;
+  private buildAcademicPrompt(query: string, category: string, context?: AcademicContext): any[] {
+    const level = context?.userProfile?.academicLevel || 'university';
+    const systemPrompt = `You are a friendly and helpful academic assistant. Your goal is to provide clear, concise, and accurate answers to academic questions. Please provide answers suitable for a ${level} student.`;
+
+    return [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: query },
+    ];
   }
 
   private isEducationalConcept(query: string): boolean {
@@ -83,18 +87,9 @@ class AIService {
     query: string,
     category: string = 'study',
     context?: AcademicContext,
-    modelKey: string = 'academic-qa'
+    modelKey: string = 'phi-3-chat'
   ): Promise<string> {
     try {
-      // First check if this is a known educational concept
-      if (this.isEducationalConcept(query)) {
-        const fallbackResponse = this.getEducationalFallback(query);
-        if (fallbackResponse.length > 50) { // If we have a good fallback, use it
-          console.log('Using educational fallback for:', query);
-          return fallbackResponse;
-        }
-      }
-
       // Ensure model is loaded
       if (!this.pipelines.has(modelKey)) {
         await this.initializeModel(modelKey);
@@ -105,20 +100,19 @@ class AIService {
         throw new Error(`Model ${modelKey} not available`);
       }
 
-      const question = this.buildAcademicPrompt(query, category, context);
+      const messages = this.buildAcademicPrompt(query, category, context);
       const config = this.configs[modelKey];
 
-      // For question-answering, we need a context.
-      // We will use the query as the context as well for now.
-      const qaContext = query;
+      console.log('Generating AI response with messages:', messages);
 
-      console.log('Generating AI response with question:', question);
-
-      const result = await pipeline(question, qaContext, {
+      const output = await pipeline(messages, {
         max_new_tokens: config.maxTokens,
+        do_sample: true,
+        temperature: 0.7,
+        top_p: 0.95,
       });
 
-      let response = result.answer.trim();
+      let response = output[0].generated_text.slice(-1)[0].content.trim();
 
       // Clean up response
       response = this.cleanResponse(response, query);
