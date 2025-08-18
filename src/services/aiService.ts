@@ -6,7 +6,7 @@ env.useBrowserCache = true;
 
 export interface AIServiceConfig {
   model: string;
-  task: 'text-generation' | 'text2text-generation';
+  task: 'text-generation' | 'text2text-generation' | 'question-answering';
   maxTokens: number;
 }
 
@@ -25,19 +25,14 @@ class AIService {
   private conversationHistory: string[] = [];
 
   private configs: Record<string, AIServiceConfig> = {
-    'flan-t5': {
-      model: 'Xenova/flan-t5-base',
-      task: 'text2text-generation',
-      maxTokens: 200
+    'academic-qa': {
+      model: 'distilbert-base-cased-distilled-squad',
+      task: 'question-answering',
+      maxTokens: 100,
     },
-    'distilgpt2': {
-      model: 'Xenova/distilgpt2',
-      task: 'text-generation',
-      maxTokens: 150
-    }
   };
 
-  async initializeModel(modelKey: string = 'flan-t5'): Promise<void> {
+  async initializeModel(modelKey: string = 'academic-qa'): Promise<void> {
     if (this.pipelines.has(modelKey)) return;
     
     if (this.loadingStates.get(modelKey)) return;
@@ -63,36 +58,14 @@ class AIService {
     }
   }
 
-  isModelLoading(modelKey: string = 'flan-t5'): boolean {
+  isModelLoading(modelKey: string = 'academic-qa'): boolean {
     return this.loadingStates.get(modelKey) || false;
   }
 
   private buildAcademicPrompt(query: string, category: string, context?: AcademicContext): string {
-    // Enhanced prompts for better educational responses
-    const basePrompts = {
-      study: "Explain the following educational concept clearly and provide practical learning tips:",
-      tasks: "Help organize this academic task or provide study management advice for:",
-      subjects: "Provide a clear, educational explanation of:",
-      exam: "Give exam preparation strategies and tips for:",
-      research: "Explain research methods and academic writing guidance for:",
-      time: "Provide time management and study scheduling advice for:"
-    };
-
-    let prompt = basePrompts[category as keyof typeof basePrompts] || basePrompts.subjects;
-    
-    // For educational concepts, use a more direct approach
-    if (this.isEducationalConcept(query)) {
-      prompt = "Provide a clear, comprehensive explanation of:";
-    }
-    
-    // Add academic context
-    if (context?.userProfile?.academicLevel) {
-      prompt += ` (for ${context.userProfile.academicLevel} level)`;
-    }
-
-    prompt += ` ${query}`;
-    
-    return prompt;
+    // The question-answering pipeline does not require a complex prompt.
+    // We will use the query as the question and provide a generic context.
+    return query;
   }
 
   private isEducationalConcept(query: string): boolean {
@@ -107,10 +80,10 @@ class AIService {
   }
 
   async generateResponse(
-    query: string, 
-    category: string = 'study', 
+    query: string,
+    category: string = 'study',
     context?: AcademicContext,
-    modelKey: string = 'flan-t5'
+    modelKey: string = 'academic-qa'
   ): Promise<string> {
     try {
       // First check if this is a known educational concept
@@ -132,31 +105,26 @@ class AIService {
         throw new Error(`Model ${modelKey} not available`);
       }
 
-      const prompt = this.buildAcademicPrompt(query, category, context);
+      const question = this.buildAcademicPrompt(query, category, context);
       const config = this.configs[modelKey];
 
-      console.log('Generating AI response with prompt:', prompt);
+      // For question-answering, we need a context.
+      // We will use the query as the context as well for now.
+      const qaContext = query;
 
-      const result = await pipeline(prompt, {
+      console.log('Generating AI response with question:', question);
+
+      const result = await pipeline(question, qaContext, {
         max_new_tokens: config.maxTokens,
-        temperature: 0.7,
-        do_sample: true,
-        pad_token_id: 50256
       });
 
-      let response: string;
-      
-      if (config.task === 'text-generation') {
-        response = result[0].generated_text.replace(prompt, '').trim();
-      } else {
-        response = result[0].generated_text.trim();
-      }
+      let response = result.answer.trim();
 
       // Clean up response
       response = this.cleanResponse(response, query);
       
       // If cleaned response is too generic or short, use fallback
-      if (response.length < 20 || this.isGenericResponse(response)) {
+      if (response.length < 10 || this.isGenericResponse(response)) {
         console.log('AI response too generic, using fallback');
         return this.getFallbackResponse(category, query);
       }
