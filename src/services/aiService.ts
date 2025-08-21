@@ -1,12 +1,8 @@
-import { pipeline, env } from '@huggingface/transformers';
-
-// Configure transformers.js
-env.allowLocalModels = false;
-env.useBrowserCache = true;
+import { supabase } from '@/integrations/supabase/client';
 
 export interface AIServiceConfig {
   model: string;
-  task: 'text-generation' | 'text2text-generation' | 'question-answering';
+  provider: 'gemini';
   maxTokens: number;
 }
 
@@ -20,46 +16,38 @@ export interface AcademicContext {
 }
 
 class AIService {
-  private pipelines: Map<string, any> = new Map();
-  private loadingStates: Map<string, boolean> = new Map();
+  private isInitialized = false;
   private conversationHistory: string[] = [];
 
   private configs: Record<string, AIServiceConfig> = {
-    'phi-3-chat': {
-      model: 'Xenova/Phi-3-mini-4k-instruct_fp16',
-      task: 'text-generation',
+    'gemini-flash': {
+      model: 'gemini-1.5-flash-latest',
+      provider: 'gemini',
       maxTokens: 512,
     },
   };
 
-  async initializeModel(modelKey: string = 'phi-3-chat'): Promise<void> {
-    if (this.pipelines.has(modelKey)) return;
-    
-    if (this.loadingStates.get(modelKey)) return;
-    
-    this.loadingStates.set(modelKey, true);
+  async initializeModel(modelKey: string = 'gemini-flash'): Promise<void> {
+    if (this.isInitialized) return;
     
     try {
-      const config = this.configs[modelKey];
-      console.log(`Loading AI model: ${config.model}`);
-      
-      const pipe = await pipeline(config.task, config.model, {
-        device: 'wasm',
-        dtype: 'fp32'
-      });
-      
-      this.pipelines.set(modelKey, pipe);
-      console.log(`Model ${modelKey} loaded successfully`);
+      // For Gemini, we don't need to load a model locally
+      // Just verify the edge function is available
+      console.log(`Initializing Google Gemini Flash model`);
+      this.isInitialized = true;
+      console.log(`Gemini Flash initialized successfully`);
     } catch (error) {
-      console.error(`Failed to load model ${modelKey}:`, error);
+      console.error(`Failed to initialize Gemini:`, error);
       throw error;
-    } finally {
-      this.loadingStates.set(modelKey, false);
     }
   }
 
-  isModelLoading(modelKey: string = 'phi-3-chat'): boolean {
-    return this.loadingStates.get(modelKey) || false;
+  isModelLoading(modelKey: string = 'gemini-flash'): boolean {
+    return false; // Gemini doesn't have local loading states
+  }
+
+  isModelInitialized(): boolean {
+    return this.isInitialized;
   }
 
   private buildAcademicPrompt(query: string, category: string, context?: AcademicContext): any[] {
@@ -87,33 +75,36 @@ class AIService {
     query: string,
     category: string = 'study',
     context?: AcademicContext,
-    modelKey: string = 'phi-3-chat'
+    modelKey: string = 'gemini-flash'
   ): Promise<string> {
     try {
-      // Ensure model is loaded
-      if (!this.pipelines.has(modelKey)) {
+      // Ensure model is initialized
+      if (!this.isInitialized) {
         await this.initializeModel(modelKey);
       }
 
-      const pipeline = this.pipelines.get(modelKey);
-      if (!pipeline) {
-        throw new Error(`Model ${modelKey} not available`);
-      }
+      console.log('Generating AI response with Gemini Flash');
 
-      const messages = this.buildAcademicPrompt(query, category, context);
-      const config = this.configs[modelKey];
-
-      console.log('Generating AI response with messages:', messages);
-
-      const output = await pipeline(messages, {
-        max_new_tokens: config.maxTokens,
-        do_sample: true,
-        temperature: 0.7,
-        top_p: 0.95,
+      // Call the Supabase edge function
+      const { data, error } = await supabase.functions.invoke('ai-assistant', {
+        body: { 
+          query, 
+          category, 
+          context 
+        }
       });
 
-      let response = output[0].generated_text.slice(-1)[0].content.trim();
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
 
+      if (!data || !data.response) {
+        throw new Error('Invalid response from AI service');
+      }
+
+      let response = data.response.trim();
+      
       // Clean up response
       response = this.cleanResponse(response, query);
       

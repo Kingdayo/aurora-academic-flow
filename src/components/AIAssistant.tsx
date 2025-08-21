@@ -21,7 +21,7 @@ const AIAssistant = () => {
   const [responses, setResponses] = useState<AIResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('phi-3-chat');
+  const [selectedModel, setSelectedModel] = useState('gemini-flash');
   const [isInitialized, setIsInitialized] = useState(false);
   const { toast } = useToast();
 
@@ -42,13 +42,13 @@ const AIAssistant = () => {
       setIsInitialized(true);
       toast({
         title: "AI Assistant Ready",
-        description: "The AI model has been loaded and is ready to help!",
+        description: "Google Gemini Flash is ready to help with your academic questions!",
       });
     } catch (error) {
       console.error('Failed to initialize AI:', error);
       toast({
         title: "AI Initialization Failed",
-        description: "Using fallback responses. AI features may be limited.",
+        description: "Using fallback responses. Gemini Flash features may be limited.",
         variant: "destructive",
       });
     } finally {
@@ -86,13 +86,13 @@ const AIAssistant = () => {
     };
 
     try {
-      if (isInitialized) {
+      if (isInitialized || !aiService.isModelInitialized()) {
         return await aiService.generateResponse(userQuery, category, context, selectedModel);
       } else {
         throw new Error('AI not initialized');
       }
     } catch (error) {
-      console.error('AI generation failed, using fallback:', error);
+      console.error('Gemini generation failed, using fallback:', error);
       return aiService.getFallbackResponse(category, userQuery);
     }
   };
@@ -123,7 +123,7 @@ const AIAssistant = () => {
       
       toast({
         title: "AI Response Generated",
-        description: "Your AI academic assistant provided personalized guidance!",
+        description: "Gemini Flash provided personalized academic guidance!",
       });
       
     } catch (error) {
@@ -185,7 +185,7 @@ const AIAssistant = () => {
         </div>
         <div className="flex-1">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">AI Academic Assistant</h2>
-          <p className="text-gray-600 dark:text-gray-300">Get personalized study guidance powered by AI</p>
+          <p className="text-gray-600 dark:text-gray-300">Get personalized study guidance powered by Google Gemini Flash</p>
         </div>
         <div className="flex items-center gap-2">
           {isModelLoading ? (
@@ -196,7 +196,7 @@ const AIAssistant = () => {
           ) : isInitialized ? (
             <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
               <Cpu className="w-4 h-4" />
-              AI Ready
+              Gemini Ready
             </div>
           ) : (
             <div className="flex items-center gap-2 text-sm text-gray-500">
