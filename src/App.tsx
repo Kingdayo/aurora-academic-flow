@@ -10,6 +10,7 @@ import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import SplashScreen from "./components/SplashScreen";
 import { toast } from "sonner";
+import { PasswordResetDialog } from "@/components/PasswordResetDialog";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,6 +74,7 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
 
   useEffect(() => {
     const initialLoadingTimer = setTimeout(() => {
@@ -87,7 +89,9 @@ const App = () => {
         setUser(session?.user ?? null);
         setLoading(false);
         
-        if (event === 'SIGNED_IN') {
+        if (event === 'PASSWORD_RECOVERY') {
+          setIsPasswordResetOpen(true);
+        } else if (event === 'SIGNED_IN') {
           toast.success("Welcome back! 👋");
         } else if (event === 'SIGNED_OUT') {
           toast.success("Logged out successfully! See you soon! 👋");
@@ -281,6 +285,14 @@ const App = () => {
     }
   };
 
+  const handlePasswordUpdate = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+        toast.error(error.message);
+        throw error;
+    }
+  };
+
   if (initialLoading || loading) {
     return <SplashScreen />;
   }
@@ -314,6 +326,11 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <PasswordResetDialog
+            isOpen={isPasswordResetOpen}
+            onClose={() => setIsPasswordResetOpen(false)}
+            onSubmit={handlePasswordUpdate}
+          />
           <BrowserRouter>
             <AuthContext.Provider value={{ user, session, login, register, resetPassword, logout, loading, loggingOut }}>
               <Routes>
