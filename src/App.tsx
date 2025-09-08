@@ -127,8 +127,8 @@ const App = () => {
 
     initializeAuth();
 
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
+    // Register Service Worker (skip in development)
+    if ('serviceWorker' in navigator && import.meta.env.PROD) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
           .then((registration) => {
@@ -239,7 +239,7 @@ const App = () => {
 
   const resetPassword = async (email: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = "https://aurora-task-flow.netlify.app/dashboard";
       console.log('[App] Attempting password reset for:', email);
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
