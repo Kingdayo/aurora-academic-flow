@@ -239,7 +239,7 @@ const App = () => {
 
   const resetPassword = async (email: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}/dashboard`;
       console.log('[App] Attempting password reset for:', email);
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
