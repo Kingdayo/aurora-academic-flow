@@ -179,7 +179,7 @@ const AIAssistant = () => {
 
   return (
     <Card className="w-full max-w-4xl mx-auto p-6 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 border-purple-200 dark:border-purple-800">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
           <Brain className="w-6 h-6 text-purple-600 dark:text-purple-400" />
         </div>
@@ -233,7 +233,7 @@ const AIAssistant = () => {
       {/* Quick Prompts */}
       <div className="mb-6">
         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Quick Prompts:</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+        <div className="flex flex-wrap gap-2">
           {quickPrompts.map((prompt, index) => {
             const IconComponent = prompt.icon;
             return (
