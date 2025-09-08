@@ -15,29 +15,27 @@
       "type": "image/x-icon"
     },
     {
-      "src": "/placeholder.svg",
-      "type": "image/svg+xml",
-      "sizes": "192x192",
-      "purpose": "any maskable"
+      "src": "/lovable-uploads/b2e876b7-25cf-4a46-8318-5063d3c6add0.png",
+      "type": "image/png",
+      "sizes": "192x192"
     },
     {
-      "src": "/placeholder.svg",
-      "type": "image/svg+xml", 
-      "sizes": "512x512",
-      "purpose": "any maskable"
+      "src": "/lovable-uploads/b2e876b7-25cf-4a46-8318-5063d3c6add0.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
   ],
   "categories": ["education", "productivity", "lifestyle"],
   "screenshots": [
     {
-      "src": "/placeholder.svg",
-      "type": "image/svg+xml",
+      "src": "/lovable-uploads/b2e876b7-25cf-4a46-8318-5063d3c6add0.png",
+      "type": "image/png",
       "sizes": "1280x720",
       "form_factor": "wide"
     },
     {
-      "src": "/placeholder.svg", 
-      "type": "image/svg+xml",
+      "src": "/lovable-uploads/b2e876b7-25cf-4a46-8318-5063d3c6add0.png",
+      "type": "image/png",
       "sizes": "750x1334",
       "form_factor": "narrow"
     }
@@ -50,7 +48,7 @@
       "url": "/?action=add-task",
       "icons": [
         {
-          "src": "/placeholder.svg",
+          "src": "/lovable-uploads/b2e876b7-25cf-4a46-8318-5063d3c6add0.png",
           "sizes": "96x96"
         }
       ]
@@ -62,7 +60,7 @@
       "url": "/?action=start-timer",
       "icons": [
         {
-          "src": "/placeholder.svg",
+          "src": "/lovable-uploads/b2e876b7-25cf-4a46-8318-5063d3c6add0.png",
           "sizes": "96x96"
         }
       ]
