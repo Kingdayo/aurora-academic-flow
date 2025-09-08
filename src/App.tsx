@@ -247,11 +247,18 @@ const App = () => {
         if (error.message.includes('Invalid API key')) {
           return { error: { message: 'Authentication service is temporarily unavailable. Please try again later.' } };
         }
+        // Check for network errors which might indicate a redirect URL issue
+        if (error.name === 'AuthRetryableFetchError' || error.message.includes('NetworkError')) {
+          return { error: { message: 'Network error. Please check your connection and ensure the app URL is in your Supabase project\'s redirect list.' } };
+        }
       }
       
       return { error };
-    } catch (error) {
+    } catch (error: any) {
       console.error('[App] Password reset exception:', error);
+      if (error.name === 'AuthRetryableFetchError' || error.message.includes('NetworkError')) {
+        return { error: { message: 'Network error. Please check your connection and ensure the app URL is in your Supabase project\'s redirect list.' } };
+      }
       return { error: { message: 'An unexpected error occurred. Please try again.' } };
     }
   };
