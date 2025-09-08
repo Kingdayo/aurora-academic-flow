@@ -127,8 +127,8 @@ const App = () => {
 
     initializeAuth();
 
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
+    // Register Service Worker (skip in development)
+    if ('serviceWorker' in navigator && import.meta.env.PROD) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
           .then((registration) => {
