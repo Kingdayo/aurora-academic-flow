@@ -50,7 +50,7 @@ export const PasswordResetDialog = ({ isOpen, onClose, onSubmit }: PasswordReset
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md lg:max-w-lg">
         <DialogHeader>
           <DialogTitle>Reset Your Password</DialogTitle>
           <DialogDescription>
