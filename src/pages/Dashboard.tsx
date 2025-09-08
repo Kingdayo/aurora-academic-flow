@@ -22,6 +22,7 @@ import PomodoroTimer from "@/components/PomodoroTimer";
 import TaskCountdown from "@/components/TaskCountdown";
 import useTaskNotifications from "@/hooks/useTaskNotifications";
 import { useIsMobile } from "@/hooks/use-mobile";
+import VoiceCommandButton from "@/components/VoiceCommandButton";
 interface Task {
   id: string;
   title: string;
@@ -299,6 +300,11 @@ const Dashboard = () => {
           </main>
         </div>
       </div>
+      {isMobile && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <VoiceCommandButton />
+        </div>
+      )}
     </div>;
 };
 export default Dashboard;
