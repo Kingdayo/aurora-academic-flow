@@ -8,7 +8,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
-import LoadingScreen from "./components/LoadingScreen";
+import SplashScreen from "./components/SplashScreen";
 import { toast } from "sonner";
 
 const queryClient = new QueryClient({
@@ -275,7 +275,7 @@ const App = () => {
   };
 
   if (initialLoading || loading) {
-    return <LoadingScreen />;
+    return <SplashScreen />;
   }
 
   if (loggingOut) {
