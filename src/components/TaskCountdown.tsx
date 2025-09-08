@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/App";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Calendar, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -25,6 +26,7 @@ const TaskCountdown = () => {
     seconds: 0
   });
   const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
+  const { user } = useAuth();
 
   useEffect(() => {
     const loadNextTask = () => {
@@ -102,15 +104,9 @@ const TaskCountdown = () => {
 
         setTimeLeft({ days, hours, minutes, seconds });
 
-        // Check if we should send notifications
-        checkAndSendNotifications(difference, nextTask);
+        // This is now handled by the service worker
       } else {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-        // Task is overdue - send overdue notification
-        if (!notifiedTasks.has(`${nextTask.id}-overdue`)) {
-          sendTaskNotification(nextTask, 'overdue');
-          setNotifiedTasks(prev => new Set([...prev, `${nextTask.id}-overdue`]));
-        }
       }
     };
 
@@ -118,122 +114,17 @@ const TaskCountdown = () => {
     const timer = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(timer);
-  }, [nextTask, notifiedTasks]);
+  }, [nextTask]);
 
-  const triggerVibration = (pattern: number[]) => {
-    // Check if device supports vibration and is mobile
-    if ('vibrate' in navigator && navigator.userAgent.match(/Mobile|Android|iPhone|iPad/i)) {
-      try {
-        navigator.vibrate(pattern);
-      } catch (error) {
-        console.warn('[TaskCountdown] Vibration not supported:', error);
-      }
-    }
-  };
-
-  const checkAndSendNotifications = (timeRemaining: number, task: Task) => {
-    const minutesRemaining = Math.floor(timeRemaining / (1000 * 60));
-    const hoursRemaining = Math.floor(timeRemaining / (1000 * 60 * 60));
-    
-    // Send notification 1 hour before (if not already sent)
-    if (hoursRemaining === 1 && minutesRemaining <= 60 && !notifiedTasks.has(`${task.id}-1hour`)) {
-      sendTaskNotification(task, '1hour');
-      setNotifiedTasks(prev => new Set([...prev, `${task.id}-1hour`]));
-    }
-    
-    // Send notification 15 minutes before (if not already sent) 
-    if (minutesRemaining === 15 && !notifiedTasks.has(`${task.id}-15min`)) {
-      sendTaskNotification(task, '15min');
-      setNotifiedTasks(prev => new Set([...prev, `${task.id}-15min`]));
-    }
-    
-    // Send notification 5 minutes before (if not already sent)
-    if (minutesRemaining === 5 && !notifiedTasks.has(`${task.id}-5min`)) {
-      sendTaskNotification(task, '5min');
-      setNotifiedTasks(prev => new Set([...prev, `${task.id}-5min`]));
-    }
-    
-    // Send notification when task is due (if not already sent)
-    if (minutesRemaining === 0 && !notifiedTasks.has(`${task.id}-due`)) {
-      sendTaskNotification(task, 'due');
-      setNotifiedTasks(prev => new Set([...prev, `${task.id}-due`]));
-    }
-  };
-
-  const sendTaskNotification = (task: Task, type: 'due' | 'overdue' | '1hour' | '15min' | '5min') => {
-    if (!('Notification' in window) || Notification.permission !== 'granted') {
-      return;
-    }
-
-    let title = '';
-    let body = '';
-    let icon = '/favicon.ico';
-    let vibrationPattern: number[] = [];
-
-    // Check if mobile for vibration
-    const isMobile = navigator.userAgent.match(/Mobile|Android|iPhone|iPad/i);
-
-    switch (type) {
-      case '1hour':
-        title = '⏰ Task Due in 1 Hour';
-        body = `"${task.title}" is due in 1 hour. Time to prepare!`;
-        vibrationPattern = isMobile ? [300, 100, 300] : [];
-        break;
-      case '15min':
-        title = '🚨 Task Due in 15 Minutes';
-        body = `"${task.title}" is due soon. Get ready to complete it!`;
-        vibrationPattern = isMobile ? [400, 100, 400, 100, 400] : [];
-        break;
-      case '5min':
-        title = '🔥 Task Due in 5 Minutes';
-        body = `"${task.title}" is due very soon. Time to act!`;
-        vibrationPattern = isMobile ? [500, 200, 500, 200, 500] : [];
-        break;
-      case 'due':
-        title = '⚡ Task is Due Now!';
-        body = `"${task.title}" is due right now. Complete it immediately!`;
-        vibrationPattern = isMobile ? [1000, 500, 1000] : [];
-        break;
-      case 'overdue':
-        title = '❌ Task is Overdue!';
-        body = `"${task.title}" is overdue. Please complete it as soon as possible.`;
-        vibrationPattern = isMobile ? [200, 100, 200, 100, 200, 100, 200] : [];
-        break;
-    }
-
-    const notificationOptions: NotificationOptions = {
-      body,
-      icon,
-      tag: `task-${task.id}-${type}`,
-      requireInteraction: true,
-      silent: false
-    };
-
-    // Trigger vibration separately
-    if (vibrationPattern.length > 0) {
-      triggerVibration(vibrationPattern);
-    }
-
-    // Use service worker if available for better mobile handling
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+  useEffect(() => {
+    if (nextTask && user && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
-        type: 'SHOW_NOTIFICATION',
-        title,
-        options: notificationOptions
+        type: 'SCHEDULE_TASK_NOTIFICATION',
+        task: nextTask,
+        userId: user.id,
       });
-    } else {
-      // Fallback to direct notification
-      const notification = new Notification(title, notificationOptions);
-      
-      notification.onclick = function(event) {
-        event.preventDefault();
-        window.focus();
-        notification.close();
-      };
     }
-
-    console.log(`[TaskCountdown] Sent ${type} notification for task:`, task.title);
-  };
+  }, [nextTask, user]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {

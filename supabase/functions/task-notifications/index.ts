@@ -18,7 +18,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { type, taskData, userId } = await req.json()
+    const { type, taskData, userId, notificationTime } = await req.json()
 
     console.log('Notification request received:', { type, taskData, userId })
 
@@ -74,31 +74,50 @@ serve(async (req) => {
     }
 
     if (shouldSend) {
-      // Here you could integrate with push notification services
-      // For now, we'll log and return success
-      console.log('Sending notification:', { notificationTitle, notificationBody, userId })
-      
-      // You could add integration with:
-      // - Firebase Cloud Messaging (FCM)
-      // - Apple Push Notification Service (APNs)
-      // - Web Push Protocol
-      // - Email notifications
-      // - SMS notifications
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Notification queued successfully',
-          notification: {
-            title: notificationTitle,
-            body: notificationBody,
-            userId
+      const { data: subscription, error } = await supabase
+        .from('push_subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error || !subscription) {
+        return new Response(
+          JSON.stringify({ error: 'Push subscription not found' }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           }
+        );
+      }
+
+      const schedule = new Date(notificationTime).toISOString();
+      const cronExpression = `${new Date(schedule).getUTCMinutes()} ${new Date(schedule).getUTCHours()} ${new Date(schedule).getUTCDate()} ${new Date(schedule).getUTCMonth() + 1} *`;
+
+      const { error: cronError } = await supabase.rpc('cron.schedule', {
+        schedule: cronExpression,
+        command: `SELECT send_push_notification('${JSON.stringify(subscription)}', '${notificationTitle}', '${notificationBody}')`,
+      });
+
+      if (cronError) {
+        console.error('Error scheduling notification:', cronError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to schedule notification' }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Notification scheduled successfully',
         }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      )
+      );
     }
 
     return new Response(

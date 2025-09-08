@@ -316,8 +316,49 @@ self.addEventListener('message', (event) => {
   } else if (event.data && event.data.type === 'QUEUE_NOTIFICATION') {
     // Queue notification for offline delivery
     queueNotification(event.data.notification);
+  } else if (event.data && event.data.type === 'SCHEDULE_TASK_NOTIFICATION') {
+    const { task, userId } = event.data;
+    scheduleTaskNotification(task, userId);
   }
 });
+
+const scheduleTaskNotification = async (task, userId) => {
+  const now = new Date().getTime();
+  const dueDate = new Date(task.dueDate);
+  if (task.dueTime) {
+    const [hours, minutes] = task.dueTime.split(':').map(Number);
+    dueDate.setHours(hours, minutes, 0, 0);
+  } else {
+    dueDate.setHours(23, 59, 59, 999);
+  }
+
+  const timeUntilDue = dueDate.getTime() - now;
+
+  if (timeUntilDue > 0) {
+    // Schedule a notification for 5 minutes before the due date
+    const notificationTime = dueDate.getTime() - 5 * 60 * 1000;
+    if (notificationTime > now) {
+      try {
+        const response = await fetch('/api/task-notifications', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'task_due_soon',
+            taskData: task,
+            userId: userId,
+            notificationTime: new Date(notificationTime).toISOString(),
+          }),
+        });
+        const data = await response.json();
+        console.log('[SW] Scheduled notification response:', data);
+      } catch (error) {
+        console.error('[SW] Error scheduling notification:', error);
+      }
+    }
+  }
+};
 
 // IndexedDB for offline notification queue
 const openDB = () => {
