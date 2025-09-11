@@ -432,36 +432,27 @@ self.addEventListener('notificationclose', (event) => {
 self.addEventListener('push', (event) => {
   console.log('[SW] Push received:', event);
 
-  const options = {
-    body: 'You have a new task notification.', // Default message
-    icon: '/favicon.ico', // Default icon
-    vibrate: [200, 100, 200], // Default vibration pattern
-    data: {
-      dateOfArrival: Date.now(),
-      primaryKey: '2'
-    }
+  let data = {
+    title: 'New Notification',
+    body: 'You have a new notification.'
   };
 
   if (event.data) {
     try {
-      const data = event.data.json();
-      console.log('[SW] Push data:', data);
-
-      // Customize notification based on push data
-      options.body = data.body || options.body;
-      options.title = data.title || 'New Notification'; // Add title from data
-      options.icon = data.icon || options.icon;
-      options.image = data.image; // Add image support
-      options.tag = data.tag; // Add tag support for grouping/replacing
-      options.url = data.url; // Add URL for notification click
+      data = event.data.json();
     } catch (e) {
       console.error('[SW] Failed to parse push data:', e);
-      options.body = 'You have a new notification.'; // Fallback message
     }
   }
 
+  const options = {
+    body: data.body,
+    icon: '/favicon.ico',
+    badge: '/favicon.ico'
+  };
+
   event.waitUntil(
-    self.registration.showNotification(options.title || 'New Notification', options)
+    self.registration.showNotification(data.title, options)
   );
 });
 

@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
   const [filterPriority, setFilterPriority] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Form state
   const [newTask, setNewTask] = useState({
@@ -116,6 +118,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
 
     const updatedTasks = [task, ...tasks];
     updateTasks(updatedTasks);
+    scheduleNotification(task);
     
     setNewTask({
       title: "",
@@ -163,6 +166,36 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
     setEditingTask(null);
     setShowEditDialog(false);
     toast.success("Task updated successfully! ✨");
+    scheduleNotification(updatedTask);
+  };
+
+  const scheduleNotification = async (task: Task) => {
+    if (!task.dueDate) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const notificationTime = new Date(task.dueDate);
+    if (task.dueTime) {
+      const [hours, minutes] = task.dueTime.split(':').map(Number);
+      notificationTime.setHours(hours, minutes, 0, 0);
+    }
+
+    // Schedule 5 minutes before
+    const scheduleTime = new Date(notificationTime.getTime() - 5 * 60 * 1000);
+
+    if (scheduleTime > new Date()) {
+      await fetch('/api/task-notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'task_due_soon',
+          taskData: { id: task.id, title: task.title, dueTime: task.dueTime },
+          userId: user.id,
+          notificationTime: scheduleTime.toISOString(),
+        }),
+      });
+    }
   };
 
   const filteredTasks = tasks.filter(task => {
@@ -434,7 +467,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
             
             <div>
               <Label>Due Date (Optional)</Label>
-              <Popover>
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full justify-start text-left">
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -445,7 +478,10 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
                   <Calendar
                     mode="single"
                     selected={newTask.dueDate}
-                    onSelect={(date) => setNewTask({...newTask, dueDate: date})}
+                    onSelect={(date) => {
+                      setNewTask({...newTask, dueDate: date});
+                      setIsCalendarOpen(false);
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
@@ -453,14 +489,41 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
             </div>
 
             <div>
-              <Label htmlFor="time">Due Time (Optional)</Label>
-              <Input
-                id="time"
-                type="time"
-                value={newTask.dueTime}
-                onChange={(e) => setNewTask({...newTask, dueTime: e.target.value})}
-                placeholder="Select time"
-              />
+              <Label>Due Time (Optional)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={newTask.dueTime ? newTask.dueTime.split(':')[0] : ''}
+                  onValueChange={(hour) => {
+                    const minute = newTask.dueTime ? newTask.dueTime.split(':')[1] : '00';
+                    setNewTask({ ...newTask, dueTime: `${hour}:${minute}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Hour" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')).map(hour => (
+                      <SelectItem key={hour} value={hour}>{hour}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={newTask.dueTime ? newTask.dueTime.split(':')[1] : ''}
+                  onValueChange={(minute) => {
+                    const hour = newTask.dueTime ? newTask.dueTime.split(':')[0] : '00';
+                    setNewTask({ ...newTask, dueTime: `${hour}:${minute}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Minute" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0')).map(minute => (
+                      <SelectItem key={minute} value={minute}>{minute}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
             <div className="flex space-x-2 pt-4">

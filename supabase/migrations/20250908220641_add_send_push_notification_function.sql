@@ -14,7 +14,7 @@ BEGIN
     )::text,
     'application/json',
     json_build_object(
-      'Authorization', 'key=' || 'YOUR_FCM_SERVER_KEY' -- Replace with your FCM server key
+      'Authorization', 'key=' || 'BL1PObJwaS_mnIc6iNJdybuonb_u9dCEt3kZwt3pZaG_Pc_B4-ErmPVu6gdzgwL-JY0xpCOEq0vjol7DVeOTLxk' -- Replace with your FCM server key
     )::text[]
   );
 END;

@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useOfflineNotifications } from '@/hooks/useOfflineNotifications';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface NotificationState {
   notificationPermission: NotificationPermission;
@@ -11,6 +12,22 @@ export interface NotificationState {
   hasBeenNotified: (taskId: string) => boolean;
   markAsNotified: (taskId: string) => void;
   isSupported: boolean;
+}
+
+// Helper function to convert VAPID key
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 }
 
 const useTaskNotifications = (): NotificationState => {
@@ -26,6 +43,49 @@ const useTaskNotifications = (): NotificationState => {
 
   const markAsNotified = useCallback((taskId: string) => {
     setNotifiedTasks(prev => new Set([...prev, taskId]));
+  }, []);
+
+  const subscribeToPushNotifications = useCallback(async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const existingSubscription = await registration.pushManager.getSubscription();
+
+      if (existingSubscription) {
+        console.log('[useTaskNotifications] User is already subscribed.');
+        return;
+      }
+
+      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      if (!vapidPublicKey) {
+        console.error('VAPID public key not found.');
+        return;
+      }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('User not authenticated.');
+        return;
+      }
+
+      const { error } = await supabase.from('push_subscriptions').upsert({
+        user_id: user.id,
+        subscription: subscription.toJSON(),
+      }, { onConflict: 'user_id' });
+
+
+      if (error) {
+        console.error('Error saving push subscription:', error);
+      } else {
+        console.log('Push subscription saved successfully.');
+      }
+    } catch (error) {
+      console.error('Error subscribing to push notifications:', error);
+    }
   }, []);
 
   useEffect(() => {
@@ -47,7 +107,7 @@ const useTaskNotifications = (): NotificationState => {
       return { supported, hasNotificationAPI, hasServiceWorker };
     };
 
-    const { supported, hasNotificationAPI, hasServiceWorker } = checkSupport();
+    const { hasNotificationAPI, hasServiceWorker } = checkSupport();
 
     if (hasNotificationAPI) {
       setNotificationPermission(Notification.permission);
@@ -92,6 +152,7 @@ const useTaskNotifications = (): NotificationState => {
         
         if (permission === 'granted') {
           console.log('[useTaskNotifications] Notification permission granted');
+          await subscribeToPushNotifications();
           
           // Show a welcome notification
           setTimeout(() => {
@@ -107,7 +168,7 @@ const useTaskNotifications = (): NotificationState => {
         console.error('[useTaskNotifications] Error requesting permission:', error);
       }
     }
-  }, [isSupported]);
+  }, [isSupported, subscribeToPushNotifications]);
 
   const triggerVibration = useCallback((pattern: number[]) => {
     // Check if device supports vibration and is mobile
@@ -142,97 +203,9 @@ const useTaskNotifications = (): NotificationState => {
   }, [toast, queueNotification]);
 
   const checkTaskDueTimes = useCallback(() => {
-    if (!isSupported || notificationPermission !== 'granted') {
-      return;
-    }
-
-    try {
-      const savedTasks = localStorage.getItem("aurora-tasks");
-      if (!savedTasks) return;
-
-      const tasks = JSON.parse(savedTasks);
-      const now = new Date().getTime();
-      
-      tasks.forEach((task: any) => {
-        if (task.completed || !task.dueDate) return;
-        
-        const dueDate = new Date(task.dueDate);
-        if (task.dueTime) {
-          const [hours, minutes] = task.dueTime.split(':').map(Number);
-          dueDate.setHours(hours, minutes, 0, 0);
-        } else {
-          dueDate.setHours(23, 59, 59, 999);
-        }
-        
-        const timeUntilDue = dueDate.getTime() - now;
-        const minutesUntilDue = Math.floor(timeUntilDue / (1000 * 60));
-        
-        // Check for upcoming deadlines with mobile-friendly timing
-        if (minutesUntilDue === 60 && !hasBeenNotified(`${task.id}-1hour`)) {
-          showNotification('⏰ Task Due Soon', {
-            body: `"${task.title}" is due in 1 hour`,
-            tag: `task-${task.id}-1hour`,
-            requireInteraction: true,
-            vibrationPattern: [300, 100, 300]
-          });
-          markAsNotified(`${task.id}-1hour`);
-        }
-
-        if (minutesUntilDue === 15 && !hasBeenNotified(`${task.id}-15min`)) {
-          showNotification('🚨 Task Due Soon', {
-            body: `"${task.title}" is due in 15 minutes`,
-            tag: `task-${task.id}-15min`,
-            requireInteraction: true,
-            vibrationPattern: [400, 100, 400, 100, 400]
-          });
-          markAsNotified(`${task.id}-15min`);
-        }
-
-        if (minutesUntilDue === 5 && !hasBeenNotified(`${task.id}-5min`)) {
-          showNotification('🔥 Task Due Very Soon!', {
-            body: `"${task.title}" is due in 5 minutes`,
-            tag: `task-${task.id}-5min`,
-            requireInteraction: true,
-            vibrationPattern: [500, 200, 500, 200, 500]
-          });
-          markAsNotified(`${task.id}-5min`);
-        }
-
-        if (minutesUntilDue === 0 && !hasBeenNotified(`${task.id}-due`)) {
-          showNotification('⚡ Task is Due Now!', {
-            body: `"${task.title}" is due right now!`,
-            tag: `task-${task.id}-due`,
-            requireInteraction: true,
-            vibrationPattern: [1000, 500, 1000]
-          });
-          markAsNotified(`${task.id}-due`);
-        }
-
-        // Overdue notification
-        if (minutesUntilDue < 0 && !hasBeenNotified(`${task.id}-overdue`)) {
-          showNotification('❌ Task Overdue!', {
-            body: `"${task.title}" is overdue. Please complete it soon.`,
-            tag: `task-${task.id}-overdue`,
-            requireInteraction: true,
-            vibrationPattern: [200, 100, 200, 100, 200, 100, 200]
-          });
-          markAsNotified(`${task.id}-overdue`);
-        }
-      });
-    } catch (error) {
-      console.error('[useTaskNotifications] Error checking task due times:', error);
-    }
-  }, [showNotification, hasBeenNotified, markAsNotified, isSupported, notificationPermission]);
-
-  // Periodically check for due tasks with more frequent checks on mobile
-  useEffect(() => {
-    if (notificationPermission === 'granted' && isSupported) {
-      // More frequent checks on mobile for better reliability
-      const isMobile = navigator.userAgent.match(/Mobile|Android|iPhone|iPad/i);
-      const interval = setInterval(checkTaskDueTimes, isMobile ? 30000 : 60000); // 30s on mobile, 60s on desktop
-      return () => clearInterval(interval);
-    }
-  }, [notificationPermission, checkTaskDueTimes, isSupported]);
+    // This function is now deprecated and will be removed.
+    // All notification scheduling is handled by the backend.
+  }, []);
 
   return {
     notificationPermission,
