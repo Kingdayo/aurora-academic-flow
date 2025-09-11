@@ -34,6 +34,7 @@ interface TaskEditDialogProps {
 
 const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [editData, setEditData] = useState({
     title: "",
     description: "",
@@ -152,7 +153,7 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
           </div>
           <div className="space-y-2">
             <Label>Due Date (Optional)</Label>
-            <Popover>
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full justify-start text-left text-sm">
                   <CalendarIcon className="mr-2 h-4 w-4" />
@@ -163,7 +164,10 @@ const TaskEditDialog = ({ task, isOpen, onClose, onSave }: TaskEditDialogProps) 
                 <Calendar
                   mode="single"
                   selected={editData.dueDate}
-                  onSelect={(date) => setEditData({...editData, dueDate: date})}
+                  onSelect={(date) => {
+                    setEditData({ ...editData, dueDate: date });
+                    setIsCalendarOpen(false);
+                  }}
                   initialFocus
                 />
               </PopoverContent>

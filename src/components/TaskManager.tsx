@@ -27,6 +27,11 @@ interface Task {
   createdAt: Date;
 }
 
+type ParsedTask = Omit<Task, 'dueDate' | 'createdAt'> & {
+  dueDate?: string;
+  createdAt: string;
+};
+
 interface TaskManagerProps {
   showAddDialog?: boolean;
   onShowAddDialogChange?: (show: boolean) => void;
@@ -42,6 +47,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
   const [filterPriority, setFilterPriority] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Form state
   const [newTask, setNewTask] = useState({
@@ -60,7 +66,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
       if (savedTasks) {
         try {
           const parsedTasks = JSON.parse(savedTasks);
-          const tasksWithDates = parsedTasks.map((task: any) => ({
+          const tasksWithDates = parsedTasks.map((task: ParsedTask) => ({
             ...task,
             dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
             createdAt: new Date(task.createdAt)
@@ -434,7 +440,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
             
             <div>
               <Label>Due Date (Optional)</Label>
-              <Popover>
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full justify-start text-left">
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -445,7 +451,10 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
                   <Calendar
                     mode="single"
                     selected={newTask.dueDate}
-                    onSelect={(date) => setNewTask({...newTask, dueDate: date})}
+                    onSelect={(date) => {
+                      setNewTask({ ...newTask, dueDate: date });
+                      setIsCalendarOpen(false);
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
