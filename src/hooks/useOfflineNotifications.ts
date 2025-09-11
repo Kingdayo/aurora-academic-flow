@@ -82,24 +82,35 @@ export const useOfflineNotifications = () => {
   };
 
   const queueNotification = async (notification: Omit<QueuedNotification, 'id' | 'timestamp'>) => {
-    if (isOnline && 'serviceWorker' in navigator) {
-      // If online, send directly to service worker
+    if ('serviceWorker' in navigator) {
+      // Always try service worker first for better PWA experience
       try {
         const registration = await navigator.serviceWorker.ready;
-        registration.active?.postMessage({
-          type: 'SHOW_NOTIFICATION',
-          title: notification.title,
-          body: notification.body,
-          options: {
-            tag: notification.tag,
-            data: notification.data
-          }
-        });
+        if (registration.active) {
+          registration.active.postMessage({
+            type: 'SHOW_NOTIFICATION',
+            title: notification.title,
+            body: notification.body,
+            options: {
+              tag: notification.tag,
+              data: notification.data,
+              icon: '/favicon.ico',
+              badge: '/favicon.ico',
+              requireInteraction: false,
+              silent: false
+            }
+          });
+          console.log('[useOfflineNotifications] Notification sent to service worker');
+          return;
+        }
       } catch (error) {
-        console.error('[useOfflineNotifications] Failed to send notification:', error);
+        console.error('[useOfflineNotifications] Failed to send notification to service worker:', error);
       }
-    } else {
-      // If offline, queue in IndexedDB
+    }
+    
+    // Fallback: queue in IndexedDB if service worker fails or offline
+    if (!isOnline) {
+      // Queue in IndexedDB for offline delivery
       try {
         const db = await openDB();
         const transaction = db.transaction(['notifications'], 'readwrite');
@@ -122,6 +133,32 @@ export const useOfflineNotifications = () => {
         console.error('[useOfflineNotifications] Failed to queue notification:', error);
         
         // Fallback to toast only
+        toast({
+          title: notification.title,
+          description: notification.body,
+        });
+      }
+    } else {
+      // Online but service worker failed - show browser notification directly
+      try {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification(notification.title, {
+            body: notification.body,
+            icon: '/favicon.ico',
+            tag: notification.tag,
+            data: notification.data,
+            silent: false
+          });
+          console.log('[useOfflineNotifications] Showed direct browser notification');
+        } else {
+          // No notification permission, show toast
+          toast({
+            title: notification.title,
+            description: notification.body,
+          });
+        }
+      } catch (error) {
+        console.error('[useOfflineNotifications] Failed to show direct notification:', error);
         toast({
           title: notification.title,
           description: notification.body,

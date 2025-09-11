@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Plus, Calendar as CalendarIcon, Clock, AlertTriangle, CheckCircle2, Circle, Trash2, Edit, Filter, Search } from "lucide-react";
 import { format } from "date-fns";
 import TaskEditDialog from "./TaskEditDialog";
+import useTaskNotifications from "@/hooks/useTaskNotifications";
 
 interface Task {
   id: string;
@@ -43,6 +44,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
   // const [showAddTaskDialog, setShowAddTaskDialog] = useState(showAddDialog); // Controlled by prop
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const { showNotification, markAsNotified, hasBeenNotified } = useTaskNotifications();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPriority, setFilterPriority] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -139,14 +141,29 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
   };
 
   const toggleTask = (id: string) => {
-    const updatedTasks = tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
+    const task = tasks.find(t => t.id === id);
+    const updatedTasks = tasks.map(taskItem => 
+      taskItem.id === id ? { ...taskItem, completed: !taskItem.completed } : taskItem
     );
     updateTasks(updatedTasks);
     
-    const task = tasks.find(t => t.id === id);
     if (task) {
-      toast.success(task.completed ? "Task marked as incomplete" : "Task completed! 🎉");
+      if (task.completed) {
+        toast.success("Task marked as incomplete");
+      } else {
+        // Task is being completed
+        toast.success("Task completed! 🎉");
+        
+        // Send browser notification for task completion
+        showNotification(`🎉 Task Completed!`, {
+          body: `"${task.title}" has been completed successfully!`,
+          icon: '/favicon.ico',
+          tag: `task-completed-${task.id}`,
+          data: { taskId: task.id, type: 'task_completed' }
+        });
+        
+        markAsNotified(`completed-${task.id}`);
+      }
     }
   };
 

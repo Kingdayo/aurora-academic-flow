@@ -454,6 +454,31 @@ self.addEventListener('sync', (event) => {
   }
 });
 
+// Enhanced notification display handler
+self.addEventListener('message', async (event) => {
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    console.log('[SW] Showing notification:', event.data.title);
+    
+    try {
+      await self.registration.showNotification(event.data.title, {
+        body: event.data.body,
+        icon: event.data.options?.icon || '/favicon.ico',
+        badge: '/favicon.ico',
+        tag: event.data.options?.tag || `notification-${Date.now()}`,
+        requireInteraction: false,
+        silent: false,
+        vibrate: event.data.options?.vibrationPattern || [200, 100, 200],
+        data: event.data.options?.data || {},
+        actions: event.data.options?.actions || []
+      });
+      
+      console.log('[SW] Notification shown successfully');
+    } catch (error) {
+      console.error('[SW] Failed to show notification:', error);
+    }
+  }
+});
+
 // Add notification close handler for mobile
 self.addEventListener('notificationclose', (event) => {
   console.log('[SW] Notification closed:', event.notification.tag);
