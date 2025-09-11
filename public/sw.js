@@ -285,7 +285,12 @@ const openDB = () => {
 
 // --- Message Handling ---
 self.addEventListener('message', async (event) => {
-  if (event.data && event.data.type === 'SCHEDULE_TASK_NOTIFICATION') {
+  if (!event.data || !event.data.type) {
+    return;
+  }
+
+  // Handler for scheduling task-due notifications
+  if (event.data.type === 'SCHEDULE_TASK_NOTIFICATION') {
     const { task, userId } = event.data;
     const request = { task, userId };
 
@@ -298,7 +303,6 @@ self.addEventListener('message', async (event) => {
         console.log('[SW] Registered background sync for schedule processing.');
       } catch (err) {
         console.error('[SW] Could not register background sync, attempting immediate send.', err);
-        // If sync registration fails, try to send immediately as a fallback
         if (navigator.onLine) {
           await scheduleTaskNotification(task, userId);
         }
@@ -309,11 +313,22 @@ self.addEventListener('message', async (event) => {
       console.log(`[SW] Background Sync not supported. Attempting immediate schedule for task ${task.id}.`);
       await scheduleTaskNotification(task, userId);
     }
-    // Offline without sync support - cannot schedule
+    // Offline without sync support
     else {
       console.warn(`[SW] Cannot schedule notification for task ${task.id}. User is offline and Background Sync is not supported.`);
-      // In this case, the request is lost, which is an accepted limitation for non-supporting browsers.
     }
+  }
+
+  // Handler for showing immediate local notifications (like the test button)
+  if (event.data.type === 'QUEUE_NOTIFICATION') {
+    const { notification } = event.data;
+    console.log('[SW] Received request to show immediate notification:', notification.title);
+    await self.registration.showNotification(notification.title, {
+      body: notification.body,
+      icon: notification.icon || '/favicon.ico',
+      tag: notification.tag,
+      data: notification.data
+    });
   }
 });
 
