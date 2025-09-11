@@ -39,9 +39,15 @@ serve(async (req) => {
 
     // Determine notification content based on type
     switch (type) {
+      case 'task_due':
+        notificationTitle = '⌛ Task Due Now'
+        notificationBody = `Your task "${taskData.title}" is due now.`
+        shouldSend = true
+        break
+
       case 'task_due_soon':
         notificationTitle = '⏰ Task Due Soon'
-        notificationBody = `"${taskData.title}" is due ${taskData.dueTime}`
+        notificationBody = `"${taskData.title}" is due at ${taskData.dueTime}`
         shouldSend = true
         break
         
