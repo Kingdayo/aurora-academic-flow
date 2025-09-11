@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' &&
     componentTagger(),
     VitePWA({
+      registerType: 'autoUpdate',
       srcDir: 'public',
       filename: 'sw.js',
       strategies: 'injectManifest',
