@@ -7,7 +7,6 @@ export interface NotificationState {
   notificationPermission: NotificationPermission;
   requestPermission: () => Promise<void>;
   showNotification: (title: string, options?: NotificationOptions) => void;
-  checkTaskDueTimes: () => void;
   hasBeenNotified: (taskId: string) => boolean;
   markAsNotified: (taskId: string) => void;
   isSupported: boolean;
@@ -141,104 +140,10 @@ const useTaskNotifications = (): NotificationState => {
     }
   }, [toast, queueNotification]);
 
-  const checkTaskDueTimes = useCallback(() => {
-    if (!isSupported || notificationPermission !== 'granted') {
-      return;
-    }
-
-    try {
-      const savedTasks = localStorage.getItem("aurora-tasks");
-      if (!savedTasks) return;
-
-      const tasks = JSON.parse(savedTasks);
-      const now = new Date().getTime();
-      
-      tasks.forEach((task: any) => {
-        if (task.completed || !task.dueDate) return;
-        
-        const dueDate = new Date(task.dueDate);
-        if (task.dueTime) {
-          const [hours, minutes] = task.dueTime.split(':').map(Number);
-          dueDate.setHours(hours, minutes, 0, 0);
-        } else {
-          dueDate.setHours(23, 59, 59, 999);
-        }
-        
-        const timeUntilDue = dueDate.getTime() - now;
-        const minutesUntilDue = Math.floor(timeUntilDue / (1000 * 60));
-        
-        // Check for upcoming deadlines with mobile-friendly timing
-        if (minutesUntilDue === 60 && !hasBeenNotified(`${task.id}-1hour`)) {
-          showNotification('⏰ Task Due Soon', {
-            body: `"${task.title}" is due in 1 hour`,
-            tag: `task-${task.id}-1hour`,
-            requireInteraction: true,
-            vibrationPattern: [300, 100, 300]
-          });
-          markAsNotified(`${task.id}-1hour`);
-        }
-
-        if (minutesUntilDue === 15 && !hasBeenNotified(`${task.id}-15min`)) {
-          showNotification('🚨 Task Due Soon', {
-            body: `"${task.title}" is due in 15 minutes`,
-            tag: `task-${task.id}-15min`,
-            requireInteraction: true,
-            vibrationPattern: [400, 100, 400, 100, 400]
-          });
-          markAsNotified(`${task.id}-15min`);
-        }
-
-        if (minutesUntilDue === 5 && !hasBeenNotified(`${task.id}-5min`)) {
-          showNotification('🔥 Task Due Very Soon!', {
-            body: `"${task.title}" is due in 5 minutes`,
-            tag: `task-${task.id}-5min`,
-            requireInteraction: true,
-            vibrationPattern: [500, 200, 500, 200, 500]
-          });
-          markAsNotified(`${task.id}-5min`);
-        }
-
-        if (minutesUntilDue === 0 && !hasBeenNotified(`${task.id}-due`)) {
-          showNotification('⚡ Task is Due Now!', {
-            body: `"${task.title}" is due right now!`,
-            tag: `task-${task.id}-due`,
-            requireInteraction: true,
-            vibrationPattern: [1000, 500, 1000]
-          });
-          markAsNotified(`${task.id}-due`);
-        }
-
-        // Overdue notification
-        if (minutesUntilDue < 0 && !hasBeenNotified(`${task.id}-overdue`)) {
-          showNotification('❌ Task Overdue!', {
-            body: `"${task.title}" is overdue. Please complete it soon.`,
-            tag: `task-${task.id}-overdue`,
-            requireInteraction: true,
-            vibrationPattern: [200, 100, 200, 100, 200, 100, 200]
-          });
-          markAsNotified(`${task.id}-overdue`);
-        }
-      });
-    } catch (error) {
-      console.error('[useTaskNotifications] Error checking task due times:', error);
-    }
-  }, [showNotification, hasBeenNotified, markAsNotified, isSupported, notificationPermission]);
-
-  // Periodically check for due tasks with more frequent checks on mobile
-  useEffect(() => {
-    if (notificationPermission === 'granted' && isSupported) {
-      // More frequent checks on mobile for better reliability
-      const isMobile = navigator.userAgent.match(/Mobile|Android|iPhone|iPad/i);
-      const interval = setInterval(checkTaskDueTimes, isMobile ? 30000 : 60000); // 30s on mobile, 60s on desktop
-      return () => clearInterval(interval);
-    }
-  }, [notificationPermission, checkTaskDueTimes, isSupported]);
-
   return {
     notificationPermission,
     requestPermission,
     showNotification,
-    checkTaskDueTimes,
     hasBeenNotified,
     markAsNotified,
     isSupported,

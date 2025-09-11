@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // PWA Manifest injection point - required for vite-plugin-pwa
 const manifest = self.__WB_MANIFEST || [];
 
-const CACHE_NAME = 'aurora-v1.4'; // Incremented cache name for PWA fixes
+const CACHE_NAME = 'aurora-v1.5'; // Incremented cache name for new features
 
 // Extract valid URLs from manifest
 const manifestUrls = manifest
@@ -264,63 +264,103 @@ async function syncTasks() {
   }
 }
 
-// Handle messages from the main thread with mobile enhancements
-self.addEventListener('message', (event) => {
-  console.log('[SW] Message received:', event.data);
+const DB_NAME = 'AuroraDB';
+const DB_VERSION = 2;
+const SCHEDULE_QUEUE_STORE = 'schedule_queue';
 
-  if (event.data && event.data.type === 'SYNC_TASKS_RESPONSE') {
-    console.log('[SW] Received task sync response from client');
-    // Handle the response if needed
-  }
+// --- IndexedDB Setup ---
+const openDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(SCHEDULE_QUEUE_STORE)) {
+        db.createObjectStore(SCHEDULE_QUEUE_STORE, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+  });
+};
 
-  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
-    const { title, body, options } = event.data;
-    console.log('[SW] Showing notification via message:', title);
-
-    // Check if online - if offline, queue the notification
-    if (!navigator.onLine) {
-      queueNotification({
-        title,
-        body,
-        icon: '/favicon.ico',
-        tag: `task-${Date.now()}`,
-        ...options
-      });
-    } else {
-      // Enhanced notification options for mobile
-      const notificationOptions = {
-        body: body || 'You have a new notification.',
-        icon: options?.icon || '/favicon.ico',
-        tag: options?.tag || 'default',
-        badge: '/favicon.ico',
-        requireInteraction: options?.requireInteraction !== false,
-        silent: options?.silent === true,
-        vibrate: options?.vibrate || [200, 100, 200],
-        actions: options?.actions || [],
-        data: {
-          url: self.location.origin,
-          timestamp: Date.now()
-        },
-        ...options
-      };
-
-      // Show the notification with mobile-optimized settings
-      self.registration.showNotification(title, notificationOptions)
-        .then(() => {
-          console.log('[SW] Notification shown successfully:', title);
-        })
-        .catch(error => {
-          console.error('[SW] Error showing notification:', error);
-        });
-    }
-  } else if (event.data && event.data.type === 'QUEUE_NOTIFICATION') {
-    // Queue notification for offline delivery
-    queueNotification(event.data.notification);
-  } else if (event.data && event.data.type === 'SCHEDULE_TASK_NOTIFICATION') {
+// --- Message Handling ---
+self.addEventListener('message', async (event) => {
+  if (event.data && event.data.type === 'SCHEDULE_TASK_NOTIFICATION') {
     const { task, userId } = event.data;
-    scheduleTaskNotification(task, userId);
+    const request = { task, userId };
+
+    // Prefer background sync for reliability
+    if ('sync' in self.registration) {
+      console.log(`[SW] Queuing schedule for task ${task.id} via Background Sync.`);
+      await queueSchedulingRequest(request);
+      try {
+        await self.registration.sync.register('sync-notification-schedules');
+        console.log('[SW] Registered background sync for schedule processing.');
+      } catch (err) {
+        console.error('[SW] Could not register background sync, attempting immediate send.', err);
+        // If sync registration fails, try to send immediately as a fallback
+        if (navigator.onLine) {
+          await scheduleTaskNotification(task, userId);
+        }
+      }
+    }
+    // Fallback for browsers without Background Sync
+    else if (navigator.onLine) {
+      console.log(`[SW] Background Sync not supported. Attempting immediate schedule for task ${task.id}.`);
+      await scheduleTaskNotification(task, userId);
+    }
+    // Offline without sync support - cannot schedule
+    else {
+      console.warn(`[SW] Cannot schedule notification for task ${task.id}. User is offline and Background Sync is not supported.`);
+      // In this case, the request is lost, which is an accepted limitation for non-supporting browsers.
+    }
   }
 });
+
+// --- Scheduling Queue Logic ---
+const queueSchedulingRequest = async (request) => {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(SCHEDULE_QUEUE_STORE, 'readwrite');
+    const store = tx.objectStore(SCHEDULE_QUEUE_STORE);
+    await store.add(request);
+    console.log(`[SW] Queued request for task ${request.task.id}`);
+  } catch (error) {
+    console.error('[SW] Error queuing scheduling request:', error);
+  }
+};
+
+const processSchedulingQueue = async () => {
+  console.log('[SW] Processing scheduling queue...');
+  let db;
+  try {
+    db = await openDB();
+    const tx = db.transaction(SCHEDULE_QUEUE_STORE, 'readwrite');
+    const store = tx.objectStore(SCHEDULE_QUEUE_STORE);
+    const requests = await store.getAll();
+
+    if (requests.length === 0) {
+      console.log('[SW] Scheduling queue is empty.');
+      return;
+    }
+
+    console.log(`[SW] Found ${requests.length} requests to process.`);
+
+    for (const request of requests) {
+      const { success } = await scheduleTaskNotification(request.task, request.userId);
+      if (success) {
+        console.log(`[SW] Successfully processed schedule for task ${request.task.id}. Removing from queue.`);
+        await store.delete(request.id);
+      } else {
+        console.warn(`[SW] Failed to process schedule for task ${request.task.id}. It will be retried on next sync.`);
+      }
+    }
+  } catch (error) {
+    console.error('[SW] Error processing scheduling queue:', error);
+  } finally {
+    if (db) db.close();
+  }
+};
 
 const scheduleTaskNotification = async (task, userId) => {
   const now = new Date().getTime();
@@ -335,91 +375,43 @@ const scheduleTaskNotification = async (task, userId) => {
   const timeUntilDue = dueDate.getTime() - now;
 
   if (timeUntilDue > 0) {
-    // Schedule a notification for 5 minutes before the due date
-    const notificationTime = dueDate.getTime() - 5 * 60 * 1000;
-    if (notificationTime > now) {
-      try {
-        const response = await fetch('/api/task-notifications', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            type: 'task_due_soon',
-            taskData: task,
-            userId: userId,
-            notificationTime: new Date(notificationTime).toISOString(),
-          }),
-        });
-        const data = await response.json();
-        console.log('[SW] Scheduled notification response:', data);
-      } catch (error) {
-        console.error('[SW] Error scheduling notification:', error);
-      }
-    }
-  }
-};
+    const notificationTime = dueDate.getTime();
+    console.log(`[SW] Scheduling notification for task ${task.id} at ${new Date(notificationTime).toISOString()}`);
 
-// IndexedDB for offline notification queue
-const openDB = () => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open('NotificationQueue', 1);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains('notifications')) {
-        db.createObjectStore('notifications', { keyPath: 'id', autoIncrement: true });
-      }
-    };
-  });
-};
-
-const queueNotification = async (notification) => {
-  try {
-    const db = await openDB();
-    const transaction = db.transaction(['notifications'], 'readwrite');
-    const store = transaction.objectStore('notifications');
-    await store.add({ ...notification, timestamp: Date.now() });
-    console.log('[SW] Notification queued for offline delivery');
-  } catch (error) {
-    console.error('[SW] Failed to queue notification:', error);
-  }
-};
-
-const processQueuedNotifications = async () => {
-  try {
-    const db = await openDB();
-    const transaction = db.transaction(['notifications'], 'readwrite');
-    const store = transaction.objectStore('notifications');
-    const notifications = await store.getAll();
-    
-    for (const notification of notifications) {
-      await self.registration.showNotification(notification.title, {
-        body: notification.body,
-        icon: notification.icon || '/favicon.ico',
-        tag: notification.tag,
-        data: notification.data,
-        requireInteraction: false,
-        actions: notification.actions || []
+    try {
+      const response = await fetch('/api/task-notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'task_due',
+          taskData: task,
+          userId: userId,
+          notificationTime: new Date(notificationTime).toISOString(),
+        }),
       });
-      await store.delete(notification.id);
+
+      if (!response.ok) {
+        throw new Error(`[SW] Server responded with ${response.status}`);
+      }
+
+      console.log(`[SW] Backend accepted schedule for task ${task.id}`);
+      return { success: true };
+
+    } catch (error) {
+      console.error(`[SW] Failed to send scheduling request for task ${task.id}:`, error);
+      return { success: false };
     }
-    
-    console.log(`[SW] Processed ${notifications.length} queued notifications`);
-  } catch (error) {
-    console.error('[SW] Failed to process queued notifications:', error);
+  } else {
+    console.log(`[SW] Task ${task.id} is already past due. No notification will be scheduled.`);
+    return { success: true }; // Mark as success to remove from queue
   }
 };
 
-// Enhanced background sync with notification processing
+// --- Background Sync ---
 self.addEventListener('sync', (event) => {
-  console.log('[SW] Background sync event triggered with tag:', event.tag);
-
-  if (event.tag === 'sync-tasks') {
-    event.waitUntil(syncTasks());
-  } else if (event.tag === 'process-notifications') {
-    event.waitUntil(processQueuedNotifications());
+  console.log(`[SW] Background sync event: ${event.tag}`);
+  if (event.tag === 'sync-notification-schedules') {
+    event.waitUntil(processSchedulingQueue());
   }
 });
 
