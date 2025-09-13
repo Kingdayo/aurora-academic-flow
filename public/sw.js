@@ -485,18 +485,48 @@ self.addEventListener('notificationclose', (event) => {
   // Track notification dismissals if needed
 });
 
+// Push event handler for background notifications
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push received:', event);
+  console.log('[SW] Push event received:', event);
+  
+  if (event.data) {
+    const data = event.data.json();
+    console.log('[SW] Push data:', data);
+    
+    const options = {
+      body: data.body,
+      tag: data.tag || 'task-reminder',
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+      requireInteraction: true,
+      data: data.data,
+      actions: [
+        { action: 'open', title: 'Open App' },
+        { action: 'dismiss', title: 'Dismiss' }
+      ],
+      vibrate: [200, 100, 200]
+    };
 
-  const options = {
-    body: 'You have a new task notification.', // Default message
-    icon: '/favicon.ico', // Default icon
-    vibrate: [200, 100, 200], // Default vibration pattern
-    data: {
-      dateOfArrival: Date.now(),
-      primaryKey: '2'
-    }
-  };
+    event.waitUntil(
+      self.registration.showNotification(data.title, options)
+    );
+  } else {
+    // Fallback for push without data
+    const options = {
+      body: 'You have a new task notification.',
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+      vibrate: [200, 100, 200],
+      data: {
+        dateOfArrival: Date.now(),
+        primaryKey: '2'
+      }
+    };
+
+    event.waitUntil(
+      self.registration.showNotification('Task Reminder', options)
+    );
+  }
 
   if (event.data) {
     try {

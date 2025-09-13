@@ -1,1 +1,26 @@
 project_id = "ptglxbqaucefcjdewsrd"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[functions.ai-assistant]
+verify_jwt = false
+
+[functions.task-notifications]
+verify_jwt = false
+
+[functions.push-subscribe]
+verify_jwt = true
+
+[functions.send-push]
+verify_jwt = false
+
+[functions.schedule-notification]
+verify_jwt = true
+
+[functions.process-scheduled-notifications]
+verify_jwt = false
