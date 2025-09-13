@@ -15,6 +15,7 @@ import { Plus, Calendar as CalendarIcon, Clock, AlertTriangle, CheckCircle2, Cir
 import { format } from "date-fns";
 import TaskEditDialog from "./TaskEditDialog";
 import useTaskNotifications from "@/hooks/useTaskNotifications";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface Task {
   id: string;
@@ -45,6 +46,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const { showNotification, markAsNotified, hasBeenNotified } = useTaskNotifications();
+  const { isSupported, isSubscribed, loading, subscribe, scheduleNotification } = usePushNotifications();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPriority, setFilterPriority] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -104,7 +106,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
 
   const categories = ["General", "Study", "Assignment", "Project", "Exam", "Personal", "Work"];
 
-  const addTask = () => {
+  const addTask = async () => {
     if (!newTask.title.trim()) {
       toast.error("Please enter a task title");
       return;
@@ -124,6 +126,31 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
 
     const updatedTasks = [task, ...tasks];
     updateTasks(updatedTasks);
+    
+    // Schedule push notification for task due date
+    if (task.dueDate && !task.completed) {
+      const dueDateTime = new Date(task.dueDate);
+      if (task.dueTime) {
+        const [hours, minutes] = task.dueTime.split(':').map(Number);
+        dueDateTime.setHours(hours, minutes, 0, 0);
+      } else {
+        dueDateTime.setHours(23, 59, 0, 0); // Default to end of day
+      }
+
+      // Only schedule if the due date is in the future
+      if (dueDateTime > new Date()) {
+        const success = await scheduleNotification(
+          task.id,
+          `Task Due: ${task.title}`,
+          `Your task "${task.title}" is due now!`,
+          dueDateTime
+        );
+        
+        if (success) {
+          console.log(`Background notification scheduled for task: ${task.title}`);
+        }
+      }
+    }
     
     setNewTask({
       title: "",
@@ -227,16 +254,28 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Task Manager</h2>
-          <p className="text-gray-600 dark:text-gray-300">Organize your academic and personal tasks</p>
+            <p className="text-gray-600 dark:text-gray-300">Organize your academic and personal tasks</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            {isSupported && !isSubscribed && (
+              <Button 
+                onClick={subscribe}
+                disabled={loading}
+                variant="outline"
+                className="flex items-center space-x-2"
+              >
+                <span>{loading ? 'Enabling...' : 'Enable Background Notifications'}</span>
+              </Button>
+            )}
+            <Button 
+              onClick={() => onShowAddDialogChange && onShowAddDialogChange(true)}
+              className="bg-purple-gradient hover:opacity-90 flex items-center space-x-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Task</span>
+            </Button>
+          </div>
         </div>
-        <Button 
-          onClick={() => onShowAddDialogChange && onShowAddDialogChange(true)}
-          className="bg-purple-gradient hover:opacity-90 flex items-center space-x-2"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Task</span>
-        </Button>
-      </div>
 
       <Card>
         <CardContent className="p-4">
