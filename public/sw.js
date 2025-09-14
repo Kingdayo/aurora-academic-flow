@@ -360,10 +360,12 @@ const processSchedulingQueue = async () => {
   let db;
   try {
     db = await openDB();
-    const tx = db.transaction(SCHEDULE_QUEUE_STORE, 'readwrite');
-    const store = tx.objectStore(SCHEDULE_QUEUE_STORE);
-
-    const getAllRequest = store.getAll();
+    
+    // First, get all requests in a read-only transaction
+    const readTx = db.transaction(SCHEDULE_QUEUE_STORE, 'readonly');
+    const readStore = readTx.objectStore(SCHEDULE_QUEUE_STORE);
+    
+    const getAllRequest = readStore.getAll();
     const requests = await new Promise((resolve, reject) => {
       getAllRequest.onsuccess = () => resolve(getAllRequest.result);
       getAllRequest.onerror = () => reject(getAllRequest.error);
@@ -376,22 +378,36 @@ const processSchedulingQueue = async () => {
 
     console.log(`[SW] Found ${requests.length} requests to process.`);
 
+    // Process each request and collect IDs to delete
+    const processedIds = [];
     for (const request of requests) {
-      const { success } = await scheduleTaskNotification(request.task, request.userId);
-      if (success) {
-        const deleteRequest = store.delete(request.id);
+      try {
+        const { success } = await scheduleTaskNotification(request.task, request.userId);
+        if (success) {
+          processedIds.push(request.id);
+          console.log(`[SW] Successfully processed schedule for task ${request.task.id}.`);
+        } else {
+          console.warn(`[SW] Failed to process schedule for task ${request.task.id}. It will be retried on next sync.`);
+        }
+      } catch (error) {
+        console.error(`[SW] Error processing task ${request.task.id}:`, error);
+      }
+    }
+
+    // Delete processed requests in a separate transaction
+    if (processedIds.length > 0) {
+      const deleteTx = db.transaction(SCHEDULE_QUEUE_STORE, 'readwrite');
+      const deleteStore = deleteTx.objectStore(SCHEDULE_QUEUE_STORE);
+      
+      for (const id of processedIds) {
         await new Promise((resolve, reject) => {
-          deleteRequest.onsuccess = () => {
-            console.log(`[SW] Successfully processed and removed schedule for task ${request.task.id}.`);
-            resolve();
-          };
+          const deleteRequest = deleteStore.delete(id);
+          deleteRequest.onsuccess = () => resolve();
           deleteRequest.onerror = (event) => {
-            console.error(`[SW] Failed to remove schedule for task ${request.task.id} from queue:`, event.target.error);
-            reject(event.target.error);
+            console.error(`[SW] Failed to delete processed request ${id}:`, event.target.error);
+            resolve(); // Continue processing other deletions
           };
         });
-      } else {
-        console.warn(`[SW] Failed to process schedule for task ${request.task.id}. It will be retried on next sync.`);
       }
     }
   } catch (error) {

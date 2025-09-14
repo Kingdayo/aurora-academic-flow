@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import webpush from 'https://esm.sh/web-push@3.6.6'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,56 +7,55 @@ const corsHeaders = {
 }
 
 interface NotificationPayload {
-  title: string;
-  body: string;
-  data?: any;
-  tag?: string;
+  title: string
+  body: string
+  tag?: string
+  data?: any
 }
 
-// Helper function to send push notification using Web Push protocol
-async function sendWebPush(
-  subscription: any,
-  payload: NotificationPayload,
-  vapidPublicKey: string
-) {
-  const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')
-  
-  if (!vapidPrivateKey) {
-    throw new Error('VAPID private key not configured')
-  }
-
-  // Import the web-push library
-  const webpush = await import('https://esm.sh/web-push@3.6.7')
-  
-  webpush.setVapidDetails(
-    'mailto:notifications@yourapp.com', // Replace with your email
-    vapidPublicKey,
-    vapidPrivateKey
-  )
-
+async function sendWebPush(subscription: any, payload: NotificationPayload, vapidPublicKey: string) {
   try {
-    await webpush.sendNotification(subscription, JSON.stringify(payload))
-    console.log('Push notification sent successfully')
-    return true
+    const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')
+    if (!vapidPrivateKey) {
+      throw new Error('VAPID_PRIVATE_KEY not found')
+    }
+
+    webpush.setVapidDetails(
+      'mailto:your-email@example.com',
+      vapidPublicKey,
+      vapidPrivateKey
+    )
+
+    await webpush.sendNotification(
+      subscription,
+      JSON.stringify(payload)
+    )
+    
+    return { success: true }
   } catch (error) {
-    console.error('Error sending push notification:', error)
-    return false
+    console.error('Error sending web push:', error)
+    throw error
   }
 }
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '' // Use service role for server operations
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      }
     )
 
-    const { userId, title, body, data, tag } = await req.json()
+    const { userId, title, body, tag, data } = await req.json()
 
     if (!userId || !title || !body) {
       return new Response(
@@ -68,10 +68,9 @@ Deno.serve(async (req) => {
     }
 
     const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')
-    
     if (!vapidPublicKey) {
       return new Response(
-        JSON.stringify({ error: 'VAPID keys not configured' }),
+        JSON.stringify({ error: 'VAPID_PUBLIC_KEY not configured' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -80,13 +79,13 @@ Deno.serve(async (req) => {
     }
 
     // Get user's push subscription
-    const { data: subscription, error: subscriptionError } = await supabaseClient
+    const { data: subscriptionData, error: subError } = await supabaseClient
       .from('push_subscriptions')
-      .select('*')
+      .select('endpoint, p256dh, auth')
       .eq('user_id', userId)
       .single()
 
-    if (subscriptionError || !subscription) {
+    if (subError || !subscriptionData) {
       console.log(`No push subscription found for user: ${userId}`)
       return new Response(
         JSON.stringify({ error: 'No push subscription found for user' }),
@@ -97,48 +96,40 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Construct the subscription object for web-push
+    // Construct push subscription object
     const pushSubscription = {
-      endpoint: subscription.endpoint,
+      endpoint: subscriptionData.endpoint,
       keys: {
-        p256dh: subscription.p256dh,
-        auth: subscription.auth
+        p256dh: subscriptionData.p256dh,
+        auth: subscriptionData.auth
       }
     }
 
-    const payload: NotificationPayload = {
+    // Prepare notification payload
+    const notificationPayload: NotificationPayload = {
       title,
       body,
-      data,
-      tag
+      tag,
+      data
     }
 
-    // Send the push notification
-    const success = await sendWebPush(pushSubscription, payload, vapidPublicKey)
+    // Send push notification
+    await sendWebPush(pushSubscription, notificationPayload, vapidPublicKey)
 
-    if (success) {
-      console.log(`Push notification sent successfully to user: ${userId}`)
-      return new Response(
-        JSON.stringify({ success: true }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    } else {
-      return new Response(
-        JSON.stringify({ error: 'Failed to send push notification' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
+    console.log(`Push notification sent to user: ${userId}`)
+
+    return new Response(
+      JSON.stringify({ success: true, message: 'Push notification sent successfully' }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
 
   } catch (error) {
-    console.error('Error in send-push:', error)
+    console.error('Error in send-push function:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', details: error.message }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
