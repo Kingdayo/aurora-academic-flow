@@ -8,6 +8,20 @@
   "theme_color": "#8B5CF6",
   "background_color": "#FFFFFF",
   "orientation": "portrait-primary",
+  "scope": "/",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "prefer_related_applications": false,
+  "background_sync": [
+    "task-notifications",
+    "sync-notification-schedules"
+  ],
+  "permissions": [
+    "notifications",
+    "background-sync",
+    "background-processing"
+  ],
   "icons": [
     {
       "src": "/favicon.ico",

@@ -6,7 +6,46 @@ import { createClient } from '@supabase/supabase-js';
 // PWA Manifest injection point - required for vite-plugin-pwa
 const manifest = self.__WB_MANIFEST || [];
 
-const CACHE_NAME = 'aurora-v1.5'; // Incremented cache name for new features
+const CACHE_NAME = 'aurora-v1.6'; // Enhanced for background execution
+
+// Enhanced background execution for mobile PWAs
+const BACKGROUND_SYNC_TAGS = [
+  'task-notifications',
+  'sync-notification-schedules',
+  'background-task-sync'
+];
+
+// Register periodic background sync for mobile devices
+const registerPeriodicBackgroundSync = async () => {
+  if ('serviceWorker' in navigator && 'periodicSync' in window.ServiceWorkerRegistration.prototype) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.periodicSync.register('background-task-check', {
+        minInterval: 24 * 60 * 60 * 1000, // 24 hours
+      });
+      console.log('[SW] Periodic background sync registered');
+    } catch (err) {
+      console.warn('[SW] Periodic background sync not available:', err);
+    }
+  }
+};
+
+// Keep service worker alive for background processing
+let keepAliveInterval;
+const keepServiceWorkerAlive = () => {
+  if (keepAliveInterval) {
+    clearInterval(keepAliveInterval);
+  }
+  
+  keepAliveInterval = setInterval(() => {
+    console.log('[SW] Keep alive ping');
+    // Minimal operation to keep SW active
+    self.registration.update();
+  }, 25000); // Every 25 seconds
+};
+
+// Start background execution immediately
+keepServiceWorkerAlive();
 
 // Extract valid URLs from manifest
 const manifestUrls = manifest
@@ -468,7 +507,124 @@ self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-notification-schedules') {
     event.waitUntil(processSchedulingQueue());
   }
+  if (event.tag === 'task-notifications') {
+    event.waitUntil(syncTasks());
+  }
+  if (event.tag === 'background-task-sync') {
+    event.waitUntil(performBackgroundTaskSync());
+  }
 });
+
+// Add periodic sync event handler for mobile background execution
+self.addEventListener('periodicsync', (event) => {
+  console.log(`[SW] Periodic sync event: ${event.tag}`);
+  if (event.tag === 'background-task-check') {
+    event.waitUntil(performPeriodicBackgroundCheck());
+  }
+});
+
+// Background task sync for when app is closed
+const performBackgroundTaskSync = async () => {
+  console.log('[SW] Performing background task sync...');
+  try {
+    // Process any queued notifications
+    await processSchedulingQueue();
+    
+    // Sync with server for any pending tasks
+    await syncTasks();
+    
+    // Check for due tasks and show notifications
+    await checkAndShowDueTaskNotifications();
+    
+    console.log('[SW] Background task sync completed');
+  } catch (error) {
+    console.error('[SW] Background task sync failed:', error);
+  }
+};
+
+// Periodic background check for mobile PWAs
+const performPeriodicBackgroundCheck = async () => {
+  console.log('[SW] Performing periodic background check...');
+  try {
+    // Check for overdue tasks and important notifications
+    await checkAndShowDueTaskNotifications();
+    
+    // Process any pending scheduling requests
+    await processSchedulingQueue();
+    
+    console.log('[SW] Periodic background check completed');
+  } catch (error) {
+    console.error('[SW] Periodic background check failed:', error);
+  }
+};
+
+// Check for due tasks and show notifications
+const checkAndShowDueTaskNotifications = async () => {
+  try {
+    const now = Date.now();
+    const clients = await self.clients.matchAll({
+      includeUncontrolled: true,
+      type: 'window'
+    });
+    
+    // If no clients are open, we're running in the background
+    const isBackground = clients.length === 0;
+    
+    if (isBackground) {
+      console.log('[SW] Running in background - checking for due tasks...');
+      
+      // Show a periodic reminder notification if app has been closed for too long
+      const lastNotificationTime = await getLastNotificationTime();
+      const timeSinceLastNotification = now - lastNotificationTime;
+      
+      // Show reminder every 4 hours if app is closed
+      if (timeSinceLastNotification > 4 * 60 * 60 * 1000) {
+        await self.registration.showNotification('Aurora Reminder', {
+          body: 'Don\'t forget to check your tasks and stay productive!',
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: 'background-reminder',
+          requireInteraction: false,
+          data: {
+            type: 'background-reminder',
+            timestamp: now
+          },
+          actions: [
+            { action: 'open', title: 'Open Aurora' },
+            { action: 'dismiss', title: 'Dismiss' }
+          ]
+        });
+        
+        await setLastNotificationTime(now);
+      }
+    }
+  } catch (error) {
+    console.error('[SW] Error checking due tasks:', error);
+  }
+};
+
+// Simple storage for last notification time
+const getLastNotificationTime = async () => {
+  try {
+    const result = await caches.match('/last-notification-time');
+    if (result) {
+      const text = await result.text();
+      return parseInt(text) || 0;
+    }
+  } catch (error) {
+    console.error('[SW] Error getting last notification time:', error);
+  }
+  return 0;
+};
+
+const setLastNotificationTime = async (time) => {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put('/last-notification-time', new Response(time.toString()));
+  } catch (error) {
+    console.error('[SW] Error setting last notification time:', error);
+  }
+};
 
 // Enhanced notification display handler
 self.addEventListener('message', async (event) => {
