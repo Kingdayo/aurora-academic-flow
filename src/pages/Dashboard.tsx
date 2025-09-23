@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { List, Calendar as CalendarIcon, BarChart3, Bot, Bell, Menu, X } from "lucide-react";
+import { List, Calendar as CalendarIcon, BarChart3, Bot, Bell, Menu, X, Users } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/App";
+import GroupManager from "@/components/GroupManager";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -89,6 +90,10 @@ const Dashboard = () => {
     id: "tasks",
     label: "Tasks",
     icon: List
+  }, {
+    id: "groups",
+    label: "Groups",
+    icon: Users
   }, {
     id: "calendar",
     label: "Calendar",
@@ -258,6 +263,10 @@ const Dashboard = () => {
                 <div className="mt-6 space-y-6">
                   <TabsContent value="tasks" className="space-y-6 animate-fade-in-up">
                     <TaskManager showAddDialog={showAddDialog} onShowAddDialogChange={setShowAddDialog} activeTab={activeTab} />
+                  </TabsContent>
+
+                  <TabsContent value="groups" className="animate-fade-in-up">
+                    <GroupManager />
                   </TabsContent>
 
                   <TabsContent value="calendar" className="animate-fade-in-up">
