@@ -4,412 +4,406 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Users, Plus, MessageCircle, Crown, UserPlus, Search, X } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 import { useGroups } from '@/hooks/useGroups';
 import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
-import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import GroupChat from './GroupChat';
+import { toast } from 'sonner';
+import { Plus, Crown, Users, Mail, UserPlus, Trash2 } from 'lucide-react';
 
-const GroupManager: React.FC = () => {
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
+interface GroupManagerProps {
+  onGroupSelect?: (groupId: string) => void;
+}
+
+// Generate distinct avatar based on user ID and role
+const generateAvatar = (userId: string, isAdmin: boolean = false) => {
+  const seed = userId || 'default';
+  const baseUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`;
+  
+  if (isAdmin) {
+    // Admin avatars have crown accessories and special styling
+    return `${baseUrl}&accessories=prescription02&clothingColor=262e33&eyebrowType=raisedexcited&eyeType=happy&facialHairColor=auburn&facialHairType=beardmedium&hairColor=auburn&hatColor=blue03&mouthType=smile&skinColor=light&topType=shortHairShortCurly`;
+  } else {
+    // Regular user avatars with varied but consistent styling
+    return `${baseUrl}&clothingColor=3c4f5c&eyeType=default&mouthType=default&skinColor=tanned`;
+  }
+};
+
+export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
+  const { user } = useEnhancedAuth();
+  const { groups, loading, createGroup, joinGroup, leaveGroup, refetch } = useGroups();
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
-  const [searchEmail, setSearchEmail] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searching, setSearching] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [memberEmail, setMemberEmail] = useState('');
+  const [isAddingMember, setIsAddingMember] = useState(false);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
-  const { groups, loading, createGroup, fetchGroupMembers } = useGroups();
-  const { user } = useEnhancedAuth();
-  const { toast } = useToast();
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
-  const handleCreateGroup = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
-
-    const { error } = await createGroup(newGroupName.trim(), newGroupDescription.trim() || undefined);
     
-    if (!error) {
+    setIsCreating(true);
+    try {
+      await createGroup(newGroupName, newGroupDescription);
       setNewGroupName('');
       setNewGroupDescription('');
-      setShowCreateDialog(false);
-    }
-  };
-
-  const searchUserByEmail = async (email: string) => {
-    if (!email.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    setSearching(true);
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, email, full_name')
-        .ilike('email', `%${email}%`)
-        .limit(5);
-
-      if (error) throw error;
-      setSearchResults(data || []);
+      toast.success('Group created successfully!');
     } catch (error) {
-      console.error('Error searching users:', error);
-      toast({
-        title: "Error",
-        description: "Failed to search users",
-        variant: "destructive",
-      });
+      toast.error('Failed to create group');
     } finally {
-      setSearching(false);
+      setIsCreating(false);
     }
   };
 
-  const addMemberToGroup = async (userId: string, userEmail: string) => {
-    if (!selectedGroup) return;
-
+  const handleJoinGroup = async () => {
+    if (!joinCode.trim()) return;
+    
+    setIsJoining(true);
     try {
-      const { error } = await supabase
-        .from('group_members')
-        .insert([{
-          group_id: selectedGroup,
-          user_id: userId,
-          role: 'member',
-          status: 'active'
-        }]);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `Added ${userEmail} to the group`,
-      });
-
-      setSearchEmail('');
-      setSearchResults([]);
-      loadGroupMembers(selectedGroup);
+      await joinGroup(joinCode);
+      setJoinCode('');
+      toast.success('Joined group successfully!');
     } catch (error) {
-      console.error('Error adding member:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add member to group",
-        variant: "destructive",
-      });
+      toast.error('Failed to join group');
+    } finally {
+      setIsJoining(false);
     }
   };
 
   const loadGroupMembers = async (groupId: string) => {
-    const members = await fetchGroupMembers(groupId);
-    setGroupMembers(members);
+    setLoadingMembers(true);
+    try {
+      const { data, error } = await supabase
+        .from('group_members')
+        .select(`
+          *,
+          profiles:user_id (
+            id,
+            email,
+            full_name
+          )
+        `)
+        .eq('group_id', groupId)
+        .eq('status', 'active');
+
+      if (error) throw error;
+      setGroupMembers(data || []);
+    } catch (error) {
+      console.error('Error loading members:', error);
+      toast.error('Failed to load group members');
+    } finally {
+      setLoadingMembers(false);
+    }
   };
 
-  const removeMemberFromGroup = async (memberId: string, memberName: string) => {
+  const handleAddMember = async (groupId: string) => {
+    if (!memberEmail.trim()) return;
+    
+    setIsAddingMember(true);
+    try {
+      // First, find the user by email
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', memberEmail.trim())
+        .single();
+
+      if (userError || !userData) {
+        toast.error('User not found with this email');
+        return;
+      }
+
+      // Check if user is already a member
+      const { data: existingMember } = await supabase
+        .from('group_members')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('user_id', userData.id)
+        .single();
+
+      if (existingMember) {
+        toast.error('User is already a member of this group');
+        return;
+      }
+
+      // Add the user to the group
+      const { error: addError } = await supabase
+        .from('group_members')
+        .insert({
+          group_id: groupId,
+          user_id: userData.id,
+          status: 'active',
+          role: 'member'
+        });
+
+      if (addError) throw addError;
+
+      setMemberEmail('');
+      toast.success('Member added successfully!');
+      loadGroupMembers(groupId); // Reload members
+    } catch (error) {
+      console.error('Error adding member:', error);
+      toast.error('Failed to add member');
+    } finally {
+      setIsAddingMember(false);
+    }
+  };
+
+  const handleRemoveMember = async (groupId: string, memberId: string) => {
     try {
       const { error } = await supabase
         .from('group_members')
-        .update({ status: 'removed' })
+        .delete()
         .eq('id', memberId);
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: `Removed ${memberName} from the group`,
-      });
-
-      if (selectedGroup) {
-        loadGroupMembers(selectedGroup);
-      }
+      toast.success('Member removed successfully!');
+      loadGroupMembers(groupId); // Reload members
     } catch (error) {
       console.error('Error removing member:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove member",
-        variant: "destructive",
-      });
+      toast.error('Failed to remove member');
     }
   };
 
-  const getAvatarColor = (userId: string, isOwner: boolean) => {
-    if (isOwner) {
-      return 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white border-2 border-yellow-300 shadow-lg';
-    }
-    
-    // Generate distinct colors based on user ID
-    const colors = [
-      'bg-blue-500 text-white',
-      'bg-green-500 text-white',
-      'bg-purple-500 text-white',
-      'bg-pink-500 text-white',
-      'bg-indigo-500 text-white',
-      'bg-red-500 text-white',
-      'bg-teal-500 text-white',
-      'bg-orange-500 text-white',
-    ];
-    
-    const hash = userId.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-    
-    return colors[Math.abs(hash) % colors.length];
+  const isGroupAdmin = (group: any) => {
+    return group.owner_id === user?.id;
   };
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
-  };
-
-  React.useEffect(() => {
-    if (selectedGroup) {
-      loadGroupMembers(selectedGroup);
-    }
-  }, [selectedGroup]);
-
-  const selectedGroupData = groups.find(group => group.id === selectedGroup);
-  const isGroupOwner = selectedGroupData?.owner_id === user?.id;
-
-  if (selectedGroup && selectedGroupData) {
-    return (
-      <div className="h-full flex">
-        <div className="w-80 border-r bg-muted/30 p-4 space-y-4">
-          <Button
-            variant="outline"
-            onClick={() => setSelectedGroup(null)}
-            className="w-full"
-          >
-            ← Back to Groups
-          </Button>
-          
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">Members ({groupMembers.length})</h3>
-              {isGroupOwner && (
-                <Dialog open={showAddMemberDialog} onOpenChange={setShowAddMemberDialog}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" variant="outline">
-                      <UserPlus className="h-4 w-4" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Add Member to Group</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="searchEmail">Search by Email</Label>
-                        <div className="relative">
-                          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            id="searchEmail"
-                            value={searchEmail}
-                            onChange={(e) => {
-                              setSearchEmail(e.target.value);
-                              searchUserByEmail(e.target.value);
-                            }}
-                            placeholder="Enter user email..."
-                            className="pl-10"
-                          />
-                        </div>
-                      </div>
-                      
-                      {searching && (
-                        <div className="text-center text-muted-foreground">
-                          Searching...
-                        </div>
-                      )}
-                      
-                      {searchResults.length > 0 && (
-                        <div className="space-y-2">
-                          <Label>Search Results</Label>
-                          {searchResults.map((result) => (
-                            <div key={result.id} className="flex items-center justify-between p-2 border rounded">
-                              <div className="flex items-center gap-2">
-                                <Avatar className={`h-8 w-8 ${getAvatarColor(result.id, false)}`}>
-                                  <AvatarFallback>
-                                    {getInitials(result.full_name || result.email)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <div className="font-medium">{result.full_name || 'Unknown'}</div>
-                                  <div className="text-sm text-muted-foreground">{result.email}</div>
-                                </div>
-                              </div>
-                              <Button
-                                size="sm"
-                                onClick={() => addMemberToGroup(result.id, result.email)}
-                                disabled={groupMembers.some(member => member.user_id === result.id)}
-                              >
-                                {groupMembers.some(member => member.user_id === result.id) ? 'Already Added' : 'Add'}
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              {groupMembers.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-2 rounded-lg bg-background">
-                  <div className="flex items-center gap-2">
-                    <Avatar className={`h-8 w-8 ${getAvatarColor(member.user_id, member.role === 'owner')}`}>
-                      <AvatarFallback>
-                        {getInitials(member.profile?.full_name || 'U')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium flex items-center gap-1">
-                        {member.profile?.full_name || 'Unknown User'}
-                        {member.role === 'owner' && <Crown className="h-3 w-3 text-yellow-500" />}
-                      </div>
-                      <div className="text-xs text-muted-foreground capitalize">{member.role}</div>
-                    </div>
-                  </div>
-                  {isGroupOwner && member.role !== 'owner' && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeMemberFromGroup(member.id, member.profile?.full_name || 'User')}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex-1">
-          <GroupChat
-            groupId={selectedGroup}
-            groupName={selectedGroupData.name}
-          />
-        </div>
-      </div>
-    );
+  if (loading) {
+    return <div className="flex justify-center p-8">Loading groups...</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Groups</h2>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Group
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Group</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreateGroup} className="space-y-4">
-              <div>
-                <Label htmlFor="groupName">Group Name</Label>
-                <Input
-                  id="groupName"
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  placeholder="Enter group name..."
-                  maxLength={100}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="groupDescription">Description (optional)</Label>
-                <Textarea
-                  id="groupDescription"
-                  value={newGroupDescription}
-                  onChange={(e) => setNewGroupDescription(e.target.value)}
-                  placeholder="Enter group description..."
-                  rows={3}
-                  maxLength={500}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowCreateDialog(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={!newGroupName.trim()}>
-                  Create Group
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+    <div className="space-y-6 bg-white min-h-screen p-6">
+      {/* Create Group Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            Create New Group
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input
+            placeholder="Group name"
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+          />
+          <Textarea
+            placeholder="Group description (optional)"
+            value={newGroupDescription}
+            onChange={(e) => setNewGroupDescription(e.target.value)}
+          />
+          <Button 
+            onClick={handleCreateGroup} 
+            disabled={isCreating || !newGroupName.trim()}
+            className="w-full"
+          >
+            {isCreating ? 'Creating...' : 'Create Group'}
+          </Button>
+        </CardContent>
+      </Card>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-8">
-          <div className="text-muted-foreground">Loading groups...</div>
-        </div>
-      ) : groups.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-8">
-            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Groups Yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Create your first group to start collaborating with others.
+      {/* Join Group Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5" />
+            Join Group
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input
+            placeholder="Enter group join code"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value)}
+          />
+          <Button 
+            onClick={handleJoinGroup} 
+            disabled={isJoining || !joinCode.trim()}
+            className="w-full"
+          >
+            {isJoining ? 'Joining...' : 'Join Group'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Groups List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Your Groups ({groups.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {groups.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">
+              No groups yet. Create or join a group to get started!
             </p>
-            <Button onClick={() => setShowCreateDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Group
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {groups.map((group) => (
-            <Card key={group.id} className="hover:shadow-md transition-shadow cursor-pointer">
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    {group.name}
-                  </CardTitle>
-                  {group.owner_id === user?.id && (
-                    <Crown className="h-4 w-4 text-yellow-500" />
-                  )}
+          ) : (
+            <div className="space-y-4">
+              {groups.map((group) => (
+                <div key={group.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={generateAvatar(group.id)} />
+                        <AvatarFallback>{group.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-semibold flex items-center gap-2">
+                          {group.name}
+                          {isGroupAdmin(group) && (
+                            <Crown className="h-4 w-4 text-yellow-500" />
+                          )}
+                        </h3>
+                        <p className="text-sm text-gray-600">{group.description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isGroupAdmin(group) && (
+                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                          Admin
+                        </Badge>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onGroupSelect?.(group.id)}
+                      >
+                        Open Chat
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Separator className="my-3" />
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">Join Code:</span>
+                      <code className="bg-gray-100 px-2 py-1 rounded text-sm">
+                        {group.join_code}
+                      </code>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {/* Manage Members - Only for Admins */}
+                      {isGroupAdmin(group) && (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedGroup(group.id);
+                                loadGroupMembers(group.id);
+                              }}
+                            >
+                              <Users className="h-4 w-4 mr-1" />
+                              Manage Members
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Manage Group Members</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              {/* Add Member Section */}
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Add Member by Email</label>
+                                <div className="flex gap-2">
+                                  <Input
+                                    placeholder="Enter user email"
+                                    value={memberEmail}
+                                    onChange={(e) => setMemberEmail(e.target.value)}
+                                    type="email"
+                                  />
+                                  <Button
+                                    onClick={() => handleAddMember(group.id)}
+                                    disabled={isAddingMember || !memberEmail.trim()}
+                                    size="sm"
+                                  >
+                                    {isAddingMember ? 'Adding...' : 'Add'}
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <Separator />
+
+                              {/* Members List */}
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Current Members</label>
+                                {loadingMembers ? (
+                                  <p className="text-sm text-gray-500">Loading members...</p>
+                                ) : (
+                                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                                    {groupMembers.map((member) => (
+                                      <div key={member.id} className="flex items-center justify-between p-2 border rounded">
+                                        <div className="flex items-center gap-2">
+                                          <Avatar className="h-8 w-8">
+                                            <AvatarImage 
+                                              src={generateAvatar(member.user_id, member.user_id === group.owner_id)} 
+                                            />
+                                            <AvatarFallback>
+                                              {member.profiles?.full_name?.charAt(0) || member.profiles?.email?.charAt(0) || 'U'}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <div>
+                                            <p className="text-sm font-medium flex items-center gap-1">
+                                              {member.profiles?.full_name || member.profiles?.email}
+                                              {member.user_id === group.owner_id && (
+                                                <Crown className="h-3 w-3 text-yellow-500" />
+                                              )}
+                                            </p>
+                                            <p className="text-xs text-gray-500">{member.profiles?.email}</p>
+                                          </div>
+                                        </div>
+                                        {member.user_id !== group.owner_id && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleRemoveMember(group.id, member.id)}
+                                            className="text-red-600 hover:text-red-700"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+
+                      {!isGroupAdmin(group) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => leaveGroup(group.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          Leave Group
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                {group.description && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {group.description}
-                  </p>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary">
-                    {group.member_count || 0} members
-                  </Badge>
-                  <Button
-                    size="sm"
-                    onClick={() => setSelectedGroup(group.id)}
-                  >
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Open Chat
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-export default GroupManager;
+}

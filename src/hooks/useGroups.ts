@@ -27,6 +27,7 @@ interface GroupMember {
 export const useGroups = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchGroups = async () => {
@@ -49,6 +50,7 @@ export const useGroups = () => {
       setGroups(groupsWithCount);
     } catch (error) {
       console.error('Error fetching groups:', error);
+      setError('Failed to fetch groups');
       toast({
         title: "Error",
         description: "Failed to fetch groups",
@@ -95,6 +97,7 @@ export const useGroups = () => {
     } catch (error) {
       console.error('Error creating group:', error);
       const message = error instanceof Error ? error.message : 'Failed to create group';
+      setError(message);
       toast({
         title: "Error",
         description: message,
@@ -129,6 +132,7 @@ export const useGroups = () => {
     } catch (error) {
       console.error('Error joining group:', error);
       const message = error instanceof Error ? error.message : 'Failed to join group';
+      setError(message);
       toast({
         title: "Error",
         description: message,
@@ -159,6 +163,7 @@ export const useGroups = () => {
     } catch (error) {
       console.error('Error leaving group:', error);
       const message = error instanceof Error ? error.message : 'Failed to leave group';
+      setError(message);
       toast({
         title: "Error",
         description: message,
@@ -187,63 +192,86 @@ export const useGroups = () => {
     }
   };
 
-  const addMemberToGroup = async (groupId: string, userId: string) => {
+  const addMemberToGroup = async (groupId: string, userEmail: string) => {
     try {
-      const { error } = await supabase
+      // First, find the user by email
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', userEmail.trim())
+        .single();
+
+      if (userError || !userData) {
+        throw new Error('User not found with this email');
+      }
+
+      // Check if user is already a member
+      const { data: existingMember } = await supabase
         .from('group_members')
-        .insert([{
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('user_id', userData.id)
+        .single();
+
+      if (existingMember) {
+        throw new Error('User is already a member of this group');
+      }
+
+      // Add the user to the group
+      const { error: addError } = await supabase
+        .from('group_members')
+        .insert({
           group_id: groupId,
-          user_id: userId,
-          role: 'member',
-          status: 'active'
-        }]);
+          user_id: userData.id,
+          status: 'active',
+          role: 'member'
+        });
 
-      if (error) throw error;
+      if (addError) throw addError;
 
-      toast({
-        title: "Success",
-        description: "Member added successfully",
-      });
-
-      fetchGroups();
-      return { error: null };
+      return { success: true };
     } catch (error) {
       console.error('Error adding member:', error);
-      const message = error instanceof Error ? error.message : 'Failed to add member';
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
-      return { error };
+      throw error;
     }
   };
 
-  const removeMemberFromGroup = async (memberId: string) => {
+  const removeMemberFromGroup = async (groupId: string, memberId: string) => {
     try {
       const { error } = await supabase
         .from('group_members')
-        .update({ status: 'removed' })
+        .delete()
         .eq('id', memberId);
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Member removed successfully",
-      });
-
-      fetchGroups();
-      return { error: null };
+      return { success: true };
     } catch (error) {
       console.error('Error removing member:', error);
-      const message = error instanceof Error ? error.message : 'Failed to remove member';
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
-      return { error };
+      throw error;
+    }
+  };
+
+  const getGroupMembers = async (groupId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('group_members')
+        .select(`
+          *,
+          profiles:user_id (
+            id,
+            email,
+            full_name
+          )
+        `)
+        .eq('group_id', groupId)
+        .eq('status', 'active');
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error loading members:', error);
+      throw error;
     }
   };
 
@@ -254,12 +282,13 @@ export const useGroups = () => {
   return {
     groups,
     loading,
+    error,
     createGroup,
     joinGroup,
     leaveGroup,
-    fetchGroups,
-    fetchGroupMembers,
     addMemberToGroup,
     removeMemberFromGroup,
+    getGroupMembers,
+    refetch: fetchGroups
   };
 };
