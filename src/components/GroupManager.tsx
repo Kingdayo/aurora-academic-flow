@@ -79,21 +79,38 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
   const loadGroupMembers = async (groupId: string) => {
     setLoadingMembers(true);
     try {
-      const { data, error } = await supabase
+      // First get the group members
+      const { data: members, error: membersError } = await supabase
         .from('group_members')
-        .select(`
-          *,
-          profiles:user_id (
-            id,
-            email,
-            full_name
-          )
-        `)
+        .select('*')
         .eq('group_id', groupId)
         .eq('status', 'active');
 
-      if (error) throw error;
-      setGroupMembers(data || []);
+      if (membersError) throw membersError;
+
+      if (!members || members.length === 0) {
+        setGroupMembers([]);
+        return;
+      }
+
+      // Get user IDs
+      const userIds = members.map(member => member.user_id);
+
+      // Get profiles for these users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email, full_name')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine the data
+      const membersWithProfiles = members.map(member => ({
+        ...member,
+        profiles: profiles?.find(profile => profile.id === member.user_id) || null
+      }));
+
+      setGroupMembers(membersWithProfiles);
     } catch (error) {
       console.error('Error loading members:', error);
       toast.error('Failed to load group members');
