@@ -60,15 +60,8 @@ export const useAuth = () => {
   return context;
 };
 
-const App = () => {
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    try {
-      const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-      return savedTheme || "light";
-    } catch {
-      return "light";
-    }
-  });
+// Separate component for the main app content
+const AppContent = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -150,37 +143,6 @@ const App = () => {
       subscription.unsubscribe();
     };
   }, []);
-
-  useEffect(() => {
-    // Apply theme to document
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-    
-    // Save theme to localStorage
-    const saveThemeToStorage = () => {
-      try {
-        localStorage.setItem("theme", theme);
-      } catch (error) {
-        console.error("Error saving theme to localStorage:", error);
-      }
-    };
-
-    if (window.requestIdleCallback) {
-      window.requestIdleCallback(saveThemeToStorage);
-    } else {
-      setTimeout(saveThemeToStorage, 0);
-    }
-  }, [theme]);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    toast.success(`Switched to ${newTheme} mode! ${newTheme === "dark" ? "🌙" : "☀️"}`);
-  };
 
   const login = async (email: string, password: string) => {
     try {
@@ -326,31 +288,79 @@ const App = () => {
   }
 
   return (
+    <>
+      <Toaster />
+      <Sonner />
+      <PasswordResetDialog
+        isOpen={isPasswordResetOpen}
+        onClose={() => setIsPasswordResetOpen(false)}
+        onSubmit={handlePasswordUpdate}
+      />
+      <BrowserRouter>
+        <AuthContext.Provider value={{ user, session, login, register, resetPassword, logout, loading, loggingOut }}>
+          <Routes>
+            <Route 
+              path="/" 
+              element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />} 
+            />
+            <Route 
+              path="/dashboard" 
+              element={user ? <Dashboard /> : <Navigate to="/" replace />} 
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AuthContext.Provider>
+      </BrowserRouter>
+    </>
+  );
+};
+
+const App = () => {
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    try {
+      const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+      return savedTheme || "light";
+    } catch {
+      return "light";
+    }
+  });
+
+  useEffect(() => {
+    // Apply theme to document
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    
+    // Save theme to localStorage
+    const saveThemeToStorage = () => {
+      try {
+        localStorage.setItem("theme", theme);
+      } catch (error) {
+        console.error("Error saving theme to localStorage:", error);
+      }
+    };
+
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(saveThemeToStorage);
+    } else {
+      setTimeout(saveThemeToStorage, 0);
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    toast.success(`Switched to ${newTheme} mode! ${newTheme === "dark" ? "🌙" : "☀️"}`);
+  };
+
+  return (
     <QueryClientProvider client={queryClient}>
       <ThemeContext.Provider value={{ theme, toggleTheme }}>
         <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <PasswordResetDialog
-            isOpen={isPasswordResetOpen}
-            onClose={() => setIsPasswordResetOpen(false)}
-            onSubmit={handlePasswordUpdate}
-          />
-          <BrowserRouter>
-            <AuthContext.Provider value={{ user, session, login, register, resetPassword, logout, loading, loggingOut }}>
-              <Routes>
-                <Route 
-                  path="/" 
-                  element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />} 
-                />
-                <Route 
-                  path="/dashboard" 
-                  element={user ? <Dashboard /> : <Navigate to="/" replace />} 
-                />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </AuthContext.Provider>
-          </BrowserRouter>
+          <AppContent />
         </TooltipProvider>
       </ThemeContext.Provider>
     </QueryClientProvider>
