@@ -187,6 +187,66 @@ export const useGroups = () => {
     }
   };
 
+  const addMemberToGroup = async (groupId: string, userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .insert([{
+          group_id: groupId,
+          user_id: userId,
+          role: 'member',
+          status: 'active'
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Member added successfully",
+      });
+
+      fetchGroups();
+      return { error: null };
+    } catch (error) {
+      console.error('Error adding member:', error);
+      const message = error instanceof Error ? error.message : 'Failed to add member';
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+      return { error };
+    }
+  };
+
+  const removeMemberFromGroup = async (memberId: string) => {
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .update({ status: 'removed' })
+        .eq('id', memberId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Member removed successfully",
+      });
+
+      fetchGroups();
+      return { error: null };
+    } catch (error) {
+      console.error('Error removing member:', error);
+      const message = error instanceof Error ? error.message : 'Failed to remove member';
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+      return { error };
+    }
+  };
+
   useEffect(() => {
     fetchGroups();
   }, []);
@@ -199,5 +259,7 @@ export const useGroups = () => {
     leaveGroup,
     fetchGroups,
     fetchGroupMembers,
+    addMemberToGroup,
+    removeMemberFromGroup,
   };
 };
