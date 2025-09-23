@@ -1,51 +1,9 @@
 // public/sw.js
 
-// Import Supabase
-import { createClient } from '@supabase/supabase-js';
-
 // PWA Manifest injection point - required for vite-plugin-pwa
 const manifest = self.__WB_MANIFEST || [];
 
-const CACHE_NAME = 'aurora-v1.6'; // Enhanced for background execution
-
-// Enhanced background execution for mobile PWAs
-const BACKGROUND_SYNC_TAGS = [
-  'task-notifications',
-  'sync-notification-schedules',
-  'background-task-sync'
-];
-
-// Register periodic background sync for mobile devices
-const registerPeriodicBackgroundSync = async () => {
-  if ('serviceWorker' in navigator && 'periodicSync' in window.ServiceWorkerRegistration.prototype) {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      await registration.periodicSync.register('background-task-check', {
-        minInterval: 24 * 60 * 60 * 1000, // 24 hours
-      });
-      console.log('[SW] Periodic background sync registered');
-    } catch (err) {
-      console.warn('[SW] Periodic background sync not available:', err);
-    }
-  }
-};
-
-// Keep service worker alive for background processing
-let keepAliveInterval;
-const keepServiceWorkerAlive = () => {
-  if (keepAliveInterval) {
-    clearInterval(keepAliveInterval);
-  }
-  
-  keepAliveInterval = setInterval(() => {
-    console.log('[SW] Keep alive ping');
-    // Minimal operation to keep SW active
-    self.registration.update();
-  }, 25000); // Every 25 seconds
-};
-
-// Start background execution immediately
-keepServiceWorkerAlive();
+const CACHE_NAME = 'aurora-v1.8'; // Updated version
 
 // Extract valid URLs from manifest
 const manifestUrls = manifest
@@ -58,122 +16,9 @@ const urlsToCache = [
   ...manifestUrls // Include valid PWA manifest URLs
 ];
 
-// Initialize Supabase client in the service worker
-const supabaseUrl = "https://ptglxbqaucefcjdewsrd.supabase.co"; // Replace with your Supabase URL
-const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB0Z2x4YnFhdWNlZmNqZGV3c3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzODk0NzgsImV4cCI6MjA2Njk2NTQ3OH0.4bZPcxklqAkXQHjfM7LQjr7mMad7nbKhPixDbtNAYWM"; // Replace with your Supabase anonymous key
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  }
-});
-
-// Enhanced Realtime notification handling for tasks
-const setupRealtimeNotifications = () => {
-  const channel = supabase
-    .channel('sw-tasks-notifications')
-    .on('postgres_changes', { 
-      event: '*', 
-      schema: 'public', 
-      table: 'tasks' 
-    }, (payload) => {
-      console.log('[SW] Realtime change received:', payload);
-      handleTaskNotification(payload);
-    })
-    .subscribe((status) => {
-      console.log('[SW] Realtime subscription status:', status);
-    });
-
-  return channel;
-};
-
-const handleTaskNotification = (payload) => {
-  const { eventType, new: newTask, old: oldTask } = payload;
-  
-  let notificationTitle = '';
-  let notificationBody = '';
-  let shouldNotify = false;
-
-  switch (eventType) {
-    case 'INSERT':
-      notificationTitle = 'New Task Created';
-      notificationBody = `"${newTask.title}" has been added to your tasks`;
-      shouldNotify = true;
-      break;
-      
-    case 'UPDATE':
-      // Notify on completion
-      if (!oldTask.completed && newTask.completed) {
-        notificationTitle = 'Task Completed! 🎉';
-        notificationBody = `"${newTask.title}" has been marked as completed`;
-        shouldNotify = true;
-      }
-      // Notify on due date changes
-      else if (oldTask.due_date !== newTask.due_date || oldTask.due_time !== newTask.due_time) {
-        notificationTitle = 'Task Due Date Updated';
-        notificationBody = `Due date for "${newTask.title}" has been updated`;
-        shouldNotify = true;
-      }
-      // Notify on high priority tasks
-      else if (newTask.priority === 'high' && oldTask.priority !== 'high') {
-        notificationTitle = 'High Priority Task';
-        notificationBody = `"${newTask.title}" has been marked as high priority`;
-        shouldNotify = true;
-      }
-      break;
-
-    case 'DELETE':
-      notificationTitle = 'Task Deleted';
-      notificationBody = `Task has been removed from your list`;
-      shouldNotify = true;
-      break;
-  }
-
-  if (shouldNotify) {
-    const notificationOptions = {
-      body: notificationBody,
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
-      tag: `task-${newTask?.id || 'deleted'}`,
-      requireInteraction: false,
-      silent: false,
-      data: {
-        taskId: newTask?.id,
-        url: self.location.origin + '/dashboard',
-        timestamp: Date.now(),
-        eventType
-      },
-      actions: eventType === 'INSERT' ? [
-        {
-          action: 'view',
-          title: 'View Task',
-          icon: '/favicon.ico'
-        },
-        {
-          action: 'dismiss',
-          title: 'Dismiss'
-        }
-      ] : []
-    };
-
-    self.registration.showNotification(notificationTitle, notificationOptions)
-      .then(() => {
-        console.log('[SW] Notification shown for task:', newTask?.id);
-      })
-      .catch(error => {
-        console.error('[SW] Error showing notification:', error);
-      });
-  }
-};
-
-// Initialize realtime notifications
-setupRealtimeNotifications();
-
-
+// Basic Service Worker without external dependencies
 self.addEventListener('install', (event) => {
-  console.log('[SW] Service Worker (v6 - PWA manifest fixes) installing.');
+  console.log('[SW] Service Worker installing.');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(async (cache) => {
@@ -191,21 +36,20 @@ self.addEventListener('install', (event) => {
         });
         
         await Promise.allSettled(cachePromises);
-        console.log('[SW] Caching process completed (some files may have failed).');
+        console.log('[SW] Caching process completed.');
       })
       .then(() => {
         console.log('[SW] Attempting skipWaiting().');
         return self.skipWaiting();
       })
       .catch(error => {
-        console.error('[SW] Overall installation process failed:', error);
+        console.error('[SW] Installation process failed:', error);
       })
   );
-  console.log('[SW] Service Worker installation steps queued.');
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Service Worker (v5 - mobile notification fixes) activating.');
+  console.log('[SW] Service Worker activating.');
   event.waitUntil(
     Promise.all([
       clients.claim(),
@@ -221,7 +65,6 @@ self.addEventListener('activate', (event) => {
       })
     ])
   );
-  console.log('[SW] Service Worker activation complete and old caches cleaned.');
 });
 
 self.addEventListener('fetch', (event) => {
@@ -245,12 +88,17 @@ self.addEventListener('fetch', (event) => {
       })
       .catch(error => {
         console.error('[SW] Fetch error:', error, 'for request:', event.request.url);
+        // Return a fallback response for navigation requests
+        if (event.request.mode === 'navigate') {
+          return caches.match('/');
+        }
       })
   );
 });
 
+// Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification click received for tag:', event.notification.tag);
+  console.log('[SW] Notification click received');
   event.notification.close();
 
   event.waitUntil(
@@ -278,370 +126,27 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-
-async function syncTasks() {
-  try {
-    console.log('[SW] Starting background sync for tasks');
-
-    // Get all clients (browser tabs) to communicate with them
-    const clients = await self.clients.matchAll({
-      includeUncontrolled: true,
-      type: 'window'
-    });
-
-    // Send message to all clients to trigger task sync
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'SYNC_TASKS_REQUEST',
-        timestamp: Date.now()
-      });
-    });
-
-    console.log('[SW] Background sync request sent to clients');
-  } catch (error) {
-    console.error('[SW] Background sync failed:', error);
-  }
-}
-
-const DB_NAME = 'AuroraDB';
-const DB_VERSION = 2;
-const SCHEDULE_QUEUE_STORE = 'schedule_queue';
-
-// --- IndexedDB Setup ---
-const openDB = () => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains(SCHEDULE_QUEUE_STORE)) {
-        db.createObjectStore(SCHEDULE_QUEUE_STORE, { keyPath: 'id', autoIncrement: true });
-      }
-    };
-  });
-};
-
-// --- Message Handling ---
+// Handle messages from the main thread
 self.addEventListener('message', async (event) => {
   if (!event.data || !event.data.type) {
     return;
   }
 
-  // Handler for scheduling task-due notifications
-  if (event.data.type === 'SCHEDULE_TASK_NOTIFICATION') {
-    const { task, userId } = event.data;
-    const request = { task, userId };
-
-    // Prefer background sync for reliability
-    if ('sync' in self.registration) {
-      console.log(`[SW] Queuing schedule for task ${task.id} via Background Sync.`);
-      await queueSchedulingRequest(request);
-      try {
-        await self.registration.sync.register('sync-notification-schedules');
-        console.log('[SW] Registered background sync for schedule processing.');
-      } catch (err) {
-        console.error('[SW] Could not register background sync, attempting immediate send.', err);
-        if (navigator.onLine) {
-          await scheduleTaskNotification(task, userId);
-        }
-      }
-    }
-    // Fallback for browsers without Background Sync
-    else if (navigator.onLine) {
-      console.log(`[SW] Background Sync not supported. Attempting immediate schedule for task ${task.id}.`);
-      await scheduleTaskNotification(task, userId);
-    }
-    // Offline without sync support
-    else {
-      console.warn(`[SW] Cannot schedule notification for task ${task.id}. User is offline and Background Sync is not supported.`);
-    }
-  }
-
-  // Handler for showing immediate local notifications (like the test button)
-  if (event.data.type === 'QUEUE_NOTIFICATION') {
-    const { notification } = event.data;
-    console.log('[SW] Received request to show immediate notification:', notification.title);
-    await self.registration.showNotification(notification.title, {
-      body: notification.body,
-      icon: notification.icon || '/favicon.ico',
-      tag: notification.tag,
-      data: notification.data
-    });
-  }
-});
-
-// --- Scheduling Queue Logic ---
-const queueSchedulingRequest = async (request) => {
-  try {
-    const db = await openDB();
-    const tx = db.transaction(SCHEDULE_QUEUE_STORE, 'readwrite');
-    const store = tx.objectStore(SCHEDULE_QUEUE_STORE);
-    const addRequest = store.add(request);
-
-    await new Promise((resolve, reject) => {
-      addRequest.onsuccess = () => {
-        console.log(`[SW] Queued request for task ${request.task.id}`);
-        resolve();
-      };
-      addRequest.onerror = (event) => {
-        console.error(`[SW] Error queuing scheduling request for task ${request.task.id}:`, event.target.error);
-        reject(event.target.error);
-      };
-    });
-  } catch (error) {
-    console.error('[SW] General error in queueSchedulingRequest:', error);
-  }
-};
-
-const processSchedulingQueue = async () => {
-  console.log('[SW] Processing scheduling queue...');
-  let db;
-  try {
-    db = await openDB();
-    
-    // First, get all requests in a read-only transaction
-    const readTx = db.transaction(SCHEDULE_QUEUE_STORE, 'readonly');
-    const readStore = readTx.objectStore(SCHEDULE_QUEUE_STORE);
-    
-    const getAllRequest = readStore.getAll();
-    const requests = await new Promise((resolve, reject) => {
-      getAllRequest.onsuccess = () => resolve(getAllRequest.result);
-      getAllRequest.onerror = () => reject(getAllRequest.error);
-    });
-
-    if (!requests || requests.length === 0) {
-      console.log('[SW] Scheduling queue is empty.');
-      return;
-    }
-
-    console.log(`[SW] Found ${requests.length} requests to process.`);
-
-    // Process each request and collect IDs to delete
-    const processedIds = [];
-    for (const request of requests) {
-      try {
-        const { success } = await scheduleTaskNotification(request.task, request.userId);
-        if (success) {
-          processedIds.push(request.id);
-          console.log(`[SW] Successfully processed schedule for task ${request.task.id}.`);
-        } else {
-          console.warn(`[SW] Failed to process schedule for task ${request.task.id}. It will be retried on next sync.`);
-        }
-      } catch (error) {
-        console.error(`[SW] Error processing task ${request.task.id}:`, error);
-      }
-    }
-
-    // Delete processed requests in a separate transaction
-    if (processedIds.length > 0) {
-      const deleteTx = db.transaction(SCHEDULE_QUEUE_STORE, 'readwrite');
-      const deleteStore = deleteTx.objectStore(SCHEDULE_QUEUE_STORE);
-      
-      for (const id of processedIds) {
-        await new Promise((resolve, reject) => {
-          const deleteRequest = deleteStore.delete(id);
-          deleteRequest.onsuccess = () => resolve();
-          deleteRequest.onerror = (event) => {
-            console.error(`[SW] Failed to delete processed request ${id}:`, event.target.error);
-            resolve(); // Continue processing other deletions
-          };
-        });
-      }
-    }
-  } catch (error) {
-    console.error('[SW] Error processing scheduling queue:', error);
-  } finally {
-    if (db) db.close();
-  }
-};
-
-const scheduleTaskNotification = async (task, userId) => {
-  const now = new Date().getTime();
-  const dueDate = new Date(task.dueDate);
-  if (task.dueTime) {
-    const [hours, minutes] = task.dueTime.split(':').map(Number);
-    dueDate.setHours(hours, minutes, 0, 0);
-  } else {
-    dueDate.setHours(23, 59, 59, 999);
-  }
-
-  const timeUntilDue = dueDate.getTime() - now;
-
-  if (timeUntilDue > 0) {
-    const notificationTime = dueDate.getTime();
-    console.log(`[SW] Scheduling notification for task ${task.id} at ${new Date(notificationTime).toISOString()}`);
-
-    try {
-      const response = await fetch('/api/task-notifications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'task_due',
-          taskData: task,
-          userId: userId,
-          notificationTime: new Date(notificationTime).toISOString(),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`[SW] Server responded with ${response.status}`);
-      }
-
-      console.log(`[SW] Backend accepted schedule for task ${task.id}`);
-      return { success: true };
-
-    } catch (error) {
-      console.error(`[SW] Failed to send scheduling request for task ${task.id}:`, error);
-      return { success: false };
-    }
-  } else {
-    console.log(`[SW] Task ${task.id} is already past due. No notification will be scheduled.`);
-    return { success: true }; // Mark as success to remove from queue
-  }
-};
-
-// --- Background Sync ---
-self.addEventListener('sync', (event) => {
-  console.log(`[SW] Background sync event: ${event.tag}`);
-  if (event.tag === 'sync-notification-schedules') {
-    event.waitUntil(processSchedulingQueue());
-  }
-  if (event.tag === 'task-notifications') {
-    event.waitUntil(syncTasks());
-  }
-  if (event.tag === 'background-task-sync') {
-    event.waitUntil(performBackgroundTaskSync());
-  }
-});
-
-// Add periodic sync event handler for mobile background execution
-self.addEventListener('periodicsync', (event) => {
-  console.log(`[SW] Periodic sync event: ${event.tag}`);
-  if (event.tag === 'background-task-check') {
-    event.waitUntil(performPeriodicBackgroundCheck());
-  }
-});
-
-// Background task sync for when app is closed
-const performBackgroundTaskSync = async () => {
-  console.log('[SW] Performing background task sync...');
-  try {
-    // Process any queued notifications
-    await processSchedulingQueue();
-    
-    // Sync with server for any pending tasks
-    await syncTasks();
-    
-    // Check for due tasks and show notifications
-    await checkAndShowDueTaskNotifications();
-    
-    console.log('[SW] Background task sync completed');
-  } catch (error) {
-    console.error('[SW] Background task sync failed:', error);
-  }
-};
-
-// Periodic background check for mobile PWAs
-const performPeriodicBackgroundCheck = async () => {
-  console.log('[SW] Performing periodic background check...');
-  try {
-    // Check for overdue tasks and important notifications
-    await checkAndShowDueTaskNotifications();
-    
-    // Process any pending scheduling requests
-    await processSchedulingQueue();
-    
-    console.log('[SW] Periodic background check completed');
-  } catch (error) {
-    console.error('[SW] Periodic background check failed:', error);
-  }
-};
-
-// Check for due tasks and show notifications
-const checkAndShowDueTaskNotifications = async () => {
-  try {
-    const now = Date.now();
-    const clients = await self.clients.matchAll({
-      includeUncontrolled: true,
-      type: 'window'
-    });
-    
-    // If no clients are open, we're running in the background
-    const isBackground = clients.length === 0;
-    
-    if (isBackground) {
-      console.log('[SW] Running in background - checking for due tasks...');
-      
-      // Show a periodic reminder notification if app has been closed for too long
-      const lastNotificationTime = await getLastNotificationTime();
-      const timeSinceLastNotification = now - lastNotificationTime;
-      
-      // Show reminder every 4 hours if app is closed
-      if (timeSinceLastNotification > 4 * 60 * 60 * 1000) {
-        await self.registration.showNotification('Aurora Reminder', {
-          body: 'Don\'t forget to check your tasks and stay productive!',
-          icon: '/favicon.ico',
-          badge: '/favicon.ico',
-          tag: 'background-reminder',
-          requireInteraction: false,
-          data: {
-            type: 'background-reminder',
-            timestamp: now
-          },
-          actions: [
-            { action: 'open', title: 'Open Aurora' },
-            { action: 'dismiss', title: 'Dismiss' }
-          ]
-        });
-        
-        await setLastNotificationTime(now);
-      }
-    }
-  } catch (error) {
-    console.error('[SW] Error checking due tasks:', error);
-  }
-};
-
-// Simple storage for last notification time
-const getLastNotificationTime = async () => {
-  try {
-    const result = await caches.match('/last-notification-time');
-    if (result) {
-      const text = await result.text();
-      return parseInt(text) || 0;
-    }
-  } catch (error) {
-    console.error('[SW] Error getting last notification time:', error);
-  }
-  return 0;
-};
-
-const setLastNotificationTime = async (time) => {
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    await cache.put('/last-notification-time', new Response(time.toString()));
-  } catch (error) {
-    console.error('[SW] Error setting last notification time:', error);
-  }
-};
-
-// Enhanced notification display handler
-self.addEventListener('message', async (event) => {
-  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
-    console.log('[SW] Showing notification:', event.data.title);
+  // Handler for showing immediate local notifications
+  if (event.data.type === 'SHOW_NOTIFICATION') {
+    const { title, body, options = {} } = event.data;
+    console.log('[SW] Showing notification:', title);
     
     try {
-      await self.registration.showNotification(event.data.title, {
-        body: event.data.body,
-        icon: event.data.options?.icon || '/favicon.ico',
+      await self.registration.showNotification(title, {
+        body: body,
+        icon: options.icon || '/favicon.ico',
         badge: '/favicon.ico',
-        tag: event.data.options?.tag || `notification-${Date.now()}`,
+        tag: options.tag || `notification-${Date.now()}`,
         requireInteraction: false,
         silent: false,
-        vibrate: event.data.options?.vibrationPattern || [200, 100, 200],
-        data: event.data.options?.data || {},
-        actions: event.data.options?.actions || []
+        data: options.data || {},
+        actions: options.actions || []
       });
       
       console.log('[SW] Notification shown successfully');
@@ -651,77 +156,45 @@ self.addEventListener('message', async (event) => {
   }
 });
 
-// Add notification close handler for mobile
-self.addEventListener('notificationclose', (event) => {
-  console.log('[SW] Notification closed:', event.notification.tag);
-  // Track notification dismissals if needed
-});
-
-// Push event handler for background notifications
+// Handle push notifications
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push event received:', event);
+  console.log('[SW] Push event received');
   
-  if (event.data) {
-    const data = event.data.json();
-    console.log('[SW] Push data:', data);
-    
-    const options = {
-      body: data.body,
-      tag: data.tag || 'task-reminder',
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
-      requireInteraction: true,
-      data: data.data,
-      actions: [
-        { action: 'open', title: 'Open App' },
-        { action: 'dismiss', title: 'Dismiss' }
-      ],
-      vibrate: [200, 100, 200]
-    };
-
-    event.waitUntil(
-      self.registration.showNotification(data.title, options)
-    );
-  } else {
-    // Fallback for push without data
-    const options = {
-      body: 'You have a new task notification.',
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
-      vibrate: [200, 100, 200],
-      data: {
-        dateOfArrival: Date.now(),
-        primaryKey: '2'
-      }
-    };
-
-    event.waitUntil(
-      self.registration.showNotification('Task Reminder', options)
-    );
-  }
+  let title = 'Task Reminder';
+  let options = {
+    body: 'You have a new task notification.',
+    icon: '/favicon.ico',
+    badge: '/favicon.ico',
+    tag: 'task-reminder',
+    requireInteraction: false,
+    data: {
+      dateOfArrival: Date.now(),
+      primaryKey: '1'
+    },
+    actions: [
+      { action: 'open', title: 'Open App' },
+      { action: 'dismiss', title: 'Dismiss' }
+    ]
+  };
 
   if (event.data) {
     try {
       const data = event.data.json();
       console.log('[SW] Push data:', data);
-
-      // Customize notification based on push data
+      
+      title = data.title || title;
       options.body = data.body || options.body;
-      options.title = data.title || 'New Notification'; // Add title from data
       options.icon = data.icon || options.icon;
-      options.image = data.image; // Add image support
-      options.tag = data.tag; // Add tag support for grouping/replacing
-      options.url = data.url; // Add URL for notification click
+      options.tag = data.tag || options.tag;
+      options.data = { ...options.data, ...data.data };
     } catch (e) {
       console.error('[SW] Failed to parse push data:', e);
-      options.body = 'You have a new notification.'; // Fallback message
     }
   }
 
   event.waitUntil(
-    self.registration.showNotification(options.title || 'New Notification', options)
+    self.registration.showNotification(title, options)
   );
 });
 
-
-console.log('[SW] Service Worker script (v5 - mobile notification fixes) loaded and parsed.');
+console.log('[SW] Service Worker script loaded and parsed.');
