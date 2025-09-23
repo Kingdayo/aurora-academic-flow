@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Users, Crown } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Send, Users, Crown, ArrowLeft, MoreVertical } from 'lucide-react';
 import { useRealtimeMessages } from '@/hooks/useRealtimeMessages';
 import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
 import { useGroups } from '@/hooks/useGroups';
@@ -12,10 +12,23 @@ import { formatDistanceToNow } from 'date-fns';
 
 interface GroupChatProps {
   groupId: string;
-  groupName: string;
+  onBack: () => void;
 }
 
-const GroupChat: React.FC<GroupChatProps> = ({ groupId, groupName }) => {
+const generateAvatar = (userId: string, isAdmin: boolean = false) => {
+  const seed = userId || 'default';
+  const baseUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`;
+  
+  if (isAdmin) {
+    // Admin avatars have crown accessories and special styling
+    return `${baseUrl}&accessories=prescription02&clothingColor=262e33&eyebrowType=raisedexcited&eyeType=happy&facialHairColor=auburn&facialHairType=beardmedium&hairColor=auburn&hatColor=blue03&mouthType=smile&skinColor=light&topType=shortHairShortCurly`;
+  } else {
+    // Regular user avatars with varied but consistent styling
+    return `${baseUrl}&clothingColor=3c4f5c&eyeType=default&mouthType=default&skinColor=tanned`;
+  }
+};
+
+export default function GroupChat({ groupId, onBack }: GroupChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [groupOwner, setGroupOwner] = useState<string | null>(null);
   const { messages, loading, sendMessage } = useRealtimeMessages(groupId);
@@ -97,105 +110,99 @@ const GroupChat: React.FC<GroupChatProps> = ({ groupId, groupName }) => {
   }
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          {groupName}
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent className="flex-1 flex flex-col p-0">
-        <ScrollArea className="flex-1 px-4">
-          <div className="space-y-4 pb-4">
-            {messages.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">
-                No messages yet. Start the conversation!
-              </div>
-            ) : (
-              messages.map((message) => (
+    <div className="flex flex-col h-screen bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={generateAvatar(groupId)} />
+              <AvatarFallback>{currentGroup?.name?.charAt(0) || 'G'}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h2 className="font-semibold">{currentGroup?.name}</h2>
+              <p className="text-sm text-gray-600">
+                {onlineMembers.length} member{onlineMembers.length !== 1 ? 's' : ''} online
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <VoiceCommandButton onCommand={handleVoiceCommand} />
+          <Button variant="ghost" size="sm">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((message) => {
+          const isOwn = message.user_id === user?.id;
+          const isAdmin = message.user_id === currentGroup?.owner_id;
+          
+          return (
+            <div
+              key={message.id}
+              className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
+            >
+              <Avatar className="h-8 w-8 flex-shrink-0">
+                <AvatarImage src={generateAvatar(message.user_id, isAdmin)} />
+                <AvatarFallback>
+                  {message.profiles?.full_name?.charAt(0) || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-xs`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-medium flex items-center gap-1">
+                    {isOwn ? 'You' : (message.profiles?.full_name || 'Unknown User')}
+                    {isAdmin && <Crown className="h-3 w-3 text-yellow-500" />}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {new Date(message.created_at).toLocaleTimeString([], { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                  </span>
+                </div>
                 <div
-                  key={message.id}
-                  className={`flex gap-3 ${
-                    message.user_id === user?.id ? 'justify-end' : 'justify-start'
+                  className={`rounded-lg px-3 py-2 ${
+                    isOwn
+                      ? isAdmin 
+                        ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white' // Special admin styling
+                        : 'bg-blue-500 text-white'
+                      : isAdmin
+                        ? 'bg-gradient-to-r from-yellow-100 to-orange-100 border-2 border-yellow-300' // Special admin styling
+                        : 'bg-gray-100'
                   }`}
                 >
-                  {message.user_id !== user?.id && (
-                    <div className="relative">
-                      <Avatar className={`h-8 w-8 mt-1 ${getAvatarColor(message.user_id, isMessageFromOwner(message.user_id))}`}>
-                        <AvatarFallback className="text-xs">
-                          {getInitials(getMessageDisplayName(message))}
-                        </AvatarFallback>
-                      </Avatar>
-                      {isMessageFromOwner(message.user_id) && (
-                        <Crown className="absolute -top-1 -right-1 h-3 w-3 text-yellow-500" />
-                      )}
-                    </div>
-                  )}
-                  
-                  <div
-                    className={`max-w-[70%] rounded-lg px-3 py-2 ${
-                      message.user_id === user?.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
-                    }`}
-                  >
-                    {message.user_id !== user?.id && (
-                      <div className="text-xs font-medium mb-1 flex items-center gap-1">
-                        {getMessageDisplayName(message)}
-                        {isMessageFromOwner(message.user_id) && (
-                          <Crown className="h-3 w-3 text-yellow-500" />
-                        )}
-                      </div>
-                    )}
-                    <div className="text-sm">{message.content}</div>
-                    <div
-                      className={`text-xs mt-1 ${
-                        message.user_id === user?.id
-                          ? 'text-primary-foreground/70'
-                          : 'text-muted-foreground'
-                      }`}
-                    >
-                      {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
-                    </div>
-                  </div>
-                  
-                  {message.user_id === user?.id && (
-                    <div className="relative">
-                      <Avatar className={`h-8 w-8 mt-1 ${getAvatarColor(message.user_id, isMessageFromOwner(message.user_id))}`}>
-                        <AvatarFallback className="text-xs">
-                          {getInitials(getMessageDisplayName(message))}
-                        </AvatarFallback>
-                      </Avatar>
-                      {isMessageFromOwner(message.user_id) && (
-                        <Crown className="absolute -top-1 -right-1 h-3 w-3 text-yellow-500" />
-                      )}
-                    </div>
-                  )}
+                  <p className="text-sm">{message.content}</p>
                 </div>
-              ))
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
-        
-        <form onSubmit={handleSendMessage} className="p-4 border-t">
-          <div className="flex gap-2">
-            <Input
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type a message..."
-              className="flex-1"
-              maxLength={1000}
-            />
-            <Button type="submit" disabled={!newMessage.trim()}>
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-  );
-};
+              </div>
+            </div>
+          );
+        })}
+        <div ref={messagesEndRef} />
+      </div>
 
-export default GroupChat;
+      {/* Input Section */}
+      <div className="p-4 border-t bg-gray-50">
+        <form onSubmit={handleSendMessage} className="flex gap-2">
+          <Input
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Type a message..."
+            className="flex-1"
+            maxLength={1000}
+          />
+          <Button type="submit" disabled={!newMessage.trim()}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
