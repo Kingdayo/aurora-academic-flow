@@ -129,15 +129,20 @@ const App = () => {
 
     // Register Service Worker
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then((registration) => {
-            console.log('[App] Service Worker registered with scope:', registration.scope);
-          })
-          .catch((error) => {
-            console.error('[App] Service Worker registration failed:', error);
-          });
+      window.addEventListener('load', async () => {
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js');
+          console.log('[App] Service Worker registered with scope:', registration.scope);
+          
+          // Wait for service worker to be ready and initialize Supabase
+          await registration.update();
+        } catch (error) {
+          console.error('[App] Service Worker registration failed:', error);
+          // Don't throw - app should work without SW
+        }
       });
+    } else {
+      console.log('[App] Service Worker not supported');
     }
 
     return () => {
