@@ -4,9 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Users } from 'lucide-react';
+import { Send, Users, Crown } from 'lucide-react';
 import { useRealtimeMessages } from '@/hooks/useRealtimeMessages';
 import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
+import { useGroups } from '@/hooks/useGroups';
 import { formatDistanceToNow } from 'date-fns';
 
 interface GroupChatProps {
@@ -16,8 +17,10 @@ interface GroupChatProps {
 
 const GroupChat: React.FC<GroupChatProps> = ({ groupId, groupName }) => {
   const [newMessage, setNewMessage] = useState('');
+  const [groupOwner, setGroupOwner] = useState<string | null>(null);
   const { messages, loading, sendMessage } = useRealtimeMessages(groupId);
   const { user } = useEnhancedAuth();
+  const { groups } = useGroups();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -27,6 +30,13 @@ const GroupChat: React.FC<GroupChatProps> = ({ groupId, groupName }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const group = groups.find(g => g.id === groupId);
+    if (group) {
+      setGroupOwner(group.owner_id);
+    }
+  }, [groupId, groups]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +55,35 @@ const GroupChat: React.FC<GroupChatProps> = ({ groupId, groupName }) => {
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  const getAvatarColor = (userId: string, isOwner: boolean) => {
+    if (isOwner) {
+      return 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white border-2 border-yellow-300 shadow-lg';
+    }
+    
+    // Generate distinct colors based on user ID
+    const colors = [
+      'bg-blue-500 text-white',
+      'bg-green-500 text-white',
+      'bg-purple-500 text-white',
+      'bg-pink-500 text-white',
+      'bg-indigo-500 text-white',
+      'bg-red-500 text-white',
+      'bg-teal-500 text-white',
+      'bg-orange-500 text-white',
+    ];
+    
+    const hash = userId.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  const isMessageFromOwner = (userId: string) => {
+    return userId === groupOwner;
   };
 
   if (loading) {
@@ -82,11 +121,16 @@ const GroupChat: React.FC<GroupChatProps> = ({ groupId, groupName }) => {
                   }`}
                 >
                   {message.user_id !== user?.id && (
-                    <Avatar className="h-8 w-8 mt-1">
-                      <AvatarFallback className="text-xs">
-                        {getInitials(getMessageDisplayName(message))}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className={`h-8 w-8 mt-1 ${getAvatarColor(message.user_id, isMessageFromOwner(message.user_id))}`}>
+                        <AvatarFallback className="text-xs">
+                          {getInitials(getMessageDisplayName(message))}
+                        </AvatarFallback>
+                      </Avatar>
+                      {isMessageFromOwner(message.user_id) && (
+                        <Crown className="absolute -top-1 -right-1 h-3 w-3 text-yellow-500" />
+                      )}
+                    </div>
                   )}
                   
                   <div
@@ -97,8 +141,11 @@ const GroupChat: React.FC<GroupChatProps> = ({ groupId, groupName }) => {
                     }`}
                   >
                     {message.user_id !== user?.id && (
-                      <div className="text-xs font-medium mb-1">
+                      <div className="text-xs font-medium mb-1 flex items-center gap-1">
                         {getMessageDisplayName(message)}
+                        {isMessageFromOwner(message.user_id) && (
+                          <Crown className="h-3 w-3 text-yellow-500" />
+                        )}
                       </div>
                     )}
                     <div className="text-sm">{message.content}</div>
@@ -114,11 +161,16 @@ const GroupChat: React.FC<GroupChatProps> = ({ groupId, groupName }) => {
                   </div>
                   
                   {message.user_id === user?.id && (
-                    <Avatar className="h-8 w-8 mt-1">
-                      <AvatarFallback className="text-xs">
-                        {getInitials(getMessageDisplayName(message))}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className={`h-8 w-8 mt-1 ${getAvatarColor(message.user_id, isMessageFromOwner(message.user_id))}`}>
+                        <AvatarFallback className="text-xs">
+                          {getInitials(getMessageDisplayName(message))}
+                        </AvatarFallback>
+                      </Avatar>
+                      {isMessageFromOwner(message.user_id) && (
+                        <Crown className="absolute -top-1 -right-1 h-3 w-3 text-yellow-500" />
+                      )}
+                    </div>
                   )}
                 </div>
               ))
