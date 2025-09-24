@@ -32,22 +32,31 @@ export const useGroups = () => {
 
   const fetchGroups = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setGroups([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get groups where user is a member
       const { data, error } = await supabase
         .from('groups')
         .select(`
           *,
-          group_members!inner(count)
+          group_members!inner(
+            user_id,
+            role,
+            status
+          )
         `)
+        .eq('group_members.user_id', user.id)
+        .eq('group_members.status', 'active')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const groupsWithCount = data?.map(group => ({
-        ...group,
-        member_count: group.group_members?.[0]?.count || 0
-      })) || [];
-
-      setGroups(groupsWithCount);
+      setGroups(data || []);
     } catch (error) {
       console.error('Error fetching groups:', error);
       setError('Failed to fetch groups');
@@ -62,83 +71,67 @@ export const useGroups = () => {
   };
 
   const createGroup = async (name: string, description?: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+    if (!user) throw new Error('User not authenticated');
 
-      // Create the group
-      const { data: group, error: groupError } = await supabase
-        .from('groups')
-        .insert([{ name, description, owner_id: user.id }])
-        .select()
-        .single();
+    // Generate a unique join code
+    const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-      if (groupError) throw groupError;
+    const { data, error } = await supabase
+      .from('groups')
+      .insert({
+        name,
+        description: description || '',
+        owner_id: user.id,
+        join_code: joinCode
+      })
+      .select()
+      .single();
 
-      // Add the creator as an owner member
-      const { error: memberError } = await supabase
-        .from('group_members')
-        .insert([{
-          group_id: group.id,
-          user_id: user.id,
-          role: 'owner',
-          status: 'active'
-        }]);
+    if (error) throw error;
 
-      if (memberError) throw memberError;
-
-      toast({
-        title: "Success",
-        description: `Group "${name}" created successfully`,
+    // Add the creator as a member with owner role
+    const { error: memberError } = await supabase
+      .from('group_members')
+      .insert({
+        group_id: data.id,
+        user_id: user.id,
+        role: 'owner',
+        status: 'active'
       });
 
-      fetchGroups();
-      return { data: group, error: null };
-    } catch (error) {
-      console.error('Error creating group:', error);
-      const message = error instanceof Error ? error.message : 'Failed to create group';
-      setError(message);
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
-      return { data: null, error };
-    }
+    if (memberError) throw memberError;
+
+    await refetch();
+    return data;
   };
 
   const joinGroup = async (groupId: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+    if (!user) throw new Error('User not authenticated');
 
-      const { error } = await supabase
-        .from('group_members')
-        .insert([{
-          group_id: groupId,
-          user_id: user.id,
-          role: 'member',
-          status: 'active'
-        }]);
+    // Check if user is already a member
+    const { data: existingMember } = await supabase
+      .from('group_members')
+      .select('id')
+      .eq('group_id', groupId)
+      .eq('user_id', user.id)
+      .single();
 
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Joined group successfully",
-      });
-
-      fetchGroups();
-    } catch (error) {
-      console.error('Error joining group:', error);
-      const message = error instanceof Error ? error.message : 'Failed to join group';
-      setError(message);
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
+    if (existingMember) {
+      throw new Error('You are already a member of this group');
     }
+
+    const { error } = await supabase
+      .from('group_members')
+      .insert({
+        group_id: groupId,
+        user_id: user.id,
+        role: 'member',
+        status: 'active'
+      });
+
+    if (error) throw error;
+
+    await refetch();
   };
 
   const leaveGroup = async (groupId: string) => {

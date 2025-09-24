@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { User, Session } from "@supabase/supabase-js";
@@ -60,14 +59,52 @@ export const useAuth = () => {
   return context;
 };
 
-// Separate component for the main app content
-const AppContent = () => {
+function App() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    try {
+      const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+      return savedTheme || "light";
+    } catch {
+      return "light";
+    }
+  });
+
+  useEffect(() => {
+    // Apply theme to document
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    
+    // Save theme to localStorage
+    const saveThemeToStorage = () => {
+      try {
+        localStorage.setItem("theme", theme);
+      } catch (error) {
+        console.error("Error saving theme to localStorage:", error);
+      }
+    };
+
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(saveThemeToStorage);
+    } else {
+      setTimeout(saveThemeToStorage, 0);
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    toast.success(`Switched to ${newTheme} mode! ${newTheme === "dark" ? "🌙" : "☀️"}`);
+  };
 
   useEffect(() => {
     const initialLoadingTimer = setTimeout(() => {
@@ -290,83 +327,33 @@ const AppContent = () => {
   }
 
   return (
-    <>
-      <Toaster />
-      <Sonner />
-      <PasswordResetDialog
-        isOpen={isPasswordResetOpen}
-        onClose={() => setIsPasswordResetOpen(false)}
-        onSubmit={handlePasswordUpdate}
-      />
-      <BrowserRouter>
-        <AuthContext.Provider value={{ user, session, login, register, resetPassword, logout, loading, loggingOut }}>
-          <Routes>
-            <Route 
-              path="/" 
-              element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />} 
-            />
-            <Route 
-              path="/dashboard" 
-              element={user ? <Dashboard /> : <Navigate to="/" replace />} 
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AuthContext.Provider>
-      </BrowserRouter>
-    </>
-  );
-};
-
-const App = () => {
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    try {
-      const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-      return savedTheme || "light";
-    } catch {
-      return "light";
-    }
-  });
-
-  useEffect(() => {
-    // Apply theme to document
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-    
-    // Save theme to localStorage
-    const saveThemeToStorage = () => {
-      try {
-        localStorage.setItem("theme", theme);
-      } catch (error) {
-        console.error("Error saving theme to localStorage:", error);
-      }
-    };
-
-    if (window.requestIdleCallback) {
-      window.requestIdleCallback(saveThemeToStorage);
-    } else {
-      setTimeout(saveThemeToStorage, 0);
-    }
-  }, [theme]);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    toast.success(`Switched to ${newTheme} mode! ${newTheme === "dark" ? "🌙" : "☀️"}`);
-  };
-
-  return (
     <QueryClientProvider client={queryClient}>
       <ThemeContext.Provider value={{ theme, toggleTheme }}>
-        <TooltipProvider>
-          <AppContent />
-        </TooltipProvider>
+        <BrowserRouter>
+          <AuthContext.Provider value={{ user, session, login, register, resetPassword, logout, loading, loggingOut }}>
+            <Toaster />
+            <Sonner />
+            <PasswordResetDialog
+              isOpen={isPasswordResetOpen}
+              onClose={() => setIsPasswordResetOpen(false)}
+              onSubmit={handlePasswordUpdate}
+            />
+            <Routes>
+              <Route 
+                path="/" 
+                element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />} 
+              />
+              <Route 
+                path="/dashboard" 
+                element={user ? <Dashboard /> : <Navigate to="/" replace />} 
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </AuthContext.Provider>
+        </BrowserRouter>
       </ThemeContext.Provider>
     </QueryClientProvider>
   );
-};
+}
 
 export default App;
