@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Send, ArrowLeft, Users, Crown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { generateAvatarUrl } from '@/lib/utils';
 
 interface GroupChatProps {
   groupId: string;
@@ -118,19 +119,19 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
 
   if (loading && !messages.length) {
     return (
-      <div className="flex justify-center items-center h-96 bg-white">
+      <div className="flex justify-center items-center h-96 bg-background">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading messages...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading messages...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white">
+    <div className="flex flex-col h-screen bg-background text-foreground">
       {/* Header */}
-      <Card className="rounded-none border-x-0 border-t-0">
+      <Card className="rounded-none border-x-0 border-t-0 bg-background">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -143,7 +144,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <Avatar className="h-10 w-10">
-                <AvatarImage src={`https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`} />
+                <AvatarImage src={generateAvatarUrl(groupId)} />
                 <AvatarFallback>{groupInfo?.name?.charAt(0) || 'G'}</AvatarFallback>
               </Avatar>
               <div>
@@ -188,7 +189,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                   >
                     <Avatar className="h-8 w-8 flex-shrink-0">
                       <AvatarImage 
-                        src={message.profiles?.avatar_url || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`} 
+                        src={generateAvatarUrl(message.user_id)}
                         alt={message.profiles?.full_name || 'User'} 
                       />
                       <AvatarFallback>
@@ -210,8 +211,8 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                       <div
                         className={`inline-block px-4 py-2 rounded-lg max-w-full break-words ${
                           isOwnMessage
-                            ? 'bg-purple-600 text-white rounded-br-sm'
-                            : 'bg-gray-100 text-gray-900 rounded-bl-sm'
+                            ? 'bg-primary text-primary-foreground rounded-br-sm'
+                            : 'bg-muted text-muted-foreground rounded-bl-sm'
                         }`}
                       >
                         <p className="text-sm whitespace-pre-wrap">{message.content}</p>
