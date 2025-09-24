@@ -10,6 +10,8 @@ import Dashboard from "./pages/Dashboard";
 import SplashScreen from "./components/SplashScreen";
 import { toast } from "sonner";
 import { PasswordResetDialog } from "@/components/PasswordResetDialog";
+import { useOfflineNotifications } from "./hooks/useOfflineNotifications";
+import { Button } from "./components/ui/button";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,6 +62,7 @@ export const useAuth = () => {
 };
 
 function App() {
+  const { requestNotificationPermission, notificationPermission } = useOfflineNotifications();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -333,6 +336,12 @@ function App() {
           <AuthContext.Provider value={{ user, session, login, register, resetPassword, logout, loading, loggingOut }}>
             <Toaster />
             <Sonner />
+            {notificationPermission === 'default' && (
+              <div className="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg z-50">
+                <p className="text-sm text-gray-700">Enable notifications to stay updated.</p>
+                <Button onClick={requestNotificationPermission} className="mt-2 w-full">Enable Notifications</Button>
+              </div>
+            )}
             <PasswordResetDialog
               isOpen={isPasswordResetOpen}
               onClose={() => setIsPasswordResetOpen(false)}

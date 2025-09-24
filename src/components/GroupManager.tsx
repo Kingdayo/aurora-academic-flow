@@ -54,16 +54,15 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
       // Find group by join code
       const { data: groupData, error: groupError } = await supabase
         .from('groups')
-        .select('id')
-        .eq('join_code', joinCode.trim())
-        .single();
+        .select('*')
+        .eq('join_code', joinCode.trim());
 
-      if (groupError || !groupData) {
+      if (groupError || !groupData || groupData.length === 0) {
         toast.error('Invalid join code');
         return;
       }
 
-      await joinGroup(groupData.id);
+      await joinGroup(groupData[0].id);
       setJoinCode('');
       toast.success('Joined group successfully!');
     } catch (error) {
