@@ -191,10 +191,10 @@ export const useGroups = () => {
       // Get user IDs
       const userIds = members.map(member => member.user_id);
 
-      // Get profiles for these users
+      // Get profiles for these users (only available columns)
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, full_name, avatar_url')
         .in('id', userIds);
 
       if (profilesError) throw profilesError;
@@ -290,10 +290,10 @@ export const useGroups = () => {
       // Get user IDs
       const userIds = members.map(member => member.user_id);
 
-      // Get profiles for these users
+      // Get profiles for these users (only available columns)
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, email, full_name')
+        .select('id, full_name, avatar_url')
         .in('id', userIds);
 
       if (profilesError) throw profilesError;
