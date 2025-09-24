@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useAuth } from "@/App";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { generateAvatarUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { User, Mail, Plus, Calendar, BarChart3, Mic, LogOut, CheckSquare, Timer, Brain } from "lucide-react";
@@ -95,6 +96,7 @@ const UserProfile = ({ onAddTask, onTabChange, onVoiceCommands, isLoggingOut = f
       <PopoverTrigger asChild>
         <div className="flex items-center space-x-3 cursor-pointer hover-lift transition-all mobile-friendly-toggle">
           <Avatar className="w-10 h-10 border-2 border-purple-200 dark:border-purple-700 animate-pulse-glow">
+            <AvatarImage src={generateAvatarUrl(user?.id || '')} />
             <AvatarFallback className="bg-purple-gradient text-white font-bold">
               {getInitials(displayName)}
             </AvatarFallback>
@@ -118,6 +120,7 @@ const UserProfile = ({ onAddTask, onTabChange, onVoiceCommands, isLoggingOut = f
           <CardContent className="p-4">
             <div className="flex items-center space-x-4 mb-4">
               <Avatar className="w-16 h-16 border-4 border-purple-200 dark:border-purple-700 animate-pulse-glow">
+                <AvatarImage src={generateAvatarUrl(user?.id || '')} />
                 <AvatarFallback className="bg-purple-gradient text-white font-bold text-xl">
                   {getInitials(displayName)}
                 </AvatarFallback>
