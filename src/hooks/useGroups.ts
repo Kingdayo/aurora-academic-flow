@@ -9,7 +9,9 @@ interface Group {
   owner_id: string;
   created_at: string;
   updated_at: string;
+  join_code: string;
   member_count?: number;
+  group_members?: GroupMember[];
 }
 
 interface GroupMember {
@@ -19,9 +21,11 @@ interface GroupMember {
   role: 'owner' | 'admin' | 'member';
   status: 'pending' | 'active' | 'removed';
   joined_at: string;
-  profile?: {
+  profiles?: {
+    id: string;
     full_name: string | null;
-  };
+    avatar_url?: string | null;
+  } | null;
 }
 
 export const useGroups = () => {
@@ -71,6 +75,7 @@ export const useGroups = () => {
   };
 
   const createGroup = async (name: string, description?: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     // Generate a unique join code
@@ -101,11 +106,12 @@ export const useGroups = () => {
 
     if (memberError) throw memberError;
 
-    await refetch();
+    await fetchGroups();
     return data;
   };
 
   const joinGroup = async (groupId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     // Check if user is already a member
@@ -131,7 +137,7 @@ export const useGroups = () => {
 
     if (error) throw error;
 
-    await refetch();
+    await fetchGroups();
   };
 
   const leaveGroup = async (groupId: string) => {
@@ -195,7 +201,7 @@ export const useGroups = () => {
       // Combine the data
       const membersWithProfiles = members.map(member => ({
         ...member,
-        profile: profiles?.find(profile => profile.id === member.user_id) || null
+        profiles: profiles?.find(profile => profile.id === member.user_id) || null
       }));
 
       return membersWithProfiles;
