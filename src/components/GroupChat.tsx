@@ -149,8 +149,11 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
               key={message.id}
               className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
             >
-              <Avatar className="h-8 w-8 flex-shrink-0">
-                <AvatarImage src={generateAvatar(message.user_id, isAdmin)} />
+              <Avatar className="h-10 w-10">
+                <AvatarImage 
+                  src={message.profiles?.avatar_url || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`} 
+                  alt={message.profiles?.full_name || 'User'} 
+                />
                 <AvatarFallback>
                   {message.profiles?.full_name?.charAt(0) || 'U'}
                 </AvatarFallback>

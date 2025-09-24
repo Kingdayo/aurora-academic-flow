@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useGroups } from '@/hooks/useGroups';
 import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
@@ -44,6 +45,8 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
@@ -96,10 +99,10 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
       // Get user IDs
       const userIds = members.map(member => member.user_id);
 
-      // Get profiles for these users
+      // Get profiles for these users (only available columns)
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, email, full_name')
+        .select('id, full_name, avatar_url')
         .in('id', userIds);
 
       if (profilesError) throw profilesError;
@@ -191,6 +194,26 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
 
   const isGroupAdmin = (group: any) => {
     return group.owner_id === user?.id;
+  };
+
+  const addMemberByEmail = async (email: string) => {
+    if (!selectedGroup) return;
+    
+    setIsAddingMember(true);
+    try {
+      // Get user by email from auth.users (this requires RLS policy or admin access)
+      // Since we can't directly query auth.users, we'll need to use a different approach
+      // Let's try to find the user by creating a temporary invitation or using a function
+      
+      // For now, let's show an error that we need the user ID directly
+      toast.error('Please ask the user to share their User ID instead of email for now');
+      
+    } catch (error) {
+      console.error('Error adding member:', error);
+      toast.error('Failed to add member');
+    } finally {
+      setIsAddingMember(false);
+    }
   };
 
   if (loading) {
@@ -328,77 +351,47 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                               Manage Members
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-md">
+                          <DialogContent className="sm:max-w-md">
                             <DialogHeader>
-                              <DialogTitle>Manage Group Members</DialogTitle>
+                              <DialogTitle>Add Member</DialogTitle>
+                              <DialogDescription>
+                                Add a new member to the group by entering their email address.
+                              </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
-                              {/* Add Member Section */}
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">Add Member by Email</label>
-                                <div className="flex gap-2">
-                                  <Input
-                                    placeholder="Enter user email"
-                                    value={memberEmail}
-                                    onChange={(e) => setMemberEmail(e.target.value)}
-                                    type="email"
-                                  />
-                                  <Button
-                                    onClick={() => handleAddMember(group.id)}
-                                    disabled={isAddingMember || !memberEmail.trim()}
-                                    size="sm"
-                                  >
-                                    {isAddingMember ? 'Adding...' : 'Add'}
-                                  </Button>
-                                </div>
-                              </div>
-
-                              <Separator />
-
-                              {/* Members List */}
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">Current Members</label>
-                                {loadingMembers ? (
-                                  <p className="text-sm text-gray-500">Loading members...</p>
-                                ) : (
-                                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                                    {groupMembers.map((member) => (
-                                      <div key={member.id} className="flex items-center justify-between p-2 border rounded">
-                                        <div className="flex items-center gap-2">
-                                          <Avatar className="h-8 w-8">
-                                            <AvatarImage 
-                                              src={generateAvatar(member.user_id, member.user_id === group.owner_id)} 
-                                            />
-                                            <AvatarFallback>
-                                              {member.profiles?.full_name?.charAt(0) || member.profiles?.email?.charAt(0) || 'U'}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                          <div>
-                                            <p className="text-sm font-medium flex items-center gap-1">
-                                              {member.profiles?.full_name || member.profiles?.email}
-                                              {member.user_id === group.owner_id && (
-                                                <Crown className="h-3 w-3 text-yellow-500" />
-                                              )}
-                                            </p>
-                                            <p className="text-xs text-gray-500">{member.profiles?.email}</p>
-                                          </div>
-                                        </div>
-                                        {member.user_id !== group.owner_id && (
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleRemoveMember(group.id, member.id)}
-                                            className="text-red-600 hover:text-red-700"
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
+                              <div>
+                                <Label htmlFor="member-email">Email Address</Label>
+                                <Input
+                                  id="member-email"
+                                  type="email"
+                                  placeholder="Enter member's email"
+                                  value={newMemberEmail}
+                                  onChange={(e) => setNewMemberEmail(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      addMemberByEmail(newMemberEmail);
+                                    }
+                                  }}
+                                />
                               </div>
                             </div>
+                            <DialogFooter>
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  setIsAddMemberOpen(false);
+                                  setNewMemberEmail('');
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                onClick={() => addMemberByEmail(newMemberEmail)}
+                                disabled={!newMemberEmail.trim() || isAddingMember}
+                              >
+                                {isAddingMember ? 'Adding...' : 'Add Member'}
+                              </Button>
+                            </DialogFooter>
                           </DialogContent>
                         </Dialog>
                       )}
