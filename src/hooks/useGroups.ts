@@ -95,6 +95,7 @@ export const useGroups = () => {
   };
 
   const createGroup = async (name: string, description?: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     try {

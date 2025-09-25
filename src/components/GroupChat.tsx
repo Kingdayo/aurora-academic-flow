@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Send, ArrowLeft, Users, Crown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { generateAvatarUrl } from '@/lib/utils';
 
 interface GroupChatProps {
   groupId: string;
@@ -128,7 +129,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
 
   if (loading && !messages.length) {
     return (
-      <div className="flex justify-center items-center h-96 bg-white">
+      <div className="flex justify-center items-center h-96 bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-gray-500 text-sm">Loading messages...</p>
@@ -138,7 +139,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white">
+    <div className="flex flex-col h-screen bg-background text-foreground">
       {/* Header */}
       <Card className="rounded-none border-x-0 border-t-0 flex-shrink-0">
         <CardHeader className="pb-2 md:pb-3">
@@ -213,8 +214,8 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                       <div
                         className={`inline-block px-3 py-2 rounded-lg max-w-full break-words text-sm ${
                           isOwnMessage
-                            ? 'bg-purple-600 text-white rounded-br-sm'
-                            : 'bg-gray-100 text-gray-900 rounded-bl-sm'
+                            ? 'bg-primary text-primary-foreground rounded-br-sm'
+                            : 'bg-muted text-foreground rounded-bl-sm'
                         }`}
                       >
                         <p className="whitespace-pre-wrap">{message.content}</p>
@@ -248,13 +249,13 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
               className="px-3 h-9 md:h-10"
             >
               {sending ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground"></div>
               ) : (
                 <Send className="h-4 w-4" />
               )}
             </Button>
           </form>
-          <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
+          <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
             <span>{newMessage.length}/1000</span>
             <span className="hidden sm:inline">Press Enter to send</span>
           </div>

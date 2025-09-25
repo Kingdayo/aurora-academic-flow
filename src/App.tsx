@@ -61,6 +61,7 @@ export const useAuth = () => {
 };
 
 function App() {
+  const { requestNotificationPermission, notificationPermission } = useOfflineNotifications();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);

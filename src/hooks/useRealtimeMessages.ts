@@ -14,6 +14,7 @@ interface Message {
   updated_at: string;
   profiles?: {
     full_name: string | null;
+    avatar_url?: string | null;
   };
 }
 
@@ -42,7 +43,7 @@ export const useRealtimeMessages = (groupId: string | null) => {
         .from('messages')
         .select(`
           *,
-          profiles(full_name)
+          profiles(full_name, avatar_url)
         `)
         .eq('group_id', groupId)
         .order('created_at', { ascending: true })
