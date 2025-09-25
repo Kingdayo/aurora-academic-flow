@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { User, Session } from "@supabase/supabase-js";
+import { User, Session } from "@supabase/gotrue-js";
 import { supabase } from "@/integrations/supabase/client";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
