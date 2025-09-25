@@ -5,8 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { useGroups } from '@/hooks/useGroups';
 import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
@@ -184,7 +183,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
   );
 
   if (loading) {
-    return <div className="flex justify-center p-8">Loading groups...</div>;
+    return <div className="flex justify-center p-8 bg-white">Loading groups...</div>;
   }
 
   return (
