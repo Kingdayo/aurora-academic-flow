@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import SplashScreen from "./components/SplashScreen";
 import { toast } from "sonner";
 import { PasswordResetDialog } from "@/components/PasswordResetDialog";
+import { Button } from "@/components/ui/button";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +67,7 @@ function App() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     try {
       const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
@@ -74,6 +76,23 @@ function App() {
       return "light";
     }
   });
+
+  useEffect(() => {
+    // Check notification permission
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission === 'granted') {
+        toast.success('Notifications enabled!');
+      }
+    }
+  };
 
   useEffect(() => {
     // Apply theme to document
@@ -271,6 +290,26 @@ function App() {
     }
   };
 
+  const handlePasswordUpdate = async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      
+      if (error) {
+        console.error('[App] Password update error:', error);
+        toast.error('Failed to update password. Please try again.');
+        return;
+      }
+      
+      toast.success('Password updated successfully!');
+      setIsPasswordResetOpen(false);
+    } catch (error) {
+      console.error('[App] Password update exception:', error);
+      toast.error('An unexpected error occurred. Please try again.');
+    }
+  };
+
   const authContextValue: AuthContextType = {
     user,
     session,
@@ -294,35 +333,40 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeContext.Provider value={themeContextValue}>
-        <AuthContext.Provider value={authContextValue}>
-          <BrowserRouter>
+        <BrowserRouter>
+          <AuthContext.Provider value={authContextValue}>
+            <Toaster />
+            <Sonner />
+            {notificationPermission === 'default' && (
+              <div className="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg z-50">
+                <p className="text-sm text-gray-700">Enable notifications to stay updated.</p>
+                <Button onClick={requestNotificationPermission} className="mt-2 w-full">Enable Notifications</Button>
+              </div>
+            )}
+            <PasswordResetDialog
+              isOpen={isPasswordResetOpen}
+              onClose={() => setIsPasswordResetOpen(false)}
+              onSubmit={handlePasswordUpdate}
+            />
             <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
               <Routes>
                 <Route
                   path="/"
                   element={
-                    session ? <Navigate to="/dashboard" replace /> : <AuthPage />
+                    user ? <Navigate to="/dashboard" replace /> : <AuthPage />
                   }
                 />
                 <Route
                   path="/dashboard"
                   element={
-                    session ? <Dashboard /> : <Navigate to="/" replace />
+                    user ? <Dashboard /> : <Navigate to="/" replace />
                   }
                 />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-              
-              <PasswordResetDialog
-                open={isPasswordResetOpen}
-                onOpenChange={setIsPasswordResetOpen}
-              />
-              
-              <Toaster />
-              <Sonner />
             </div>
-          </BrowserRouter>
-        </AuthContext.Provider>
+          </AuthContext.Provider>
+        </BrowserRouter>
       </ThemeContext.Provider>
     </QueryClientProvider>
   );
