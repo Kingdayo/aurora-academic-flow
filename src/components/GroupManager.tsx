@@ -13,7 +13,6 @@ import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Plus, Crown, Users, Mail, UserPlus, Trash2, Copy, MessageCircle } from 'lucide-react';
-import { generateAvatarUrl } from '@/lib/utils';
 
 interface GroupManagerProps {
   onGroupSelect?: (groupId: string) => void;
@@ -55,18 +54,18 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
       // Find group by join code
       const { data: groupData, error: groupError } = await supabase
         .from('groups')
-        .select('*')
-        .eq('join_code', joinCode.trim());
+        .select('id')
+        .eq('join_code', joinCode.trim())
+        .single();
 
-      if (groupError || !groupData || groupData.length === 0) {
+      if (groupError || !groupData) {
         toast.error('Invalid join code');
         return;
       }
 
-      await joinGroup(groupData[0].id);
+      await joinGroup(groupData.id);
       setJoinCode('');
       toast.success('Joined group successfully!');
-      refetch();
     } catch (error) {
       toast.error('Failed to join group');
     } finally {
@@ -154,7 +153,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
   }
 
   return (
-    <div className="space-y-6 bg-background text-foreground min-h-screen p-4 md:p-6">
+    <div className="space-y-6 bg-white min-h-screen p-4 md:p-6">
       {/* Your Groups Section - Moved to top */}
       <Card>
         <CardHeader>
@@ -175,7 +174,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={generateAvatarUrl(group.id)} />
+                        <AvatarImage src={`https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`} />
                         <AvatarFallback>{group.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
@@ -212,24 +211,22 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                   <Separator className="my-3" />
 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    {isGroupAdmin(group) && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm text-gray-600">Join Code:</span>
-                        <div className="flex items-center gap-2">
-                          <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">
-                            {group.join_code}
-                          </code>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => copyJoinCode(group.join_code)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm text-gray-600">Join Code:</span>
+                      <div className="flex items-center gap-2">
+                        <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">
+                          {group.join_code}
+                        </code>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyJoinCode(group.join_code)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
                       </div>
-                    )}
+                    </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
                       {/* Manage Members - Only for Admins */}
@@ -265,7 +262,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                                       <div className="flex items-center gap-2">
                                         <Avatar className="h-6 w-6">
                                           <AvatarImage 
-                                            src={generateAvatarUrl(member.user_id)}
+                                            src={member.profiles?.avatar_url || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`}
                                             alt={member.profiles?.full_name || 'Member'} 
                                           />
                                           <AvatarFallback>

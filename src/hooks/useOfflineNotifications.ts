@@ -14,24 +14,8 @@ export const useOfflineNotifications = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [queuedCount, setQueuedCount] = useState(0);
   const { toast } = useToast();
-  const [notificationPermission, setNotificationPermission] = useState('default');
-
-  const requestNotificationPermission = async () => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      setNotificationPermission(permission);
-      if (permission === 'granted') {
-        console.log('Notification permission granted.');
-      } else {
-        console.log('Notification permission denied.');
-      }
-    }
-  };
 
   useEffect(() => {
-    if ('Notification' in window) {
-      setNotificationPermission(Notification.permission);
-    }
     const handleOnline = async () => {
       setIsOnline(true);
       
@@ -201,8 +185,6 @@ export const useOfflineNotifications = () => {
     queuedCount,
     queueNotification,
     clearQueue,
-    updateQueuedCount,
-    requestNotificationPermission,
-    notificationPermission
+    updateQueuedCount
   };
 };
