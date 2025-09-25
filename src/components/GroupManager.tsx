@@ -178,14 +178,17 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                         <AvatarImage src={generateAvatarUrl(group.id)} />
                         <AvatarFallback>{group.name.charAt(0)}</AvatarFallback>
                       </Avatar>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <h3 className="font-semibold flex items-center gap-2 flex-wrap">
                           {group.name}
                           {isGroupAdmin(group) && (
                             <Crown className="h-4 w-4 text-yellow-500" />
                           )}
                         </h3>
-                        <p className="text-sm text-gray-600">{group.description}</p>
+                        <p className="text-sm text-muted-foreground truncate">{group.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {group.group_members?.filter((m: any) => m.status === 'active').length || 0} members
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -245,11 +248,11 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                               Manage Members
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="sm:max-w-md">
+                          <DialogContent className="sm:max-w-md max-h-[80vh] overflow-hidden">
                             <DialogHeader>
                               <DialogTitle>Manage Group Members</DialogTitle>
                               <DialogDescription>
-                                View and manage members of this group.
+                                View and manage members of this group ({groupMembers.length} total).
                               </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
@@ -352,15 +355,24 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Input
-            placeholder="Enter group join code"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value)}
-          />
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Group Join Code</Label>
+            <Input
+              placeholder="Enter 6-digit join code"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              className="text-center font-mono text-lg tracking-wider"
+              maxLength={6}
+            />
+            <p className="text-xs text-muted-foreground text-center">
+              Ask the group admin for the join code
+            </p>
+          </div>
           <Button 
             onClick={handleJoinGroup} 
             disabled={isJoining || !joinCode.trim()}
             className="w-full"
+            size="lg"
           >
             {isJoining ? 'Joining...' : 'Join Group'}
           </Button>

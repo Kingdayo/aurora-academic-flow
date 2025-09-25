@@ -170,52 +170,54 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full px-4 py-2">
-          <div className="space-y-4">
+        <ScrollArea className="h-full px-2 sm:px-4 py-2">
+          <div className="space-y-3 sm:space-y-4">
             {messages.length === 0 ? (
               <div className="text-center py-12">
-                <div className="text-gray-400 mb-2">
+                <div className="text-muted-foreground mb-2">
                   <Users className="h-12 w-12 mx-auto mb-4" />
                 </div>
-                <p className="text-gray-500">No messages yet. Start the conversation!</p>
+                <p className="text-muted-foreground">No messages yet. Start the conversation!</p>
               </div>
             ) : (
               messages.map((message) => {
                 const isOwnMessage = message.user_id === user?.id;
+                const displayName = isOwnMessage ? 'You' : (message.profiles?.full_name || 'User');
+                
                 return (
                   <div
                     key={message.id}
-                    className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}
+                    className={`flex gap-2 sm:gap-3 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}
                   >
-                    <Avatar className="h-8 w-8 flex-shrink-0">
+                    <Avatar className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0 mt-1">
                       <AvatarImage 
                         src={generateAvatarUrl(message.user_id)}
-                        alt={message.profiles?.full_name || 'User'} 
+                        alt={displayName} 
                       />
-                      <AvatarFallback>
-                        {message.profiles?.full_name?.charAt(0) || 'U'}
+                      <AvatarFallback className="text-xs">
+                        {displayName.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <div className={`flex-1 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg ${isOwnMessage ? 'text-right' : 'text-left'}`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-sm font-medium ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                          {isOwnMessage ? 'You' : message.profiles?.full_name || 'Unknown User'}
+                    <div className={`flex-1 max-w-[280px] sm:max-w-sm md:max-w-md lg:max-w-lg ${isOwnMessage ? 'text-right' : 'text-left'}`}>
+                      <div className={`flex items-center gap-1 sm:gap-2 mb-1 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <span className="text-xs sm:text-sm font-medium text-foreground">
+                          {displayName}
                         </span>
                         {isGroupAdmin(message.user_id) && (
-                          <Crown className={`h-3 w-3 text-yellow-500 ${isOwnMessage ? 'order-1' : 'order-2'}`} />
+                          <Crown className="h-3 w-3 text-yellow-500 flex-shrink-0" />
                         )}
-                        <span className={`text-xs text-gray-500 ${isOwnMessage ? 'order-1' : 'order-3'}`}>
+                        <span className="text-xs text-muted-foreground flex-shrink-0">
                           {formatMessageTime(message.created_at)}
                         </span>
                       </div>
                       <div
-                        className={`inline-block px-4 py-2 rounded-lg max-w-full break-words ${
+                        className={`inline-block px-3 sm:px-4 py-2 rounded-lg max-w-full break-words text-sm ${
                           isOwnMessage
                             ? 'bg-primary text-primary-foreground rounded-br-sm'
-                            : 'bg-muted text-muted-foreground rounded-bl-sm'
+                            : 'bg-muted text-foreground rounded-bl-sm'
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
                       </div>
                     </div>
                   </div>
@@ -229,32 +231,32 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
 
       {/* Message Input */}
       <Card className="rounded-none border-x-0 border-b-0">
-        <CardContent className="p-4">
+        <CardContent className="p-3 sm:p-4">
           <form onSubmit={handleSendMessage} className="flex gap-2">
             <Input
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type a message..."
               disabled={sending}
-              className="flex-1"
+              className="flex-1 text-sm sm:text-base"
               maxLength={1000}
             />
             <Button
               type="submit"
               disabled={!newMessage.trim() || sending}
               size="sm"
-              className="px-3"
+              className="px-3 sm:px-4"
             >
               {sending ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground"></div>
               ) : (
                 <Send className="h-4 w-4" />
               )}
             </Button>
           </form>
-          <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
+          <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
             <span>{newMessage.length}/1000</span>
-            <span>Press Enter to send</span>
+            <span className="hidden sm:inline">Press Enter to send</span>
           </div>
         </CardContent>
       </Card>
