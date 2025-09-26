@@ -385,7 +385,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                 <Send className="h-4 w-4" />
               )}
             </Button>
-          </form>
+          </div>
           <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
             <span>{newMessage.length}/1000</span>
             <span className="hidden sm:inline">Press Enter to send</span>
