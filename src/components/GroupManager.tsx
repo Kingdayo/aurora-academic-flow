@@ -83,15 +83,16 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
       // Find group by join code
       const { data: groupData, error: groupError } = await supabase
         .from('groups')
-        .select('*')
-        .eq('join_code', joinCode.trim());
+        .select('id')
+        .eq('join_code', joinCode.trim())
+        .single();
 
-      if (groupError || !groupData || groupData.length === 0) {
+      if (groupError || !groupData) {
         toast.error('Invalid join code');
         return;
       }
 
-      await joinGroup(groupData[0].id);
+      await joinGroup(groupData.id);
       setJoinCode('');
       toast.success('Joined group successfully!');
       
@@ -263,7 +264,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                           <Copy className="h-3 w-3" />
                         </Button>
                       </div>
-                    )}
+                    </div>
 
                     <div className="flex flex-col sm:flex-row gap-2">
                       {/* Manage Members - Only for Admins */}
@@ -300,7 +301,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                                       <div className="flex items-center gap-2 flex-1 min-w-0">
                                         <Avatar className="h-6 w-6 flex-shrink-0">
                                           <AvatarImage 
-                                            src={generateAvatarUrl(member.user_id)}
+                                            src={member.profiles?.avatar_url || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`}
                                             alt={member.profiles?.full_name || 'Member'} 
                                           />
                                           <AvatarFallback className="text-xs">

@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { User, Session } from "@supabase/supabase-js";
+import { User, Session } from "@supabase/gotrue-js";
 import { supabase } from "@/integrations/supabase/client";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
@@ -61,7 +61,6 @@ export const useAuth = () => {
 };
 
 function App() {
-  const { requestNotificationPermission, notificationPermission } = useOfflineNotifications();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -338,12 +337,6 @@ function App() {
           <AuthContext.Provider value={authContextValue}>
             <Toaster />
             <Sonner />
-            {notificationPermission === 'default' && (
-              <div className="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg z-50">
-                <p className="text-sm text-gray-700">Enable notifications to stay updated.</p>
-                <Button onClick={requestNotificationPermission} className="mt-2 w-full">Enable Notifications</Button>
-              </div>
-            )}
             <PasswordResetDialog
               isOpen={isPasswordResetOpen}
               onClose={() => setIsPasswordResetOpen(false)}
