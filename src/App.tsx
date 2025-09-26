@@ -12,6 +12,12 @@ import { toast } from "sonner";
 import { PasswordResetDialog } from "@/components/PasswordResetDialog";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Sun, Moon, User as UserIcon } from "lucide-react";
+import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
+import LoadingScreen from '@/components/LoadingScreen';
+import ThemeToggle from '@/components/ThemeToggle';
+import UserProfile from '@/components/UserProfile';
+import GroupManager from '@/components/GroupManager';
+import GroupChat from '@/components/GroupChat';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,9 +68,25 @@ export const useAuth = () => {
 };
 
 function App() {
-  const { user, loading } = useEnhancedAuth();
+  const authContextValue = useEnhancedAuth();
+  const { user, loading } = authContextValue;
   const [currentView, setCurrentView] = useState<'dashboard' | 'groups' | 'chat'>('dashboard');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
+
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  const toggleTheme = () => {
+    setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
+  };
+
+  const themeContextValue = { theme, toggleTheme };
+
+  const handlePasswordUpdate = (password: string) => {
+    // Add password update logic here
+    console.log('Password update requested with:', password);
+    setIsPasswordResetOpen(false);
+  };
 
   if (loading) {
     return <LoadingScreen />;
@@ -117,31 +139,31 @@ function App() {
                 />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-            </div>
-            <div className="flex items-center space-x-2">
-              <ThemeToggle />
-              <UserProfile />
-            </div>
-          </div>
+              <div className="flex items-center space-x-2">
+                <ThemeToggle />
+                <UserProfile />
+              </div>
 
-          {/* Main Content */}
-          <div className="flex-1">
-            {currentView === 'dashboard' && (
-              <Dashboard onNavigateToGroups={() => setCurrentView('groups')} />
-            )}
-            {currentView === 'groups' && (
-              <GroupManager onGroupSelect={handleGroupSelect} />
-            )}
-            {currentView === 'chat' && selectedGroupId && (
-              <GroupChat
-                groupId={selectedGroupId}
-                onBack={handleBackToGroups}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+              {/* Main Content */}
+              <div className="flex-1">
+                {currentView === 'dashboard' && (
+                  <Dashboard onNavigateToGroups={() => setCurrentView('groups')} />
+                )}
+                {currentView === 'groups' && (
+                  <GroupManager onGroupSelect={handleGroupSelect} />
+                )}
+                {currentView === 'chat' && selectedGroupId && (
+                  <GroupChat
+                    groupId={selectedGroupId}
+                    onBack={handleBackToGroups}
+                  />
+                )}
+              </div>
+            </div>
+          </AuthContext.Provider>
+        </BrowserRouter>
+      </ThemeContext.Provider>
+    </QueryClientProvider>
   );
 }
 
