@@ -1,18 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { useGroups } from '@/hooks/useGroups';
 import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Crown, Users, Mail, UserPlus, Trash2, Copy, MessageCircle } from 'lucide-react';
+import { Plus, Crown, Users, UserPlus, Trash2, Copy, MessageCircle } from 'lucide-react';
 
 interface GroupManagerProps {
   onGroupSelect?: (groupId: string) => void;
@@ -29,6 +28,36 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+
+  // Load member counts for all groups
+  useEffect(() => {
+    const loadMemberCounts = async () => {
+      if (groups.length === 0) return;
+      
+      const counts: Record<string, number> = {};
+      
+      for (const group of groups) {
+        try {
+          const { data, error } = await supabase
+            .from('group_members')
+            .select('id')
+            .eq('group_id', group.id)
+            .eq('status', 'active');
+          
+          if (!error && data) {
+            counts[group.id] = data.length;
+          }
+        } catch (error) {
+          console.error('Error loading member count for group:', group.id, error);
+        }
+      }
+      
+      setMemberCounts(counts);
+    };
+
+    loadMemberCounts();
+  }, [groups]);
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
@@ -66,6 +95,9 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
       await joinGroup(groupData.id);
       setJoinCode('');
       toast.success('Joined group successfully!');
+      
+      // Refresh member counts after joining
+      refetch();
     } catch (error) {
       toast.error('Failed to join group');
     } finally {
@@ -81,7 +113,8 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
         .from('group_members')
         .select('*')
         .eq('group_id', groupId)
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .order('joined_at', { ascending: true });
 
       if (membersError) throw membersError;
 
@@ -127,6 +160,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
 
       toast.success('Member removed successfully!');
       loadGroupMembers(groupId); // Reload members
+      refetch(); // Refresh groups to update member counts
     } catch (error) {
       console.error('Error removing member:', error);
       toast.error('Failed to remove member');
@@ -149,60 +183,64 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
   );
 
   if (loading) {
-    return <div className="flex justify-center p-8">Loading groups...</div>;
+    return <div className="flex justify-center p-8 bg-white">Loading groups...</div>;
   }
 
   return (
-    <div className="space-y-6 bg-white min-h-screen p-4 md:p-6">
+    <div className="space-y-4 md:space-y-6 bg-white min-h-screen p-3 md:p-6">
       {/* Your Groups Section - Moved to top */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
+        <CardHeader className="pb-3 md:pb-6">
+          <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+            <Users className="h-4 w-4 md:h-5 md:w-5" />
             Your Groups ({userGroups.length})
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           {userGroups.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
+            <p className="text-gray-500 text-center py-6 md:py-8 text-sm md:text-base">
               No groups yet. Create or join a group to get started!
             </p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 md:space-y-4">
               {userGroups.map((group) => (
-                <div key={group.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
+                <div key={group.id} className="border rounded-lg p-3 md:p-4 hover:shadow-md transition-shadow">
+                  <div className="flex flex-col gap-3 mb-3">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0">
                         <AvatarImage src={`https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`} />
-                        <AvatarFallback>{group.name.charAt(0)}</AvatarFallback>
+                        <AvatarFallback className="text-xs md:text-sm">{group.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold flex items-center gap-2 flex-wrap">
-                          {group.name}
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <h3 className="font-semibold text-sm md:text-base truncate">
+                            {group.name}
+                          </h3>
                           {isGroupAdmin(group) && (
-                            <Crown className="h-4 w-4 text-yellow-500" />
+                            <Crown className="h-3 w-3 md:h-4 md:w-4 text-yellow-500 flex-shrink-0" />
                           )}
-                        </h3>
-                        <p className="text-sm text-muted-foreground truncate">{group.description}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {group.group_members?.filter((m: any) => m.status === 'active').length || 0} members
+                          {isGroupAdmin(group) && (
+                            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs px-1.5 py-0.5">
+                              Admin
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs md:text-sm text-gray-600 line-clamp-2">{group.description}</p>
+                        <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {memberCounts[group.id] || 0} members
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {isGroupAdmin(group) && (
-                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                          Admin
-                        </Badge>
-                      )}
+                    
+                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
                       <Button
                         variant="default"
                         size="sm"
                         onClick={() => onGroupSelect?.(group.id)}
-                        className="flex items-center gap-1"
+                        className="flex items-center gap-1 text-xs md:text-sm h-8 md:h-9"
                       >
-                        <MessageCircle className="h-4 w-4" />
+                        <MessageCircle className="h-3 w-3 md:h-4 md:w-4" />
                         Open Chat
                       </Button>
                     </div>
@@ -210,25 +248,25 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
 
                   <Separator className="my-3" />
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm text-gray-600">Join Code:</span>
-                      <div className="flex items-center gap-2">
-                        <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <span className="text-xs md:text-sm text-gray-600 flex-shrink-0">Join Code:</span>
+                      <div className="flex items-center gap-2 flex-1">
+                        <code className="bg-gray-100 px-2 py-1 rounded text-xs md:text-sm font-mono flex-1 min-w-0 truncate">
                           {group.join_code}
                         </code>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => copyJoinCode(group.join_code)}
-                          className="h-8 w-8 p-0"
+                          className="h-7 w-7 md:h-8 md:w-8 p-0 flex-shrink-0"
                         >
                           <Copy className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       {/* Manage Members - Only for Admins */}
                       {isGroupAdmin(group) && (
                         <Dialog>
@@ -240,48 +278,54 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                                 setSelectedGroup(group.id);
                                 loadGroupMembers(group.id);
                               }}
+                              className="text-xs md:text-sm h-8 md:h-9"
                             >
-                              <Users className="h-4 w-4 mr-1" />
+                              <Users className="h-3 w-3 md:h-4 md:w-4 mr-1" />
                               Manage Members
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="sm:max-w-md max-h-[80vh] overflow-hidden">
+                          <DialogContent className="w-[95vw] max-w-md mx-auto">
                             <DialogHeader>
-                              <DialogTitle>Manage Group Members</DialogTitle>
-                              <DialogDescription>
-                                View and manage members of this group ({groupMembers.length} total).
+                              <DialogTitle className="text-base md:text-lg">Manage Group Members</DialogTitle>
+                              <DialogDescription className="text-sm">
+                                View and manage members of this group.
                               </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
                               {loadingMembers ? (
-                                <div className="text-center py-4">Loading members...</div>
+                                <div className="text-center py-4 text-sm">Loading members...</div>
                               ) : (
                                 <div className="space-y-2 max-h-60 overflow-y-auto">
                                   {groupMembers.map((member) => (
                                     <div key={member.id} className="flex items-center justify-between p-2 border rounded">
-                                      <div className="flex items-center gap-2">
-                                        <Avatar className="h-6 w-6">
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <Avatar className="h-6 w-6 flex-shrink-0">
                                           <AvatarImage 
                                             src={member.profiles?.avatar_url || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`}
                                             alt={member.profiles?.full_name || 'Member'} 
                                           />
-                                          <AvatarFallback>
+                                          <AvatarFallback className="text-xs">
                                             {member.profiles?.full_name?.charAt(0) || 'M'}
                                           </AvatarFallback>
                                         </Avatar>
-                                        <span className="text-sm">
-                                          {member.profiles?.full_name || 'Unknown User'}
-                                          {member.role === 'owner' && (
-                                            <Crown className="h-3 w-3 text-yellow-500 inline ml-1" />
-                                          )}
-                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-sm truncate">
+                                              {member.profiles?.full_name || 'Unknown User'}
+                                            </span>
+                                            {member.role === 'owner' && (
+                                              <Crown className="h-3 w-3 text-yellow-500 flex-shrink-0" />
+                                            )}
+                                          </div>
+                                          <span className="text-xs text-gray-500 capitalize">{member.role}</span>
+                                        </div>
                                       </div>
                                       {member.role !== 'owner' && (
                                         <Button
                                           variant="ghost"
                                           size="sm"
                                           onClick={() => handleRemoveMember(group.id, member.id)}
-                                          className="text-red-600 hover:text-red-700"
+                                          className="text-red-600 hover:text-red-700 h-8 w-8 p-0 flex-shrink-0"
                                         >
                                           <Trash2 className="h-3 w-3" />
                                         </Button>
@@ -300,7 +344,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                           variant="outline"
                           size="sm"
                           onClick={() => leaveGroup(group.id)}
-                          className="text-red-600 hover:text-red-700"
+                          className="text-red-600 hover:text-red-700 text-xs md:text-sm h-8 md:h-9"
                         >
                           Leave Group
                         </Button>
@@ -316,27 +360,29 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
 
       {/* Create Group Section */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
+        <CardHeader className="pb-3 md:pb-6">
+          <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+            <Plus className="h-4 w-4 md:h-5 md:w-5" />
             Create New Group
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 md:space-y-4 pt-0">
           <Input
             placeholder="Group name"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
+            className="text-sm md:text-base"
           />
           <Textarea
             placeholder="Group description (optional)"
             value={newGroupDescription}
             onChange={(e) => setNewGroupDescription(e.target.value)}
+            className="text-sm md:text-base min-h-[80px]"
           />
           <Button 
             onClick={handleCreateGroup} 
             disabled={isCreating || !newGroupName.trim()}
-            className="w-full"
+            className="w-full text-sm md:text-base h-9 md:h-10"
           >
             {isCreating ? 'Creating...' : 'Create Group'}
           </Button>
@@ -345,31 +391,24 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
 
       {/* Join Group Section */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5" />
+        <CardHeader className="pb-3 md:pb-6">
+          <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+            <UserPlus className="h-4 w-4 md:h-5 md:w-5" />
             Join Group
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Group Join Code</Label>
-            <Input
-              placeholder="Enter 6-digit join code"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              className="text-center font-mono text-lg tracking-wider"
-              maxLength={6}
-            />
-            <p className="text-xs text-muted-foreground text-center">
-              Ask the group admin for the join code
-            </p>
-          </div>
+        <CardContent className="space-y-3 md:space-y-4 pt-0">
+          <Input
+            placeholder="Enter group join code"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            className="text-sm md:text-base font-mono"
+            maxLength={6}
+          />
           <Button 
             onClick={handleJoinGroup} 
             disabled={isJoining || !joinCode.trim()}
-            className="w-full"
-            size="lg"
+            className="w-full text-sm md:text-base h-9 md:h-10"
           >
             {isJoining ? 'Joining...' : 'Join Group'}
           </Button>

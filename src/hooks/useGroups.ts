@@ -1,74 +1,94 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-
-interface Group {
-  id: string;
-  name: string;
-  description: string | null;
-  owner_id: string;
-  created_at: string;
-  updated_at: string;
-  join_code: string;
-  member_count?: number;
-  group_members?: GroupMember[];
-}
-
-interface GroupMember {
-  id: string;
-  group_id: string;
-  user_id: string;
-  role: 'owner' | 'admin' | 'member';
-  status: 'pending' | 'active' | 'removed';
-  joined_at: string;
-  profiles?: {
-    id: string;
-    full_name: string | null;
-    avatar_url?: string | null;
-  } | null;
-}
+import { useEnhancedAuth } from './useEnhancedAuth';
+import { toast } from 'sonner';
 
 export const useGroups = () => {
-  const [groups, setGroups] = useState<Group[]>([]);
+  const { user } = useEnhancedAuth();
+  const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
 
   const fetchGroups = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setGroups([]);
-        setLoading(false);
-        return;
-      }
+    if (!user) {
+      setGroups([]);
+      setLoading(false);
+      return;
+    }
 
-      // Get groups where user is a member
-      const { data, error } = await supabase
-        .from('groups')
+    try {
+      setLoading(true);
+      
+      // Get groups where user is owner or member
+      const { data: memberGroups, error: memberError } = await supabase
+        .from('group_members')
         .select(`
-          *,
-          group_members!inner(
-            user_id,
-            role,
-            status
+          group_id,
+          groups!inner (
+            id,
+            name,
+            description,
+            owner_id,
+            join_code,
+            created_at
           )
         `)
-        .eq('group_members.user_id', user.id)
-        .eq('group_members.status', 'active')
-        .order('created_at', { ascending: false });
+        .eq('user_id', user.id)
+        .eq('status', 'active');
 
-      if (error) throw error;
+      if (memberError) throw memberError;
 
-      setGroups(data || []);
+      // Get groups where user is owner
+      const { data: ownedGroups, error: ownedError } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('owner_id', user.id);
+
+      if (ownedError) throw ownedError;
+
+      // Combine and deduplicate groups
+      const allGroups = new Map();
+      
+      // Add owned groups
+      ownedGroups?.forEach(group => {
+        allGroups.set(group.id, group);
+      });
+
+      // Add member groups
+      memberGroups?.forEach(memberGroup => {
+        const group = memberGroup.groups;
+        if (group && !allGroups.has(group.id)) {
+          allGroups.set(group.id, group);
+        }
+      });
+
+      // For each group, get member information
+      const groupsWithMembers = await Promise.all(
+        Array.from(allGroups.values()).map(async (group) => {
+          try {
+            const { data: members, error: membersError } = await supabase
+              .from('group_members')
+              .select('*')
+              .eq('group_id', group.id)
+              .eq('status', 'active');
+
+            if (membersError) {
+              console.error('Error fetching members for group:', group.id, membersError);
+              return { ...group, group_members: [] };
+            }
+
+            return { ...group, group_members: members || [] };
+          } catch (error) {
+            console.error('Error processing group:', group.id, error);
+            return { ...group, group_members: [] };
+          }
+        })
+      );
+
+      setGroups(groupsWithMembers);
     } catch (error) {
       console.error('Error fetching groups:', error);
-      setError('Failed to fetch groups');
-      toast({
-        title: "Error",
-        description: "Failed to fetch groups",
-        variant: "destructive",
-      });
+      toast.error('Failed to load groups');
+      setGroups([]);
     } finally {
       setLoading(false);
     }
@@ -78,252 +98,129 @@ export const useGroups = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    // Generate a unique join code
-    const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    try {
+      // Generate a unique 6-character join code
+      const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    const { data, error } = await supabase
-      .from('groups')
-      .insert({
-        name,
-        description: description || '',
-        owner_id: user.id,
-        join_code: joinCode
-      })
-      .select()
-      .single();
+      const { data: group, error: groupError } = await supabase
+        .from('groups')
+        .insert({
+          name,
+          description: description || '',
+          owner_id: user.id,
+          join_code: joinCode,
+        })
+        .select()
+        .single();
 
-    if (error) throw error;
+      if (groupError) throw groupError;
 
-    // Add the creator as a member with owner role
-    const { error: memberError } = await supabase
-      .from('group_members')
-      .insert({
-        group_id: data.id,
-        user_id: user.id,
-        role: 'owner',
-        status: 'active'
-      });
+      // Add the creator as the first member with owner role
+      const { error: memberError } = await supabase
+        .from('group_members')
+        .insert({
+          group_id: group.id,
+          user_id: user.id,
+          role: 'owner',
+          status: 'active',
+        });
 
-    if (memberError) throw memberError;
+      if (memberError) throw memberError;
 
-    await fetchGroups();
-    return data;
+      await fetchGroups();
+      return group;
+    } catch (error) {
+      console.error('Error creating group:', error);
+      throw error;
+    }
   };
 
   const joinGroup = async (groupId: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    // Check if user is already a member
-    const { data: existingMember } = await supabase
-      .from('group_members')
-      .select('id')
-      .eq('group_id', groupId)
-      .eq('user_id', user.id)
-      .single();
-
-    if (existingMember) {
-      throw new Error('You are already a member of this group');
-    }
-
-    const { error } = await supabase
-      .from('group_members')
-      .insert({
-        group_id: groupId,
-        user_id: user.id,
-        role: 'member',
-        status: 'active'
-      });
-
-    if (error) throw error;
-
-    await fetchGroups();
-  };
-
-  const leaveGroup = async (groupId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { error } = await supabase
-        .from('group_members')
-        .update({ status: 'removed' })
-        .eq('group_id', groupId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Left group successfully",
-      });
-
-      fetchGroups();
-    } catch (error) {
-      console.error('Error leaving group:', error);
-      const message = error instanceof Error ? error.message : 'Failed to leave group';
-      setError(message);
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const fetchGroupMembers = async (groupId: string): Promise<GroupMember[]> => {
-    try {
-      // First get the group members
-      const { data: members, error: membersError } = await supabase
-        .from('group_members')
-        .select('*')
-        .eq('group_id', groupId)
-        .eq('status', 'active')
-        .order('joined_at', { ascending: true });
-
-      if (membersError) throw membersError;
-
-      if (!members || members.length === 0) {
-        return [];
-      }
-
-      // Get user IDs
-      const userIds = members.map(member => member.user_id);
-
-      // Get profiles for these users (only available columns)
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url')
-        .in('id', userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Combine the data
-      const membersWithProfiles = members.map(member => ({
-        ...member,
-        profiles: profiles?.find(profile => profile.id === member.user_id) || null
-      }));
-
-      return membersWithProfiles;
-    } catch (error) {
-      console.error('Error fetching group members:', error);
-      return [];
-    }
-  };
-
-  const addMemberToGroup = async (groupId: string, userEmail: string) => {
-    try {
-      // First, find the user by email
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', userEmail.trim())
-        .single();
-
-      if (userError || !userData) {
-        throw new Error('User not found with this email');
-      }
-
       // Check if user is already a member
-      const { data: existingMember } = await supabase
+      const { data: existingMember, error: checkError } = await supabase
         .from('group_members')
         .select('id')
         .eq('group_id', groupId)
-        .eq('user_id', userData.id)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
         .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
 
       if (existingMember) {
-        throw new Error('User is already a member of this group');
+        toast.info('You are already a member of this group');
+        return;
       }
 
-      // Add the user to the group
-      const { error: addError } = await supabase
+      // Add user as member
+      const { error: joinError } = await supabase
         .from('group_members')
         .insert({
           group_id: groupId,
-          user_id: userData.id,
+          user_id: user.id,
+          role: 'member',
           status: 'active',
-          role: 'member'
         });
 
-      if (addError) throw addError;
+      if (joinError) throw joinError;
 
-      return { success: true };
+      await fetchGroups();
     } catch (error) {
-      console.error('Error adding member:', error);
+      console.error('Error joining group:', error);
       throw error;
     }
   };
 
-  const removeMemberFromGroup = async (groupId: string, memberId: string) => {
+  const leaveGroup = async (groupId: string) => {
+    if (!user) throw new Error('User not authenticated');
+
     try {
-      const { error } = await supabase
-        .from('group_members')
-        .delete()
-        .eq('id', memberId);
+      // Check if user is the owner
+      const { data: group, error: groupError } = await supabase
+        .from('groups')
+        .select('owner_id')
+        .eq('id', groupId)
+        .single();
 
-      if (error) throw error;
+      if (groupError) throw groupError;
 
-      return { success: true };
-    } catch (error) {
-      console.error('Error removing member:', error);
-      throw error;
-    }
-  };
-
-  const getGroupMembers = async (groupId: string) => {
-    try {
-      // First get the group members
-      const { data: members, error: membersError } = await supabase
-        .from('group_members')
-        .select('*')
-        .eq('group_id', groupId)
-        .eq('status', 'active');
-
-      if (membersError) throw membersError;
-
-      if (!members || members.length === 0) {
-        return [];
+      if (group.owner_id === user.id) {
+        toast.error('Group owners cannot leave their own groups. Delete the group instead.');
+        return;
       }
 
-      // Get user IDs
-      const userIds = members.map(member => member.user_id);
+      // Remove user from group
+      const { error: leaveError } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('group_id', groupId)
+        .eq('user_id', user.id);
 
-      // Get profiles for these users (only available columns)
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url')
-        .in('id', userIds);
+      if (leaveError) throw leaveError;
 
-      if (profilesError) throw profilesError;
-
-      // Combine the data
-      const membersWithProfiles = members.map(member => ({
-        ...member,
-        profiles: profiles?.find(profile => profile.id === member.user_id) || null
-      }));
-
-      return membersWithProfiles;
+      await fetchGroups();
+      toast.success('Left group successfully');
     } catch (error) {
-      console.error('Error loading members:', error);
+      console.error('Error leaving group:', error);
       throw error;
     }
   };
 
   useEffect(() => {
     fetchGroups();
-  }, []);
+  }, [user]);
 
   return {
     groups,
     loading,
-    error,
     createGroup,
     joinGroup,
     leaveGroup,
-    addMemberToGroup,
-    removeMemberFromGroup,
-    getGroupMembers,
-    refetch: fetchGroups
+    refetch: fetchGroups,
   };
 };

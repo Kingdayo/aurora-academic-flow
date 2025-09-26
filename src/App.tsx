@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import SplashScreen from "./components/SplashScreen";
 import { toast } from "sonner";
 import { PasswordResetDialog } from "@/components/PasswordResetDialog";
+import { Button } from "@/components/ui/button";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +67,7 @@ function App() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     try {
       const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
@@ -74,6 +76,23 @@ function App() {
       return "light";
     }
   });
+
+  useEffect(() => {
+    // Check notification permission
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission === 'granted') {
+        toast.success('Notifications enabled!');
+      }
+    }
+  };
 
   useEffect(() => {
     // Apply theme to document
@@ -138,7 +157,6 @@ function App() {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('[App] Error getting session:', error);
-          // Clear any stale auth data on error
           setSession(null);
           setUser(null);
         } else {
@@ -165,16 +183,11 @@ function App() {
             scope: '/'
           });
           console.log('[App] Service Worker registered with scope:', registration.scope);
-          
-          // Wait for service worker to be ready
           await registration.update();
         } catch (error) {
           console.error('[App] Service Worker registration failed:', error);
-          // Don't throw - app should work without SW
         }
       });
-    } else {
-      console.log('[App] Service Worker not supported');
     }
 
     return () => {
@@ -193,7 +206,6 @@ function App() {
       
       if (error) {
         console.error('[App] Login error:', error);
-        // Provide more specific error messages
         if (error.message.includes('Invalid login credentials')) {
           return { error: { message: 'Invalid email or password. Please check your credentials and try again.' } };
         } else if (error.message.includes('Email not confirmed')) {
@@ -228,7 +240,6 @@ function App() {
       
       if (error) {
         console.error('[App] Registration error:', error);
-        // Provide more specific error messages for registration
         if (error.message.includes('User already registered')) {
           return { error: { message: 'An account with this email already exists. Please sign in instead.' } };
         } else if (error.message.includes('Invalid API key')) {
@@ -254,83 +265,76 @@ function App() {
       
       if (error) {
         console.error('[App] Password reset error:', error);
-        if (error.message.includes('Invalid API key')) {
-          return { error: { message: 'Authentication service is temporarily unavailable. Please try again later.' } };
-        }
-        // Check for network errors which might indicate a redirect URL issue
-        if (error.name === 'AuthRetryableFetchError' || error.message.includes('NetworkError')) {
-          return { error: { message: 'Network error. Please check your connection and ensure the app URL is in your Supabase project\'s redirect list.' } };
-        }
       }
       
       return { error };
-    } catch (error: any) {
+    } catch (error) {
       console.error('[App] Password reset exception:', error);
-      if (error.name === 'AuthRetryableFetchError' || error.message.includes('NetworkError')) {
-        return { error: { message: 'Network error. Please check your connection and ensure the app URL is in your Supabase project\'s redirect list.' } };
-      }
       return { error: { message: 'An unexpected error occurred. Please try again.' } };
     }
   };
 
   const logout = async () => {
+    setLoggingOut(true);
     try {
-      setLoggingOut(true);
-      console.log('[App] Attempting logout');
-      
-      setTimeout(async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          console.error('[App] Logout error:', error);
-          setLoggingOut(false);
-        }
-      }, 2000);
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('[App] Logout error:', error);
+        toast.error('Failed to logout. Please try again.');
+        setLoggingOut(false);
+      }
     } catch (error) {
       console.error('[App] Logout exception:', error);
+      toast.error('An unexpected error occurred during logout.');
       setLoggingOut(false);
     }
   };
 
-  const handlePasswordUpdate = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) {
-        toast.error(error.message);
-        throw error;
+  const handlePasswordUpdate = async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      
+      if (error) {
+        console.error('[App] Password update error:', error);
+        toast.error('Failed to update password. Please try again.');
+        return;
+      }
+      
+      toast.success('Password updated successfully!');
+      setIsPasswordResetOpen(false);
+    } catch (error) {
+      console.error('[App] Password update exception:', error);
+      toast.error('An unexpected error occurred. Please try again.');
     }
   };
 
-  if (initialLoading || loading) {
-    return <SplashScreen />;
-  }
+  const authContextValue: AuthContextType = {
+    user,
+    session,
+    login,
+    register,
+    resetPassword,
+    logout,
+    loading,
+    loggingOut,
+  };
 
-  if (loggingOut) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800 flex items-center justify-center relative">
-        <div className="absolute inset-0 backdrop-blur-sm bg-white/30 dark:bg-gray-900/30 z-10" />
-        <div className="relative z-20 flex flex-col items-center space-y-6 p-8">
-          <div className="w-20 h-20 bg-purple-gradient rounded-full flex items-center justify-center animate-pulse-glow">
-            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-          </div>
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Signing you out...
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300">
-              See you next time!
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+  const themeContextValue: ThemeContextType = {
+    theme,
+    toggleTheme,
+  };
+
+  if (initialLoading) {
+    return <SplashScreen />;
   }
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      <ThemeContext.Provider value={themeContextValue}>
         <BrowserRouter>
-          <AuthContext.Provider value={{ user, session, login, register, resetPassword, logout, loading, loggingOut }}>
+          <AuthContext.Provider value={authContextValue}>
             <Toaster />
             <Sonner />
             <PasswordResetDialog
@@ -338,17 +342,23 @@ function App() {
               onClose={() => setIsPasswordResetOpen(false)}
               onSubmit={handlePasswordUpdate}
             />
-            <Routes>
-              <Route 
-                path="/" 
-                element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />} 
-              />
-              <Route 
-                path="/dashboard" 
-                element={user ? <Dashboard /> : <Navigate to="/" replace />} 
-              />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    user ? <Navigate to="/dashboard" replace /> : <AuthPage />
+                  }
+                />
+                <Route
+                  path="/dashboard"
+                  element={
+                    user ? <Dashboard /> : <Navigate to="/" replace />
+                  }
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </div>
           </AuthContext.Provider>
         </BrowserRouter>
       </ThemeContext.Provider>
