@@ -40,6 +40,43 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
     loadGroupMembers();
   }, [groupId]);
 
+  // Real-time member count updates
+  useEffect(() => {
+    const subscription = supabase
+      .channel(`group_${groupId}_members`)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'group_members', filter: `group_id=eq.${groupId}` },
+        () => {
+          loadGroupMembers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [groupId]);
+
+  // Message notifications
+  useEffect(() => {
+    if (messages.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
+      const latestMessage = messages[messages.length - 1];
+      
+      // Only show notification for messages from other users
+      if (latestMessage.user_id !== user?.id) {
+        const senderName = latestMessage.profiles?.full_name || 'Someone';
+        const notification = new Notification(`New message from ${senderName}`, {
+          body: latestMessage.content.substring(0, 100),
+          icon: '/favicon.ico',
+          tag: `group-${groupId}`,
+        });
+
+        // Auto close after 5 seconds
+        setTimeout(() => notification.close(), 5000);
+      }
+    }
+  }, [messages, user?.id, groupId]);
+
   const loadGroupInfo = async () => {
     try {
       const { data, error } = await supabase
@@ -128,19 +165,19 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
 
   if (loading && !messages.length) {
     return (
-      <div className="flex justify-center items-center h-96 bg-white">
+      <div className="flex justify-center items-center h-96 bg-background">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-500 text-sm">Loading messages...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground text-sm">Loading messages...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <Card className="rounded-none border-x-0 border-t-0 flex-shrink-0">
+      <Card className="rounded-none border-x-0 border-t-0 flex-shrink-0 bg-card border-border">
         <CardHeader className="pb-2 md:pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
@@ -154,11 +191,11 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
               </Button>
               <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0">
                 <AvatarImage src={`https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`} />
-                <AvatarFallback className="text-xs md:text-sm">{groupInfo?.name?.charAt(0) || 'G'}</AvatarFallback>
+                <AvatarFallback className="text-xs md:text-sm bg-primary/10 text-primary">{groupInfo?.name?.charAt(0) || 'G'}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <CardTitle className="text-sm md:text-lg truncate">{groupInfo?.name || 'Group Chat'}</CardTitle>
-                <p className="text-xs md:text-sm text-gray-500 flex items-center gap-1">
+                <CardTitle className="text-sm md:text-lg truncate text-card-foreground">{groupInfo?.name || 'Group Chat'}</CardTitle>
+                <p className="text-xs md:text-sm text-muted-foreground flex items-center gap-1">
                   <Users className="h-3 w-3" />
                   {memberCount} member{memberCount !== 1 ? 's' : ''}
                 </p>
@@ -174,10 +211,10 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
           <div className="space-y-3 md:space-y-4">
             {messages.length === 0 ? (
               <div className="text-center py-8 md:py-12">
-                <div className="text-gray-400 mb-2">
+                <div className="text-muted-foreground mb-2">
                   <Users className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-2 md:mb-4" />
                 </div>
-                <p className="text-gray-500 text-sm md:text-base">No messages yet. Start the conversation!</p>
+                <p className="text-muted-foreground text-sm md:text-base">No messages yet. Start the conversation!</p>
               </div>
             ) : (
               messages.map((message) => {
@@ -194,27 +231,27 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                         src={message.profiles?.avatar_url || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`} 
                         alt={displayName} 
                       />
-                      <AvatarFallback className="text-xs">
+                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
                         {displayName.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
                     <div className={`flex-1 max-w-[75%] md:max-w-[60%] ${isOwnMessage ? 'text-right' : 'text-left'}`}>
                       <div className={`flex items-center gap-1 md:gap-2 mb-1 text-xs ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
-                        <span className="font-medium text-gray-700 truncate">
+                        <span className="font-medium text-card-foreground truncate">
                           {displayName}
                         </span>
                         {isGroupAdmin(message.user_id) && (
                           <Crown className="h-3 w-3 text-yellow-500 flex-shrink-0" />
                         )}
-                        <span className="text-gray-500 text-xs flex-shrink-0">
+                        <span className="text-muted-foreground text-xs flex-shrink-0">
                           {formatMessageTime(message.created_at)}
                         </span>
                       </div>
                       <div
                         className={`inline-block px-3 py-2 rounded-lg max-w-full break-words text-sm ${
                           isOwnMessage
-                            ? 'bg-purple-600 text-white rounded-br-sm'
-                            : 'bg-gray-100 text-gray-900 rounded-bl-sm'
+                            ? 'bg-primary text-primary-foreground rounded-br-sm'
+                            : 'bg-muted text-muted-foreground rounded-bl-sm'
                         }`}
                       >
                         <p className="whitespace-pre-wrap">{message.content}</p>
@@ -230,7 +267,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
       </div>
 
       {/* Message Input */}
-      <Card className="rounded-none border-x-0 border-b-0 flex-shrink-0">
+      <Card className="rounded-none border-x-0 border-b-0 flex-shrink-0 bg-card border-border">
         <CardContent className="p-3 md:p-4">
           <form onSubmit={handleSendMessage} className="flex gap-2">
             <Input
@@ -238,7 +275,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type a message..."
               disabled={sending}
-              className="flex-1 text-sm md:text-base"
+              className="flex-1 text-sm md:text-base bg-background border-input"
               maxLength={1000}
             />
             <Button
@@ -248,13 +285,13 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
               className="px-3 h-9 md:h-10"
             >
               {sending ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground"></div>
               ) : (
                 <Send className="h-4 w-4" />
               )}
             </Button>
           </form>
-          <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
+          <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
             <span>{newMessage.length}/1000</span>
             <span className="hidden sm:inline">Press Enter to send</span>
           </div>
