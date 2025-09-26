@@ -379,10 +379,6 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
               size="sm"
               className="px-3"
             >
-<<<<<<< HEAD
-              <Send className="h-4 w-4" />
-            </Button>
-=======
               {sending ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground"></div>
               ) : (
@@ -393,7 +389,6 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
           <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
             <span>{newMessage.length}/1000</span>
             <span className="hidden sm:inline">Press Enter to send</span>
->>>>>>> 44c53470a408f7d668b4ce3cda44098840fa9e85
           </div>
         </CardContent>
       </Card>
