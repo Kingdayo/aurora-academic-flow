@@ -1,17 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { List, Calendar as CalendarIcon, BarChart3, Bot, Bell, Menu, X, Users } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/App";
 import GroupManager from "@/components/GroupManager";
 import GroupChat from "@/components/GroupChat";
-import ThemeToggle from "@/components/ThemeToggle";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import OfflineSync from "@/components/OfflineSync";
 import SmartNotifications from "@/components/SmartNotifications";
@@ -26,6 +23,7 @@ import TaskCountdown from "@/components/TaskCountdown";
 import useTaskNotifications from "@/hooks/useTaskNotifications";
 import { useIsMobile } from "@/hooks/use-mobile";
 import VoiceCommandButton from "@/components/VoiceCommandButton";
+import UserProfile from "@/components/UserProfile";
 
 interface Task {
   id: string;
@@ -81,20 +79,26 @@ const Dashboard = () => {
     setSelectedGroupId(null);
   };
 
-  // Listen for voice command events
+  // Listen for global and voice command events
   useEffect(() => {
     const handleVoiceAddTaskEvent = () => handleVoiceAddTask();
     const handleVoiceTabChangeEvent = (event: CustomEvent) => handleVoiceTabChange(event.detail.tab);
     const handleVoiceStartTimerEvent = () => handleVoiceStartTimer();
+    const handleAddTaskEvent = () => setShowAddDialog(true);
+    const handleChangeTabEvent = (event: CustomEvent) => setActiveTab(event.detail.tab);
 
     window.addEventListener('voice-add-task', handleVoiceAddTaskEvent);
     window.addEventListener('voice-tab-change', handleVoiceTabChangeEvent as EventListener);
     window.addEventListener('voice-start-timer', handleVoiceStartTimerEvent);
+    window.addEventListener('add-task', handleAddTaskEvent);
+    window.addEventListener('change-tab', handleChangeTabEvent as EventListener);
 
     return () => {
       window.removeEventListener('voice-add-task', handleVoiceAddTaskEvent);
       window.removeEventListener('voice-tab-change', handleVoiceTabChangeEvent as EventListener);
       window.removeEventListener('voice-start-timer', handleVoiceStartTimerEvent);
+      window.removeEventListener('add-task', handleAddTaskEvent);
+      window.removeEventListener('change-tab', handleChangeTabEvent as EventListener);
     };
   }, [handleVoiceAddTask, handleVoiceTabChange, handleVoiceStartTimer]);
 
@@ -112,12 +116,12 @@ const Dashboard = () => {
     <div className={`
       ${isMobile 
         ? `fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-500 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}` 
-        : 'w-80 flex-shrink-0'
+        : 'sticky top-0 h-screen w-80 flex-shrink-0'
       } 
       bg-gradient-to-br from-purple-50 via-white to-purple-100 
       dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800 
       border-r border-purple-200/50 dark:border-purple-800/30 
-      backdrop-blur-xl shadow-2xl transition-all duration-500
+      backdrop-blur-xl shadow-xl transition-all duration-500
     `}>
       {isMobile && (
         <div className="absolute top-4 right-4 z-10">
@@ -138,49 +142,13 @@ const Dashboard = () => {
           <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-purple-600 via-purple-500 to-blue-600 bg-clip-text text-transparent animate-gradient">
             Aurora
           </h1>
-          <div className="flex items-center gap-2 mx-[50px]">
+          <div className="flex items-center gap-2">
             <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200 animate-pulse-glow transition-all duration-300">
               <Bell className="w-3 h-3 mr-1" />
               Live
             </Badge>
-            <ThemeToggle />
           </div>
         </div>
-
-        {/* User Profile */}
-        <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-purple-200/50 dark:border-purple-800/30 shadow-lg hover:shadow-xl transition-all duration-500 hover-lift animate-slide-in-right">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg text-purple-800 dark:text-purple-200">Profile</CardTitle>
-            <CardDescription className="text-purple-600 dark:text-purple-300">
-              Your workspace dashboard
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-4">
-              <Avatar className="h-12 w-12 ring-2 ring-purple-200 dark:ring-purple-700 shadow-md transition-all duration-300 hover:scale-105">
-                <AvatarImage src="https://github.com/shadcn.png" />
-                <AvatarFallback className="bg-purple-gradient text-white font-semibold">
-                  {user?.email?.[0].toUpperCase() || '?'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                  {user?.email || "No Email"}
-                </p>
-                <p className="text-xs text-purple-600 dark:text-purple-400">
-                  {user?.email ? "Active Session" : "Not Connected"}
-                </p>
-              </div>
-            </div>
-            <Button 
-              variant="outline" 
-              className="mt-4 w-full border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-300 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900/30 transition-all duration-300 hover:scale-105" 
-              onClick={logout}
-            >
-              Sign Out
-            </Button>
-          </CardContent>
-        </Card>
 
         <Separator className="bg-purple-200/50 dark:bg-purple-800/30" />
 
@@ -221,19 +189,18 @@ const Dashboard = () => {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/10 dark:to-gray-800 transition-all duration-500">
-        {/* Mobile overlay */}
-        {isMobile && sidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity duration-300" 
-            onClick={() => setSidebarOpen(false)} 
-          />
-        )}
-
-        <div className="flex min-h-screen">
+        <div className="flex min-h-screen max-w-screen-2xl mx-auto">
           <Sidebar />
 
           {/* Main Content */}
           <div className="flex-1 flex flex-col min-w-0">
+            {/* Mobile overlay */}
+            {isMobile && sidebarOpen && (
+              <div
+                className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity duration-300"
+                onClick={() => setSidebarOpen(false)}
+              />
+            )}
             {/* Mobile Header */}
             {isMobile && (
               <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-purple-200/50 dark:border-purple-800/30 p-4 sticky top-0 z-30 transition-all duration-300">
@@ -265,8 +232,12 @@ const Dashboard = () => {
                     <div className="flex-1 max-w-md mx-8">
                       <TaskCountdown />
                     </div>
-                    <div className="text-sm text-purple-600 dark:text-purple-400">
-                      Welcome back, {user?.email?.split('@')[0] || 'User'}
+                    <div className="flex items-center space-x-4">
+                      <div className="text-sm text-right text-purple-600 dark:text-purple-400">
+                        <p className="font-medium">Welcome back,</p>
+                        <p>{user?.email?.split('@')[0] || 'User'}</p>
+                      </div>
+                      <UserProfile />
                     </div>
                   </div>
                 </div>

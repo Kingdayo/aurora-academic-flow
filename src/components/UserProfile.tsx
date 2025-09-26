@@ -8,16 +8,8 @@ import { Separator } from "@/components/ui/separator";
 import { User, Mail, Plus, Calendar, BarChart3, Mic, LogOut, CheckSquare, Timer, Brain } from "lucide-react";
 import { toast } from "sonner";
 
-interface UserProfileProps {
-  onAddTask?: () => void;
-  onTabChange?: (tab: string) => void;
-  onVoiceCommands?: () => void;
-  isLoggingOut?: boolean;
-  onLogout?: () => void;
-}
-
-const UserProfile = ({ onAddTask, onTabChange, onVoiceCommands, isLoggingOut = false, onLogout }: UserProfileProps) => {
-  const { user } = useAuth();
+const UserProfile = () => {
+  const { user, logout, loggingOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
   const getInitials = (name: string) => {
@@ -32,60 +24,56 @@ const UserProfile = ({ onAddTask, onTabChange, onVoiceCommands, isLoggingOut = f
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
 
   const handleLogout = async () => {
-    if (onLogout) {
-      await onLogout();
-      setIsOpen(false);
-    }
+    await logout();
+    setIsOpen(false);
   };
 
-  const handleQuickAction = (action: (() => void) | undefined) => {
-    if (action) {
-      action();
-      setIsOpen(false);
-    }
+  const handleAndClose = (cb: () => void) => {
+    cb();
+    setIsOpen(false);
   };
 
   const quickActions = [
     {
       icon: Plus,
       label: "Add Task",
-      action: () => handleQuickAction(onAddTask),
+      action: () => handleAndClose(() => window.dispatchEvent(new CustomEvent('add-task'))),
       color: "text-blue-600 dark:text-blue-400"
     },
     {
       icon: CheckSquare,
       label: "Tasks",
-      action: () => handleQuickAction(() => onTabChange?.('tasks')),
+      action: () => handleAndClose(() => window.dispatchEvent(new CustomEvent('change-tab', { detail: { tab: 'tasks' } }))),
       color: "text-green-600 dark:text-green-400"
     },
     {
       icon: Calendar,
       label: "Calendar",
-      action: () => handleQuickAction(() => onTabChange?.('calendar')),
+      action: () => handleAndClose(() => window.dispatchEvent(new CustomEvent('change-tab', { detail: { tab: 'calendar' } }))),
       color: "text-purple-600 dark:text-purple-400"
     },
     {
       icon: BarChart3,
       label: "Analytics",
-      action: () => handleQuickAction(() => onTabChange?.('analytics')),
+      action: () => handleAndClose(() => window.dispatchEvent(new CustomEvent('change-tab', { detail: { tab: 'analytics' } }))),
       color: "text-orange-600 dark:text-orange-400"
     },
     {
       icon: Brain,
       label: "AI Hub",
-      action: () => handleQuickAction(() => onTabChange?.('ai-hub')),
+      action: () => handleAndClose(() => window.dispatchEvent(new CustomEvent('change-tab', { detail: { tab: 'ai-assistant' } }))),
       color: "text-indigo-600 dark:text-indigo-400"
     },
     {
       icon: Timer,
       label: "Productivity",
-      action: () => handleQuickAction(() => onTabChange?.('productivity')),
+      action: () => handleAndClose(() => window.dispatchEvent(new CustomEvent('change-tab', { detail: { tab: 'pomodoro' } }))),
       color: "text-red-600 dark:text-red-400"
     },
     {
       icon: Mic,
       label: "Voice Commands",
-      action: () => handleQuickAction(onVoiceCommands),
+      action: () => handleAndClose(() => window.dispatchEvent(new CustomEvent('change-tab', { detail: { tab: 'ai-assistant' } }))),
       color: "text-pink-600 dark:text-pink-400"
     }
   ];
@@ -174,11 +162,11 @@ const UserProfile = ({ onAddTask, onTabChange, onVoiceCommands, isLoggingOut = f
             <Button
               variant="outline"
               onClick={handleLogout}
-              disabled={isLoggingOut}
+              disabled={loggingOut}
               className="w-full flex items-center justify-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-800 mobile-friendly-toggle transition-all duration-200"
             >
               <LogOut className="w-4 h-4" />
-              <span>{isLoggingOut ? "Signing out..." : "Logout"}</span>
+              <span>{loggingOut ? "Signing out..." : "Logout"}</span>
             </Button>
           </CardContent>
         </Card>
