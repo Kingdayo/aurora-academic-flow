@@ -90,29 +90,6 @@ function App() {
   };
 
   return (
-<<<<<<< HEAD
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              {currentView !== 'dashboard' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={currentView === 'chat' ? handleBackToGroups : handleBackToDashboard}
-                  className="p-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              )}
-              <h1 className="text-2xl font-bold">
-                {currentView === 'dashboard' && 'Dashboard'}
-                {currentView === 'groups' && 'Groups'}
-                {currentView === 'chat' && 'Group Chat'}
-              </h1>
-=======
     <QueryClientProvider client={queryClient}>
       <ThemeContext.Provider value={themeContextValue}>
         <BrowserRouter>
@@ -140,7 +117,6 @@ function App() {
                 />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
->>>>>>> 44c53470a408f7d668b4ce3cda44098840fa9e85
             </div>
             <div className="flex items-center space-x-2">
               <ThemeToggle />
