@@ -88,14 +88,6 @@ function App() {
     setIsPasswordResetOpen(false);
   };
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  if (!user) {
-    return <AuthPage />;
-  }
-
   const handleGroupSelect = (groupId: string) => {
     setSelectedGroupId(groupId);
     setCurrentView('chat');
@@ -116,50 +108,58 @@ function App() {
       <ThemeContext.Provider value={themeContextValue}>
         <BrowserRouter>
           <AuthContext.Provider value={authContextValue}>
-            <Toaster />
-            <Sonner />
-            <PasswordResetDialog
-              isOpen={isPasswordResetOpen}
-              onClose={() => setIsPasswordResetOpen(false)}
-              onSubmit={handlePasswordUpdate}
-            />
-            <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
-              <Routes>
-                <Route
-                  path="/"
-                  element={
-                    user ? <Navigate to="/dashboard" replace /> : <AuthPage />
-                  }
+            {loading ? (
+              <LoadingScreen />
+            ) : !user ? (
+              <AuthPage />
+            ) : (
+              <>
+                <Toaster />
+                <Sonner />
+                <PasswordResetDialog
+                  isOpen={isPasswordResetOpen}
+                  onClose={() => setIsPasswordResetOpen(false)}
+                  onSubmit={handlePasswordUpdate}
                 />
-                <Route
-                  path="/dashboard"
-                  element={
-                    user ? <Dashboard /> : <Navigate to="/" replace />
-                  }
-                />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-              <div className="flex items-center space-x-2">
-                <ThemeToggle />
-                <UserProfile />
-              </div>
+                <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
+                  <Routes>
+                    <Route
+                      path="/"
+                      element={
+                        user ? <Navigate to="/dashboard" replace /> : <AuthPage />
+                      }
+                    />
+                    <Route
+                      path="/dashboard"
+                      element={
+                        user ? <Dashboard /> : <Navigate to="/" replace />
+                      }
+                    />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                  <div className="flex items-center space-x-2">
+                    <ThemeToggle />
+                    <UserProfile />
+                  </div>
 
-              {/* Main Content */}
-              <div className="flex-1">
-                {currentView === 'dashboard' && (
-                  <Dashboard onNavigateToGroups={() => setCurrentView('groups')} />
-                )}
-                {currentView === 'groups' && (
-                  <GroupManager onGroupSelect={handleGroupSelect} />
-                )}
-                {currentView === 'chat' && selectedGroupId && (
-                  <GroupChat
-                    groupId={selectedGroupId}
-                    onBack={handleBackToGroups}
-                  />
-                )}
-              </div>
-            </div>
+                  {/* Main Content */}
+                  <div className="flex-1">
+                    {currentView === 'dashboard' && (
+                      <Dashboard onNavigateToGroups={() => setCurrentView('groups')} />
+                    )}
+                    {currentView === 'groups' && (
+                      <GroupManager onGroupSelect={handleGroupSelect} />
+                    )}
+                    {currentView === 'chat' && selectedGroupId && (
+                      <GroupChat
+                        groupId={selectedGroupId}
+                        onBack={handleBackToGroups}
+                      />
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </AuthContext.Provider>
         </BrowserRouter>
       </ThemeContext.Provider>
