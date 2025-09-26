@@ -20,7 +20,7 @@ const AuthPage = () => {
     email: "",
     password: ""
   });
-  const { login, register, resetPassword } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,32 +29,21 @@ const AuthPage = () => {
     try {
       let result;
       if (isLogin) {
-        result = await login(formData.email, formData.password);
+        result = await signIn(formData.email, formData.password);
       } else {
-        result = await register(formData.name, formData.email, formData.password);
+        result = await signUp(formData.name, formData.email, formData.password);
       }
 
       if (result.error) {
         toast.error(result.error.message);
-        setIsLoading(false);
-      } else {
-        if (isLogin) {
-          toast.success("Welcome back! 🎉");
-          // Extended loading time to 15 seconds before redirect for login
-          setTimeout(() => {
-            setIsLoading(false);
-          }, 15000);
-        } else {
-          toast.success("Account created successfully! Please sign in to continue. 📧");
-          // For signup, redirect to login immediately
-          setIsLoading(false);
-          setIsLogin(true);
-          setFormData({ name: "", email: "", password: "" });
-        }
-        return;
+      } else if (!isLogin) {
+        toast.success("Account created successfully! Please sign in to continue. 📧");
+        setIsLogin(true);
+        setFormData({ name: "", email: "", password: "" });
       }
     } catch (error: any) {
       toast.error(error.message || "An error occurred");
+    } finally {
       setIsLoading(false);
     }
   };
