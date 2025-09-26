@@ -78,13 +78,8 @@ export function useGroups() {
       setLoading(false);
     }
   };
-
-<<<<<<< HEAD
-  const createGroup = async (name: string, description: string = '') => {
-=======
   const createGroup = async (name: string, description?: string) => {
     const { data: { user } } = await supabase.auth.getUser();
->>>>>>> 44c53470a408f7d668b4ce3cda44098840fa9e85
     if (!user) throw new Error('User not authenticated');
 
     try {
