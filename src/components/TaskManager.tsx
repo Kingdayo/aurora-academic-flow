@@ -176,7 +176,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
     
     if (task) {
       if (task.completed) {
-        toast.success("Task marked as incomplete");
+        toast.success("Task restored!");
       } else {
         // Task is being completed
         toast.success("Task completed! 🎉");
