@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { User, Session } from "@supabase/supabase-js";
+import { User, Session } from "@supabase/gotrue-js";
 import { supabase } from "@/integrations/supabase/client";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
@@ -90,6 +90,7 @@ function App() {
   };
 
   return (
+<<<<<<< HEAD
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col space-y-6">
@@ -111,6 +112,35 @@ function App() {
                 {currentView === 'groups' && 'Groups'}
                 {currentView === 'chat' && 'Group Chat'}
               </h1>
+=======
+    <QueryClientProvider client={queryClient}>
+      <ThemeContext.Provider value={themeContextValue}>
+        <BrowserRouter>
+          <AuthContext.Provider value={authContextValue}>
+            <Toaster />
+            <Sonner />
+            <PasswordResetDialog
+              isOpen={isPasswordResetOpen}
+              onClose={() => setIsPasswordResetOpen(false)}
+              onSubmit={handlePasswordUpdate}
+            />
+            <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    user ? <Navigate to="/dashboard" replace /> : <AuthPage />
+                  }
+                />
+                <Route
+                  path="/dashboard"
+                  element={
+                    user ? <Dashboard /> : <Navigate to="/" replace />
+                  }
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+>>>>>>> 44c53470a408f7d668b4ce3cda44098840fa9e85
             </div>
             <div className="flex items-center space-x-2">
               <ThemeToggle />

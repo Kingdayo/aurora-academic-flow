@@ -15,7 +15,11 @@ interface Message {
   profiles?: {
     id: string;
     full_name: string | null;
+<<<<<<< HEAD
     avatar_url: string | null;
+=======
+    avatar_url?: string | null;
+>>>>>>> 44c53470a408f7d668b4ce3cda44098840fa9e85
   };
 }
 
@@ -43,7 +47,11 @@ export const useRealtimeMessages = (groupId: string | null) => {
         .from('messages')
         .select(`
           *,
+<<<<<<< HEAD
           profiles(id, full_name, avatar_url)
+=======
+          profiles(full_name, avatar_url)
+>>>>>>> 44c53470a408f7d668b4ce3cda44098840fa9e85
         `)
         .eq('group_id', groupId)
         .order('created_at', { ascending: true })
