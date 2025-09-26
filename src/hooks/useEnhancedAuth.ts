@@ -27,7 +27,7 @@ export const useEnhancedAuth = (): AuthState & AuthActions => {
   const { toast } = useToast();
 
   const handleAuthStateChange = useCallback((event: string, session: Session | null) => {
-    console.log('Auth state changed:', event, session);
+    console.log('Auth state changed:', event);
     setSession(session);
     setUser(session?.user ?? null);
     setLoading(false);
@@ -84,6 +84,12 @@ export const useEnhancedAuth = (): AuthState & AuthActions => {
       setLoading(false);
     });
 
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [handleAuthStateChange]);
+
+  useEffect(() => {
     const refreshInterval = setInterval(() => {
       if (session && session.expires_at) {
         const now = Math.floor(Date.now() / 1000);
@@ -95,10 +101,9 @@ export const useEnhancedAuth = (): AuthState & AuthActions => {
     }, 60000);
 
     return () => {
-      subscription.unsubscribe();
       clearInterval(refreshInterval);
     };
-  }, [handleAuthStateChange, session, refreshSession]);
+  }, [session, refreshSession]);
 
   const signIn = async (email: string, password: string) => {
     try {

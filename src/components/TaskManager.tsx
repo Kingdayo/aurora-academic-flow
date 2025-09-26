@@ -70,14 +70,19 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
       if (savedTasks) {
         try {
           const parsedTasks = JSON.parse(savedTasks);
-          const tasksWithDates = parsedTasks.map((task: ParsedTask) => ({
-            ...task,
-            dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-            createdAt: new Date(task.createdAt)
-          }));
-          setTasks(tasksWithDates);
+          if (Array.isArray(parsedTasks)) {
+            const tasksWithDates = parsedTasks.map((task: ParsedTask) => ({
+              ...task,
+              dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+              createdAt: new Date(task.createdAt)
+            }));
+            setTasks(tasksWithDates);
+          } else {
+            setTasks([]); // Set to empty array if data is not an array
+          }
         } catch (error) {
           console.error('Error loading tasks:', error);
+          setTasks([]); // Also set to empty array on parsing error
         }
       }
     };
