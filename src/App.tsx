@@ -11,13 +11,8 @@ import SplashScreen from "./components/SplashScreen";
 import { toast } from "sonner";
 import { PasswordResetDialog } from "@/components/PasswordResetDialog";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Sun, Moon, User as UserIcon } from "lucide-react";
 import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
 import LoadingScreen from '@/components/LoadingScreen';
-import ThemeToggle from '@/components/ThemeToggle';
-import UserProfile from '@/components/UserProfile';
-import GroupManager from '@/components/GroupManager';
-import GroupChat from '@/components/GroupChat';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -70,11 +65,19 @@ export const useAuth = () => {
 function App() {
   const authContextValue = useEnhancedAuth();
   const { user, loading } = authContextValue;
-  const [currentView, setCurrentView] = useState<'dashboard' | 'groups' | 'chat'>('dashboard');
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
 
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const storedTheme = localStorage.getItem('aurora-theme');
+    return (storedTheme as 'light' | 'dark') || 'light';
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(theme);
+    localStorage.setItem('aurora-theme', theme);
+  }, [theme]);
 
   const toggleTheme = () => {
     setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
@@ -88,77 +91,34 @@ function App() {
     setIsPasswordResetOpen(false);
   };
 
-  const handleGroupSelect = (groupId: string) => {
-    setSelectedGroupId(groupId);
-    setCurrentView('chat');
-  };
-
-  const handleBackToGroups = () => {
-    setSelectedGroupId(null);
-    setCurrentView('groups');
-  };
-
-  const handleBackToDashboard = () => {
-    setCurrentView('dashboard');
-    setSelectedGroupId(null);
-  };
-
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeContext.Provider value={themeContextValue}>
         <BrowserRouter>
           <AuthContext.Provider value={authContextValue}>
+            <Toaster />
+            <Sonner />
+            <PasswordResetDialog
+              isOpen={isPasswordResetOpen}
+              onClose={() => setIsPasswordResetOpen(false)}
+              onSubmit={handlePasswordUpdate}
+            />
             {loading ? (
               <LoadingScreen />
-            ) : !user ? (
-              <AuthPage />
             ) : (
-              <>
-                <Toaster />
-                <Sonner />
-                <PasswordResetDialog
-                  isOpen={isPasswordResetOpen}
-                  onClose={() => setIsPasswordResetOpen(false)}
-                  onSubmit={handlePasswordUpdate}
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    user ? <Navigate to="/dashboard" replace /> : <AuthPage />
+                  }
                 />
-                <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
-                  <Routes>
-                    <Route
-                      path="/"
-                      element={
-                        user ? <Navigate to="/dashboard" replace /> : <AuthPage />
-                      }
-                    />
-                    <Route
-                      path="/dashboard"
-                      element={
-                        user ? <Dashboard /> : <Navigate to="/" replace />
-                      }
-                    />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                  <div className="flex items-center space-x-2">
-                    <ThemeToggle />
-                    <UserProfile />
-                  </div>
-
-                  {/* Main Content */}
-                  <div className="flex-1">
-                    {currentView === 'dashboard' && (
-                      <Dashboard onNavigateToGroups={() => setCurrentView('groups')} />
-                    )}
-                    {currentView === 'groups' && (
-                      <GroupManager onGroupSelect={handleGroupSelect} />
-                    )}
-                    {currentView === 'chat' && selectedGroupId && (
-                      <GroupChat
-                        groupId={selectedGroupId}
-                        onBack={handleBackToGroups}
-                      />
-                    )}
-                  </div>
-                </div>
-              </>
+                <Route
+                  path="/dashboard"
+                  element={user ? <Dashboard /> : <Navigate to="/" replace />}
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
             )}
           </AuthContext.Provider>
         </BrowserRouter>
