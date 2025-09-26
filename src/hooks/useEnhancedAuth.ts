@@ -8,23 +8,26 @@ interface AuthState {
   session: Session | null;
   loading: boolean;
   isAuthenticated: boolean;
+  loggingOut: boolean;
 }
 
 interface AuthActions {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
+  signUp: (name: string, email: string, password: string) => Promise<{ error: Error | null }>;
+  logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error: Error | null }>;
 }
 
 export const useEnhancedAuth = (): AuthState & AuthActions => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
   const { toast } = useToast();
 
   const handleAuthStateChange = useCallback((event: string, session: Session | null) => {
-    console.log('Auth state changed:', event, session?.user?.id);
+    console.log('Auth state changed:', event, session);
     setSession(session);
     setUser(session?.user ?? null);
     setLoading(false);
@@ -44,43 +47,52 @@ export const useEnhancedAuth = (): AuthState & AuthActions => {
     }
   }, [toast]);
 
+  const logout = useCallback(async () => {
+    try {
+      setLoggingOut(true);
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Sign out error:', error);
+      }
+    } catch (error) {
+      console.error('Unexpected error during sign out:', error);
+    } finally {
+      setLoggingOut(false);
+    }
+  }, []);
+
   const refreshSession = useCallback(async () => {
     try {
       const { data, error } = await supabase.auth.refreshSession();
       if (error) {
         console.error('Session refresh error:', error);
         if (error.message.includes('refresh_token_not_found')) {
-          // Token has expired, redirect to login
-          await signOut();
+          await logout();
         }
       }
     } catch (error) {
       console.error('Unexpected error during session refresh:', error);
     }
-  }, []);
+  }, [logout]);
 
   useEffect(() => {
-    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
 
-    // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Set up automatic token refresh
     const refreshInterval = setInterval(() => {
       if (session && session.expires_at) {
         const now = Math.floor(Date.now() / 1000);
         const expiresAt = session.expires_at;
-        // Refresh 5 minutes before expiration
         if (expiresAt - now < 300) {
           refreshSession();
         }
       }
-    }, 60000); // Check every minute
+    }, 60000);
 
     return () => {
       subscription.unsubscribe();
@@ -119,7 +131,7 @@ export const useEnhancedAuth = (): AuthState & AuthActions => {
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (name: string, email: string, password: string) => {
     try {
       setLoading(true);
       const redirectUrl = `${window.location.origin}/`;
@@ -128,8 +140,11 @@ export const useEnhancedAuth = (): AuthState & AuthActions => {
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl
-        }
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: name,
+          },
+        },
       });
 
       if (error) {
@@ -160,17 +175,35 @@ export const useEnhancedAuth = (): AuthState & AuthActions => {
     }
   };
 
-  const signOut = async () => {
+  const resetPassword = async (email: string) => {
     try {
-      setLoading(true);
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/`,
+      });
+
       if (error) {
-        console.error('Sign out error:', error);
+        toast({
+          title: "Password Reset Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error };
       }
+
+      toast({
+        title: "Check Your Email",
+        description: "A password reset link has been sent to your email.",
+      });
+
+      return { error: null };
     } catch (error) {
-      console.error('Unexpected error during sign out:', error);
-    } finally {
-      setLoading(false);
+      const err = error as Error;
+      toast({
+        title: "Password Reset Error",
+        description: err.message,
+        variant: "destructive",
+      });
+      return { error: err };
     }
   };
 
@@ -179,9 +212,11 @@ export const useEnhancedAuth = (): AuthState & AuthActions => {
     session,
     loading,
     isAuthenticated: !!user,
+    loggingOut,
     signIn,
     signUp,
-    signOut,
+    logout,
     refreshSession,
+    resetPassword,
   };
 };
