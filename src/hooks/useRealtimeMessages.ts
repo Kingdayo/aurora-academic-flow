@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface Message {
   id: string;
@@ -13,6 +13,7 @@ interface Message {
   created_at: string;
   updated_at: string;
   profiles?: {
+    id: string;
     full_name: string | null;
     avatar_url?: string | null;
   };
@@ -28,7 +29,6 @@ export const useRealtimeMessages = (groupId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
-  const { toast } = useToast();
 
   const fetchMessages = useCallback(async () => {
     if (!groupId) {
@@ -53,15 +53,11 @@ export const useRealtimeMessages = (groupId: string | null) => {
       setMessages(data || []);
     } catch (error) {
       console.error('Error fetching messages:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load messages",
-        variant: "destructive",
-      });
+      toast.error('Failed to load messages');
     } finally {
       setLoading(false);
     }
-  }, [groupId, toast]);
+  }, [groupId]);
 
   const sendMessage = async (content: string, messageType: 'text' | 'system' | 'task_update' = 'text', metadata = {}) => {
     if (!groupId) return;
@@ -83,11 +79,8 @@ export const useRealtimeMessages = (groupId: string | null) => {
       if (error) throw error;
     } catch (error) {
       console.error('Error sending message:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive",
-      });
+      toast.error('Failed to send message');
+      throw error;
     }
   };
 
@@ -95,17 +88,37 @@ export const useRealtimeMessages = (groupId: string | null) => {
     console.log('Realtime message received:', payload);
 
     if (payload.eventType === 'INSERT' && payload.new) {
-      setMessages(prev => {
-        // Prevent duplicate messages
-        if (prev.find(msg => msg.id === payload.new.id)) {
-          return prev;
+      // Fetch the complete message with profile data
+      const fetchCompleteMessage = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('messages')
+            .select(`
+              *,
+              profiles(id, full_name, avatar_url)
+            `)
+            .eq('id', payload.new.id)
+            .single();
+
+          if (error) throw error;
+
+          setMessages(prev => {
+            // Prevent duplicate messages
+            if (prev.find(msg => msg.id === data.id)) {
+              return prev;
+            }
+            return [...prev, data];
+          });
+        } catch (error) {
+          console.error('Error fetching complete message:', error);
         }
-        return [...prev, payload.new as Message];
-      });
+      };
+
+      fetchCompleteMessage();
     } else if (payload.eventType === 'UPDATE' && payload.new) {
       setMessages(prev => 
         prev.map(msg => 
-          msg.id === payload.new.id ? payload.new as Message : msg
+          msg.id === payload.new.id ? { ...msg, ...payload.new } : msg
         )
       );
     } else if (payload.eventType === 'DELETE' && payload.old) {

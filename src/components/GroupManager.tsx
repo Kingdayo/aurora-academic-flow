@@ -30,6 +30,29 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
 
+  // Real-time member count updates
+  useEffect(() => {
+    const handleNewMember = (payload: any) => {
+      if (payload.table === 'group_members' && payload.event === 'INSERT') {
+        const newMember = payload.new;
+        if (newMember.group_id && memberCounts[newMember.group_id] !== undefined) {
+          setMemberCounts(prevCounts => ({
+            ...prevCounts,
+            [newMember.group_id]: (prevCounts[newMember.group_id] || 0) + 1,
+          }));
+        }
+      }
+    };
+
+    const channel = supabase.channel('group_members');
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'group_members' }, handleNewMember)
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [memberCounts]);
+
   // Load member counts for all groups
   useEffect(() => {
     const loadMemberCounts = async () => {
@@ -177,17 +200,18 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
   };
 
   // Separate user's groups from other groups
-  const userGroups = groups.filter(group => 
-    group.owner_id === user?.id || 
-    group.group_members?.some((member: any) => member.user_id === user?.id)
+  const userGroups = groups.filter(
+    group =>
+      group.owner_id === user?.id ||
+      group.group_members?.some((member: any) => member.user_id === user?.id)
   );
 
   if (loading) {
-    return <div className="flex justify-center p-8 bg-white">Loading groups...</div>;
+    return <div className="flex justify-center p-8 bg-background">Loading groups...</div>;
   }
 
   return (
-    <div className="space-y-4 md:space-y-6 bg-white min-h-screen p-3 md:p-6">
+    <div className="space-y-4 md:space-y-6 bg-background min-h-screen p-3 md:p-6">
       {/* Your Groups Section - Moved to top */}
       <Card>
         <CardHeader className="pb-3 md:pb-6">
@@ -198,13 +222,13 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
         </CardHeader>
         <CardContent className="pt-0">
           {userGroups.length === 0 ? (
-            <p className="text-gray-500 text-center py-6 md:py-8 text-sm md:text-base">
+            <p className="text-muted-foreground text-center py-6 md:py-8 text-sm md:text-base">
               No groups yet. Create or join a group to get started!
             </p>
           ) : (
             <div className="space-y-3 md:space-y-4">
               {userGroups.map((group) => (
-                <div key={group.id} className="border rounded-lg p-3 md:p-4 hover:shadow-md transition-shadow">
+                <div key={group.id} className="border rounded-lg p-3 md:p-4 hover:shadow-md transition-shadow bg-card">
                   <div className="flex flex-col gap-3 mb-3">
                     <div className="flex items-start gap-3">
                       <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0">
@@ -225,8 +249,8 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs md:text-sm text-gray-600 line-clamp-2">{group.description}</p>
-                        <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                        <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">{group.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                           <Users className="h-3 w-3" />
                           {memberCounts[group.id] || 0} members
                         </p>
@@ -250,9 +274,9 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
 
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <span className="text-xs md:text-sm text-gray-600 flex-shrink-0">Join Code:</span>
+                      <span className="text-xs md:text-sm text-muted-foreground flex-shrink-0">Join Code:</span>
                       <div className="flex items-center gap-2 flex-1">
-                        <code className="bg-gray-100 px-2 py-1 rounded text-xs md:text-sm font-mono flex-1 min-w-0 truncate">
+                        <code className="bg-muted px-2 py-1 rounded text-xs md:text-sm font-mono flex-1 min-w-0 truncate">
                           {group.join_code}
                         </code>
                         <Button
@@ -297,12 +321,12 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                               ) : (
                                 <div className="space-y-2 max-h-60 overflow-y-auto">
                                   {groupMembers.map((member) => (
-                                    <div key={member.id} className="flex items-center justify-between p-2 border rounded">
+                                    <div key={member.id} className="flex items-center justify-between p-2 border rounded bg-card">
                                       <div className="flex items-center gap-2 flex-1 min-w-0">
                                         <Avatar className="h-6 w-6 flex-shrink-0">
-                                          <AvatarImage 
+                                          <AvatarImage
                                             src={member.profiles?.avatar_url || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`}
-                                            alt={member.profiles?.full_name || 'Member'} 
+                                            alt={member.profiles?.full_name || 'Member'}
                                           />
                                           <AvatarFallback className="text-xs">
                                             {member.profiles?.full_name?.charAt(0) || 'M'}
@@ -317,7 +341,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                                               <Crown className="h-3 w-3 text-yellow-500 flex-shrink-0" />
                                             )}
                                           </div>
-                                          <span className="text-xs text-gray-500 capitalize">{member.role}</span>
+                                          <span className="text-xs text-muted-foreground capitalize">{member.role}</span>
                                         </div>
                                       </div>
                                       {member.role !== 'owner' && (
@@ -379,8 +403,8 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
             onChange={(e) => setNewGroupDescription(e.target.value)}
             className="text-sm md:text-base min-h-[80px]"
           />
-          <Button 
-            onClick={handleCreateGroup} 
+          <Button
+            onClick={handleCreateGroup}
             disabled={isCreating || !newGroupName.trim()}
             className="w-full text-sm md:text-base h-9 md:h-10"
           >
@@ -399,14 +423,13 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
         </CardHeader>
         <CardContent className="space-y-3 md:space-y-4 pt-0">
           <Input
-            placeholder="Enter group join code"
+            placeholder="Enter join code"
             value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            className="text-sm md:text-base font-mono"
-            maxLength={6}
+            onChange={(e) => setJoinCode(e.target.value)}
+            className="text-sm md:text-base"
           />
-          <Button 
-            onClick={handleJoinGroup} 
+          <Button
+            onClick={handleJoinGroup}
             disabled={isJoining || !joinCode.trim()}
             className="w-full text-sm md:text-base h-9 md:h-10"
           >

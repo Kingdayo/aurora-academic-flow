@@ -3,9 +3,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEnhancedAuth } from './useEnhancedAuth';
 import { toast } from 'sonner';
 
-export const useGroups = () => {
+interface Group {
+  id: string;
+  name: string;
+  description: string;
+  owner_id: string;
+  join_code: string;
+  created_at: string;
+  group_members?: any[];
+}
+
+export function useGroups() {
   const { user } = useEnhancedAuth();
-  const [groups, setGroups] = useState<any[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchGroups = async () => {
@@ -19,11 +29,11 @@ export const useGroups = () => {
       setLoading(true);
       
       // Get groups where user is owner or member
-      const { data: memberGroups, error: memberError } = await supabase
+      const { data: userGroups, error: userGroupsError } = await supabase
         .from('group_members')
         .select(`
           group_id,
-          groups!inner (
+          groups (
             id,
             name,
             description,
@@ -35,78 +45,52 @@ export const useGroups = () => {
         .eq('user_id', user.id)
         .eq('status', 'active');
 
-      if (memberError) throw memberError;
+      if (userGroupsError) throw userGroupsError;
 
-      // Get groups where user is owner
-      const { data: ownedGroups, error: ownedError } = await supabase
+      // Get groups where user is owner (in case they're not in group_members)
+      const { data: ownedGroups, error: ownedGroupsError } = await supabase
         .from('groups')
         .select('*')
         .eq('owner_id', user.id);
 
-      if (ownedError) throw ownedError;
+      if (ownedGroupsError) throw ownedGroupsError;
 
       // Combine and deduplicate groups
-      const allGroups = new Map();
+      const allGroups = new Map<string, Group>();
       
+      // Add groups from membership
+      userGroups?.forEach(item => {
+        if (item.groups) {
+          allGroups.set(item.groups.id, item.groups as Group);
+        }
+      });
+
       // Add owned groups
       ownedGroups?.forEach(group => {
         allGroups.set(group.id, group);
       });
 
-      // Add member groups
-      memberGroups?.forEach(memberGroup => {
-        const group = memberGroup.groups;
-        if (group && !allGroups.has(group.id)) {
-          allGroups.set(group.id, group);
-        }
-      });
-
-      // For each group, get member information
-      const groupsWithMembers = await Promise.all(
-        Array.from(allGroups.values()).map(async (group) => {
-          try {
-            const { data: members, error: membersError } = await supabase
-              .from('group_members')
-              .select('*')
-              .eq('group_id', group.id)
-              .eq('status', 'active');
-
-            if (membersError) {
-              console.error('Error fetching members for group:', group.id, membersError);
-              return { ...group, group_members: [] };
-            }
-
-            return { ...group, group_members: members || [] };
-          } catch (error) {
-            console.error('Error processing group:', group.id, error);
-            return { ...group, group_members: [] };
-          }
-        })
-      );
-
-      setGroups(groupsWithMembers);
+      setGroups(Array.from(allGroups.values()));
     } catch (error) {
       console.error('Error fetching groups:', error);
       toast.error('Failed to load groups');
-      setGroups([]);
     } finally {
       setLoading(false);
     }
   };
-
   const createGroup = async (name: string, description?: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     try {
-      // Generate a unique 6-character join code
+      // Generate a unique join code
       const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
       const { data: group, error: groupError } = await supabase
         .from('groups')
         .insert({
-          name,
-          description: description || '',
+          name: name.trim(),
+          description: description.trim(),
           owner_id: user.id,
           join_code: joinCode,
         })
@@ -115,7 +99,7 @@ export const useGroups = () => {
 
       if (groupError) throw groupError;
 
-      // Add the creator as the first member with owner role
+      // Add the creator as a member with owner role
       const { error: memberError } = await supabase
         .from('group_members')
         .insert({
@@ -190,7 +174,7 @@ export const useGroups = () => {
       if (groupError) throw groupError;
 
       if (group.owner_id === user.id) {
-        toast.error('Group owners cannot leave their own groups. Delete the group instead.');
+        toast.error('Group owners cannot leave their own group. Delete the group instead.');
         return;
       }
 
@@ -211,8 +195,76 @@ export const useGroups = () => {
     }
   };
 
+  const deleteGroup = async (groupId: string) => {
+    if (!user) throw new Error('User not authenticated');
+
+    try {
+      // Verify user is the owner
+      const { data: group, error: groupError } = await supabase
+        .from('groups')
+        .select('owner_id')
+        .eq('id', groupId)
+        .single();
+
+      if (groupError) throw groupError;
+
+      if (group.owner_id !== user.id) {
+        throw new Error('Only group owners can delete groups');
+      }
+
+      // Delete the group (cascade will handle members and messages)
+      const { error: deleteError } = await supabase
+        .from('groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (deleteError) throw deleteError;
+
+      await fetchGroups();
+      toast.success('Group deleted successfully');
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     fetchGroups();
+  }, [user]);
+
+  // Set up real-time subscriptions for group changes
+  useEffect(() => {
+    if (!user) return;
+
+    const groupsChannel = supabase
+      .channel('groups_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'groups',
+        },
+        () => {
+          fetchGroups();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'group_members',
+        },
+        () => {
+          fetchGroups();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(groupsChannel);
+    };
   }, [user]);
 
   return {
@@ -221,6 +273,7 @@ export const useGroups = () => {
     createGroup,
     joinGroup,
     leaveGroup,
+    deleteGroup,
     refetch: fetchGroups,
   };
-};
+}
