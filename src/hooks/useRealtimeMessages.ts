@@ -55,21 +55,56 @@ export const useRealtimeMessages = (groupId: string | null) => {
       if (data) {
         const messages = data as Message[];
         
-        // For messages with missing profile data, create basic profile objects
-        const messagesWithProfiles = messages.map((message) => {
-          if (!message.profiles || (!message.profiles.full_name && !message.profiles.email)) {
-            console.log('Missing profile data for message, creating basic profile:', message.id);
-            
-            // Create a basic profile object with user ID as fallback
-            message.profiles = {
-              id: message.user_id,
-              full_name: `User ${message.user_id.slice(0, 8)}`,
-              email: '',
-              avatar_url: ''
-            };
-          }
-          return message;
-        });
+        // For messages with missing profile data, try to fetch it properly
+        const messagesWithProfiles = await Promise.all(
+          messages.map(async (message) => {
+            if (!message.profiles || (!message.profiles.full_name && !message.profiles.email)) {
+              console.log('Missing profile data for message, fetching user info:', message.id);
+              
+              try {
+                // Try to get user info from auth.users via RPC
+                const { data: userData, error: userError } = await supabase
+                  .rpc('get_user_profile_info', { p_user_id: message.user_id });
+
+                if (!userError && userData && (userData.full_name || userData.email)) {
+                  message.profiles = userData;
+                  console.log('Successfully fetched user data for message:', message.id, userData);
+                } else {
+                  console.log('Could not fetch user data for message:', message.id, userError);
+                  // Try direct profiles table access
+                  const { data: profileData, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, email, avatar_url')
+                    .eq('id', message.user_id)
+                    .single();
+
+                  if (!profileError && profileData) {
+                    message.profiles = profileData;
+                    console.log('Successfully fetched profile data for message:', message.id, profileData);
+                  } else {
+                    console.log('Could not fetch profile data for message:', message.id, profileError);
+                    // Only create fallback if absolutely no data is available
+                    message.profiles = {
+                      id: message.user_id,
+                      full_name: '',
+                      email: '',
+                      avatar_url: ''
+                    };
+                  }
+                }
+              } catch (error) {
+                console.log('Error fetching user data for message:', message.id, error);
+                message.profiles = {
+                  id: message.user_id,
+                  full_name: '',
+                  email: '',
+                  avatar_url: ''
+                };
+              }
+            }
+            return message;
+          })
+        );
         
         setMessages(messagesWithProfiles);
       }
@@ -122,34 +157,46 @@ export const useRealtimeMessages = (groupId: string | null) => {
           // The RPC returns a single row, which is our new message object
           const newMessage = data as Message;
           
-          // If profile data is missing, try to fetch it using RPC function
+          // If profile data is missing, try to fetch it properly
           if (!newMessage.profiles || (!newMessage.profiles.full_name && !newMessage.profiles.email)) {
-            console.log('Profile data missing, trying to fetch using RPC for user:', newMessage.user_id);
+            console.log('Profile data missing, fetching user info for user:', newMessage.user_id);
             
             try {
-              // Try to get user info from auth.users via a custom RPC
+              // Try to get user info from auth.users via RPC
               const { data: userData, error: userError } = await supabase
                 .rpc('get_user_profile_info', { p_user_id: newMessage.user_id });
 
-              if (!userError && userData) {
+              if (!userError && userData && (userData.full_name || userData.email)) {
                 newMessage.profiles = userData;
                 console.log('Successfully fetched user data via RPC:', userData);
               } else {
-                console.log('Could not fetch user data via RPC, error:', userError);
-                // Create a basic profile object with user ID
-                newMessage.profiles = {
-                  id: newMessage.user_id,
-                  full_name: `User ${newMessage.user_id.slice(0, 8)}`,
-                  email: '',
-                  avatar_url: ''
-                };
+                console.log('Could not fetch user data via RPC, trying profiles table:', userError);
+                // Try direct profiles table access
+                const { data: profileData, error: profileError } = await supabase
+                  .from('profiles')
+                  .select('id, full_name, email, avatar_url')
+                  .eq('id', newMessage.user_id)
+                  .single();
+
+                if (!profileError && profileData) {
+                  newMessage.profiles = profileData;
+                  console.log('Successfully fetched profile data:', profileData);
+                } else {
+                  console.log('Could not fetch profile data, error:', profileError);
+                  // Only create empty profile if absolutely no data is available
+                  newMessage.profiles = {
+                    id: newMessage.user_id,
+                    full_name: '',
+                    email: '',
+                    avatar_url: ''
+                  };
+                }
               }
             } catch (profileFetchError) {
               console.log('Error fetching user data:', profileFetchError);
-              // Create a basic profile object
               newMessage.profiles = {
                 id: newMessage.user_id,
-                full_name: `User ${newMessage.user_id.slice(0, 8)}`,
+                full_name: '',
                 email: '',
                 avatar_url: ''
               };

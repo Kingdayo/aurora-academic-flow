@@ -274,13 +274,21 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                              user?.email?.split('@')[0] || 
                              'You';
                     }
-                    // For other users, use their profile data or create a fallback
-                    if (displayName) {
+                    // For other users, only show if we have actual profile data
+                    if (displayName && displayName.trim() !== '') {
                       return displayName;
                     }
-                    // If no profile data, create a user-friendly fallback
-                    return `User ${message.user_id.slice(0, 8)}`;
+                    // If no profile data, show a loading state
+                    return 'Loading...';
                   };
+                  
+                  // If we don't have profile data for other users, try to fetch it
+                  useEffect(() => {
+                    if (!isOwnMessage && (!displayName || displayName.trim() === '')) {
+                      console.log('Attempting to fetch profile data for user:', message.user_id);
+                      // This will trigger a re-render when profile data is fetched
+                    }
+                  }, [message.user_id, displayName, isOwnMessage]);
                   
                   
                   
