@@ -62,35 +62,25 @@ export const useRealtimeMessages = (groupId: string | null) => {
               console.log('Missing profile data for message, fetching user info:', message.id);
               
               try {
-                // Try to get user info from auth.users via RPC
-                const { data: userData, error: userError } = await supabase
-                  .rpc('get_user_profile_info', { p_user_id: message.user_id });
+                // Try direct profiles table access
+                const { data: profileData, error: profileError } = await supabase
+                  .from('profiles')
+                  .select('id, full_name, email, avatar_url')
+                  .eq('id', message.user_id)
+                  .single();
 
-                if (!userError && userData && (userData.full_name || userData.email)) {
-                  message.profiles = userData;
-                  console.log('Successfully fetched user data for message:', message.id, userData);
+                if (!profileError && profileData) {
+                  message.profiles = profileData;
+                  console.log('Successfully fetched profile data for message:', message.id, profileData);
                 } else {
-                  console.log('Could not fetch user data for message:', message.id, userError);
-                  // Try direct profiles table access
-                  const { data: profileData, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('id, full_name, email, avatar_url')
-                    .eq('id', message.user_id)
-                    .single();
-
-                  if (!profileError && profileData) {
-                    message.profiles = profileData;
-                    console.log('Successfully fetched profile data for message:', message.id, profileData);
-                  } else {
-                    console.log('Could not fetch profile data for message:', message.id, profileError);
-                    // Only create fallback if absolutely no data is available
-                    message.profiles = {
-                      id: message.user_id,
-                      full_name: '',
-                      email: '',
-                      avatar_url: ''
-                    };
-                  }
+                  console.log('Could not fetch profile data for message:', message.id, profileError);
+                  // Create empty profile if no data is available
+                  message.profiles = {
+                    id: message.user_id,
+                    full_name: '',
+                    email: '',
+                    avatar_url: ''
+                  };
                 }
               } catch (error) {
                 console.log('Error fetching user data for message:', message.id, error);
@@ -162,35 +152,25 @@ export const useRealtimeMessages = (groupId: string | null) => {
             console.log('Profile data missing, fetching user info for user:', newMessage.user_id);
             
             try {
-              // Try to get user info from auth.users via RPC
-              const { data: userData, error: userError } = await supabase
-                .rpc('get_user_profile_info', { p_user_id: newMessage.user_id });
+              // Try direct profiles table access
+              const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('id, full_name, email, avatar_url')
+                .eq('id', newMessage.user_id)
+                .single();
 
-              if (!userError && userData && (userData.full_name || userData.email)) {
-                newMessage.profiles = userData;
-                console.log('Successfully fetched user data via RPC:', userData);
+              if (!profileError && profileData) {
+                newMessage.profiles = profileData;
+                console.log('Successfully fetched profile data:', profileData);
               } else {
-                console.log('Could not fetch user data via RPC, trying profiles table:', userError);
-                // Try direct profiles table access
-                const { data: profileData, error: profileError } = await supabase
-                  .from('profiles')
-                  .select('id, full_name, email, avatar_url')
-                  .eq('id', newMessage.user_id)
-                  .single();
-
-                if (!profileError && profileData) {
-                  newMessage.profiles = profileData;
-                  console.log('Successfully fetched profile data:', profileData);
-                } else {
-                  console.log('Could not fetch profile data, error:', profileError);
-                  // Only create empty profile if absolutely no data is available
-                  newMessage.profiles = {
-                    id: newMessage.user_id,
-                    full_name: '',
-                    email: '',
-                    avatar_url: ''
-                  };
-                }
+                console.log('Could not fetch profile data, error:', profileError);
+                // Create empty profile if no data is available
+                newMessage.profiles = {
+                  id: newMessage.user_id,
+                  full_name: '',
+                  email: '',
+                  avatar_url: ''
+                };
               }
             } catch (profileFetchError) {
               console.log('Error fetching user data:', profileFetchError);

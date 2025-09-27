@@ -282,13 +282,6 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                     return 'Loading...';
                   };
                   
-                  // If we don't have profile data for other users, try to fetch it
-                  useEffect(() => {
-                    if (!isOwnMessage && (!displayName || displayName.trim() === '')) {
-                      console.log('Attempting to fetch profile data for user:', message.user_id);
-                      // This will trigger a re-render when profile data is fetched
-                    }
-                  }, [message.user_id, displayName, isOwnMessage]);
                   
                   
                   
