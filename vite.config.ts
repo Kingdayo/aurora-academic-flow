@@ -4,13 +4,13 @@ import path from "path"
 import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: {
-        enabled: mode !== 'production'
+        enabled: true
       }
     })
   ],
@@ -19,7 +19,4 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  build: {
-    sourcemap: mode !== 'production',
-  },
-}));
+});

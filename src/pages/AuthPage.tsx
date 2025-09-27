@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Book, Brain, Timer, Mic, BarChart3 } from "lucide-react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ThemeToggle from "@/components/ThemeToggle";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
