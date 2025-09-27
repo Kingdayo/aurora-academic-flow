@@ -106,69 +106,75 @@ const Dashboard = () => {
 
   const navigationItems = [
     { id: "tasks", label: "Tasks", icon: List },
-    { id: "groups", label: "Groups", icon: Users },
     { id: "calendar", label: "Calendar", icon: CalendarIcon },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
-    { id: "advanced-analytics", label: "Advanced", icon: BarChart3 },
     { id: "ai-assistant", label: "AI Assistant", icon: Bot },
-    { id: "pomodoro", label: "Pomodoro", icon: CalendarIcon }
   ];
 
   const Sidebar = () => (
     <div className={`
-      ${isMobile 
-        ? `fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-500 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}` 
+      ${isMobile
+        ? `fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-500 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
         : 'sticky top-0 h-screen w-80 flex-shrink-0'
-      } 
-      bg-gradient-to-br from-purple-50 via-white to-purple-100 
-      dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-800 
-      border-r border-purple-200/50 dark:border-purple-800/30 
-      backdrop-blur-xl shadow-xl transition-all duration-500
+      }
+      bg-card border-r border-border backdrop-blur-xl shadow-xl transition-all duration-500
     `}>
       {isMobile && (
         <div className="absolute top-4 right-4 z-10">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setSidebarOpen(false)} 
-            className="text-purple-600 hover:text-purple-700 hover:bg-purple-100/50 transition-all duration-300 hover:scale-105"
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(false)}
+            className="text-foreground/70 hover:text-foreground hover:bg-accent transition-all duration-300 hover:scale-105"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
       )}
 
-      <div className="p-4 space-y-6 h-full overflow-y-auto">
+      <div className="p-4 space-y-6 h-full flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between animate-fade-in-up">
-          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-purple-600 via-purple-500 to-blue-600 bg-clip-text text-transparent animate-gradient">
+          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary via-purple-500 to-blue-600 bg-clip-text text-transparent animate-gradient">
             Aurora
           </h1>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200 animate-pulse-glow transition-all duration-300">
+            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 animate-pulse-glow transition-all duration-300">
               <Bell className="w-3 h-3 mr-1" />
               Live
             </Badge>
           </div>
         </div>
 
-        <Separator className="bg-purple-200/50 dark:bg-purple-800/30" />
+        {/* Profile Section */}
+        <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <Separator className="bg-border/50" />
+          <div className="p-4 text-center">
+            <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-primary/50">
+              <img src={user?.user_metadata.avatar_url || `https://api.dicebear.com/6.x/initials/svg?seed=${user?.email}`} alt="User Avatar" />
+              <AvatarFallback>{user?.email?.[0].toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <h2 className="text-xl font-semibold">{user?.user_metadata.full_name || user?.email}</h2>
+            <p className="text-sm text-muted-foreground">{user?.email}</p>
+            <Badge variant="outline" className="mt-4 text-green-400 border-green-400/50">
+              Active Session
+            </Badge>
+          </div>
+          <Separator className="bg-border/50" />
+        </div>
 
         {/* Navigation */}
-        <div className="space-y-3 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-          <h4 className="font-semibold text-purple-800 dark:text-purple-200 text-sm uppercase tracking-wider">
+        <div className="flex-1 space-y-3 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+          <h4 className="font-semibold text-muted-foreground text-sm uppercase tracking-wider px-4">
             Navigation
           </h4>
           <div className="space-y-1">
             {navigationItems.map((item, index) => (
               <Button
                 key={item.id}
-                variant={activeTab === item.id ? "default" : "ghost"}
-                className={`w-full justify-start transition-all duration-300 hover:scale-105 ${
-                  activeTab === item.id
-                    ? "bg-purple-gradient text-white shadow-lg hover:shadow-xl transform animate-bounce-gentle"
-                    : "text-purple-700 dark:text-purple-300 hover:bg-purple-100/70 dark:hover:bg-purple-900/30 hover:text-purple-800 dark:hover:text-purple-200"
-                }`}
+                variant={activeTab === item.id ? "secondary" : "ghost"}
+                className={`w-full justify-start transition-all duration-300 hover:scale-105 ${activeTab === item.id ? "text-primary" : ""
+                  }`}
                 style={{ animationDelay: `${index * 0.1}s` }}
                 onClick={() => {
                   setActiveTab(item.id);
@@ -184,13 +190,20 @@ const Dashboard = () => {
             ))}
           </div>
         </div>
+
+        {/* Sign Out Button */}
+        <div className="animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+          <Button variant="ghost" className="w-full" onClick={() => logout()}>
+            Sign Out
+          </Button>
+        </div>
       </div>
     </div>
   );
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/10 dark:to-gray-800 transition-all duration-500">
+      <div className="min-h-screen bg-background transition-all duration-500">
         <div className="flex min-h-screen max-w-screen-2xl mx-auto">
           <Sidebar />
 
@@ -205,17 +218,17 @@ const Dashboard = () => {
             )}
             {/* Mobile Header */}
             {isMobile && (
-              <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-purple-200/50 dark:border-purple-800/30 p-4 sticky top-0 z-30 transition-all duration-300">
+              <header className="bg-card/80 backdrop-blur-xl border-b border-border p-4 sticky top-0 z-30 transition-all duration-300">
                 <div className="flex items-center justify-between">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setSidebarOpen(true)} 
-                    className="text-purple-600 hover:text-purple-700 hover:bg-purple-100/50 transition-all duration-300 hover:scale-105"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSidebarOpen(true)}
+                    className="text-foreground/70 hover:text-foreground hover:bg-accent transition-all duration-300 hover:scale-105"
                   >
                     <Menu className="h-5 w-5" />
                   </Button>
-                  <h1 className="text-lg font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                     Aurora
                   </h1>
                   <div className="w-10" /> {/* Spacer for centering */}
@@ -223,23 +236,16 @@ const Dashboard = () => {
               </header>
             )}
 
-            {/* Desktop Header with Task Countdown */}
+            {/* Desktop Header */}
             {!isMobile && (
-              <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-purple-200/50 dark:border-purple-800/30 p-4 sticky top-0 z-30 transition-all duration-300">
+              <header className="bg-transparent p-4 sticky top-0 z-30 transition-all duration-300">
                 <div className="max-w-7xl mx-auto">
                   <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent animate-gradient">
-                      Aurora
+                    <h1 className="text-2xl font-bold text-foreground">
+                      {navigationItems.find(item => item.id === activeTab)?.label}
                     </h1>
-                    <div className="flex-1 max-w-md mx-8">
-                      <TaskCountdown />
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-sm text-right text-purple-600 dark:text-purple-400">
-                        <p className="font-medium">Welcome back,</p>
-                        <p>{user?.email?.split('@')[0] || 'User'}</p>
-                      </div>
-                      <UserProfile />
+                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                      <p>Welcome back, {user?.email?.split('@')[0] || 'User'}</p>
                     </div>
                   </div>
                 </div>
@@ -249,74 +255,34 @@ const Dashboard = () => {
             {/* Content Area */}
             <main className="flex-1 p-4 sm:p-6 lg:p-8">
               <div className="max-w-7xl mx-auto">
-                {/* Mobile Task Countdown */}
-                {isMobile && (
-                  <div className="mb-6 animate-fade-in-up">
-                    <TaskCountdown />
-                  </div>
-                )}
-
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  {/* Mobile Tabs */}
-                  <div className="sm:hidden mb-4">
-                    <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border border-purple-200/50 dark:border-purple-800/30 rounded-lg p-2 transition-all duration-300">
-                      <div className="text-center">
-                        <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
-                          Current: {navigationItems.find(item => item.id === activeTab)?.label}
-                        </span>
+                  <TabsContent value="tasks" className="space-y-6 animate-fade-in-up">
+                    <TaskManager showAddDialog={showAddDialog} onShowAddDialogChange={setShowAddDialog} activeTab={activeTab} />
+                  </TabsContent>
+
+                  <TabsContent value="calendar" className="animate-fade-in-up">
+                    <CalendarSection />
+                  </TabsContent>
+
+                  <TabsContent value="analytics" className="animate-fade-in-up">
+                    <div className="space-y-6">
+                      <SmartNotifications />
+                      <AnalyticsSection />
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="ai-assistant" className="animate-fade-in-up">
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 mb-6">
+                        <div className="xl:col-span-3">
+                          <AIAssistant />
+                        </div>
+                        <div className="xl:col-span-2 min-w-0">
+                          <VoiceCommands onTabChange={handleVoiceTabChange} onAddTask={handleVoiceAddTask} onStartTimer={handleVoiceStartTimer} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Tab Content */}
-                  <div className="mt-6 space-y-6">
-                    <TabsContent value="tasks" className="space-y-6 animate-fade-in-up">
-                      <TaskManager showAddDialog={showAddDialog} onShowAddDialogChange={setShowAddDialog} activeTab={activeTab} />
-                    </TabsContent>
-
-                    <TabsContent value="groups" className="animate-fade-in-up">
-                      {selectedGroupId ? (
-                        <GroupChat groupId={selectedGroupId} onBack={handleBackToGroups} />
-                      ) : (
-                        <GroupManager onGroupSelect={handleGroupSelect} />
-                      )}
-                    </TabsContent>
-
-                    <TabsContent value="calendar" className="animate-fade-in-up">
-                      <CalendarSection />
-                    </TabsContent>
-
-                    <TabsContent value="analytics" className="animate-fade-in-up">
-                      <div className="space-y-6">
-                        <SmartNotifications />
-                        <AnalyticsSection />
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="advanced-analytics" className="animate-fade-in-up">
-                      <div className="space-y-6">
-                        <OfflineSync />
-                        <AdvancedAnalytics />
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="ai-assistant" className="animate-fade-in-up">
-                      <div className="space-y-6">
-                         <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 mb-6">
-                           <div className="xl:col-span-3">
-                             <AIAssistant />
-                           </div>
-                           <div className="xl:col-span-2 min-w-0">
-                             <VoiceCommands onTabChange={handleVoiceTabChange} onAddTask={handleVoiceAddTask} onStartTimer={handleVoiceStartTimer} />
-                           </div>
-                         </div>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="pomodoro" className="animate-fade-in-up">
-                      <PomodoroTimer />
-                    </TabsContent>
-                  </div>
+                  </TabsContent>
                 </Tabs>
               </div>
             </main>
