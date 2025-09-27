@@ -18,7 +18,7 @@ begin
   select exists (
     select 1
     from groups
-    where id = p_group_id and owner_id = auth.uid()
+    where groups.id = p_group_id and owner_id = auth.uid()
   ) into is_admin;
 
   if is_admin then
