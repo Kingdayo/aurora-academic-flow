@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { User, Mail, Plus, Calendar, BarChart3, Mic, LogOut, CheckSquare, Timer, Brain } from "lucide-react";
 import { toast } from "sonner";
+import ThemeToggle from "./ThemeToggle";
 
 const UserProfile = () => {
   const { user, logout, loggingOut } = useAuth();
@@ -81,7 +82,7 @@ const UserProfile = () => {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <div className="flex items-center space-x-3 cursor-pointer hover-lift transition-all mobile-friendly-toggle">
+        <div data-testid="user-profile-trigger" className="flex items-center space-x-3 cursor-pointer hover-lift transition-all mobile-friendly-toggle">
           <Avatar className="w-10 h-10 border-2 border-purple-200 dark:border-purple-700 animate-pulse-glow">
             <AvatarFallback className="bg-purple-gradient text-white font-bold">
               {getInitials(displayName)}
@@ -139,7 +140,10 @@ const UserProfile = () => {
             {/* Quick Actions */}
             <Separator className="my-4" />
             <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Quick Actions</h4>
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white">Quick Actions</h4>
+                <ThemeToggle />
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 {quickActions.map((action, index) => (
                   <Button

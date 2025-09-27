@@ -106,9 +106,12 @@ const Dashboard = () => {
 
   const navigationItems = [
     { id: "tasks", label: "Tasks", icon: List },
+    { id: "groups", label: "Groups", icon: Users },
     { id: "calendar", label: "Calendar", icon: CalendarIcon },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "advanced-analytics", label: "Advanced", icon: BarChart3 },
     { id: "ai-assistant", label: "AI Assistant", icon: Bot },
+    { id: "pomodoro", label: "Pomodoro", icon: CalendarIcon }
   ];
 
   const Sidebar = () => (
@@ -203,7 +206,7 @@ const Dashboard = () => {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-background transition-all duration-500">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-purple-900/10 dark:to-gray-800 transition-all duration-500">
         <div className="flex min-h-screen max-w-screen-2xl mx-auto">
           <Sidebar />
 
@@ -244,8 +247,15 @@ const Dashboard = () => {
                     <h1 className="text-2xl font-bold text-foreground">
                       {navigationItems.find(item => item.id === activeTab)?.label}
                     </h1>
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                      <p>Welcome back, {user?.email?.split('@')[0] || 'User'}</p>
+                     <div className="flex-1 max-w-md mx-8">
+                      <TaskCountdown />
+                    </div>
+                    <div className="flex items-center space-x-4">
+                       <div className="text-sm text-right text-muted-foreground">
+                        <p className="font-medium">Welcome back,</p>
+                        <p>{user?.email?.split('@')[0] || 'User'}</p>
+                      </div>
+                      <UserProfile />
                     </div>
                   </div>
                 </div>
@@ -259,7 +269,13 @@ const Dashboard = () => {
                   <TabsContent value="tasks" className="space-y-6 animate-fade-in-up">
                     <TaskManager showAddDialog={showAddDialog} onShowAddDialogChange={setShowAddDialog} activeTab={activeTab} />
                   </TabsContent>
-
+                   <TabsContent value="groups" className="animate-fade-in-up">
+                      {selectedGroupId ? (
+                        <GroupChat groupId={selectedGroupId} onBack={handleBackToGroups} />
+                      ) : (
+                        <GroupManager onGroupSelect={handleGroupSelect} />
+                      )}
+                    </TabsContent>
                   <TabsContent value="calendar" className="animate-fade-in-up">
                     <CalendarSection />
                   </TabsContent>
@@ -270,7 +286,12 @@ const Dashboard = () => {
                       <AnalyticsSection />
                     </div>
                   </TabsContent>
-
+                   <TabsContent value="advanced-analytics" className="animate-fade-in-up">
+                      <div className="space-y-6">
+                        <OfflineSync />
+                        <AdvancedAnalytics />
+                      </div>
+                    </TabsContent>
                   <TabsContent value="ai-assistant" className="animate-fade-in-up">
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 mb-6">
@@ -283,6 +304,9 @@ const Dashboard = () => {
                       </div>
                     </div>
                   </TabsContent>
+                   <TabsContent value="pomodoro" className="animate-fade-in-up">
+                      <PomodoroTimer />
+                    </TabsContent>
                 </Tabs>
               </div>
             </main>
