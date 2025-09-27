@@ -15,6 +15,7 @@ interface Message {
   profiles?: {
     id?: string;
     full_name: string | null;
+    username?: string | null;
     avatar_url?: string | null;
   };
 }
@@ -41,6 +42,7 @@ export const useRealtimeMessages = (groupId: string | null) => {
           profiles (
             id,
             full_name,
+            username,
             avatar_url
           )
         `)
