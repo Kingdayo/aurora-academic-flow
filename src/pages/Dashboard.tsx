@@ -117,8 +117,8 @@ const Dashboard = () => {
   const Sidebar = () => (
     <div className={`
       ${isMobile
-        ? `fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-500 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
-        : 'sticky top-0 h-screen w-80 flex-shrink-0'
+        ? `fixed inset-y-0 left-0 z-50 w-72 sm:w-80 transform transition-transform duration-500 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+        : 'sticky top-0 h-screen w-72 sm:w-80 flex-shrink-0'
       }
       bg-card border-r border-border backdrop-blur-xl shadow-xl transition-all duration-500
     `}>
@@ -154,14 +154,18 @@ const Dashboard = () => {
           <Separator className="bg-border/50" />
           <div className="p-4 text-center">
             <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-primary/50">
-              <img src={user?.user_metadata.avatar_url || `https://api.dicebear.com/6.x/initials/svg?seed=${user?.email}`} alt="User Avatar" />
+              <img src={user?.user_metadata.avatar_url || `https://api.dicebear.com/8.x/adventurer/svg?seed=${user?.email}`} alt="User Avatar" />
               <AvatarFallback>{user?.email?.[0].toUpperCase()}</AvatarFallback>
             </Avatar>
             <h2 className="text-xl font-semibold">{user?.user_metadata.full_name || user?.email}</h2>
             <p className="text-sm text-muted-foreground">{user?.email}</p>
-            <Badge variant="outline" className="mt-4 text-green-400 border-green-400/50">
-              Active Session
-            </Badge>
+            <div className="mt-4 flex justify-center items-center space-x-2">
+                <ThemeToggle />
+                <Button variant="ghost" size="sm" onClick={() => logout()}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </Button>
+            </div>
           </div>
           <div className="px-4">
             <TaskCountdown />
@@ -197,18 +201,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* User Controls */}
-        <div className="animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-          <Separator className="my-4" />
-          <div className="flex items-center justify-between px-4">
-            <h4 className="font-semibold text-muted-foreground text-sm">Theme</h4>
-            <ThemeToggle />
-          </div>
-          <Button variant="ghost" className="w-full justify-start mt-2" onClick={() => logout()}>
-            <LogOut className="mr-3 h-4 w-4" />
-            Sign Out
-          </Button>
-        </div>
       </div>
     </div>
   );

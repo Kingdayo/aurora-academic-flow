@@ -47,7 +47,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const { showNotification, markAsNotified, hasBeenNotified } = useTaskNotifications();
-  const { isSupported, isSubscribed, loading, subscribe, scheduleNotification } = usePushNotifications();
+  const { isSupported, isSubscribed, loading, subscribe, scheduleNotification, cancelAllScheduledNotifications } = usePushNotifications();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPriority, setFilterPriority] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -91,6 +91,38 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
     loadTasks();
   }, []);
 
+  // Effect to sync notifications with tasks
+  useEffect(() => {
+    const syncNotifications = async () => {
+      if (!isSubscribed) return;
+
+      await cancelAllScheduledNotifications();
+
+      for (const task of tasks) {
+        if (task.dueDate && !task.completed) {
+          const dueDateTime = new Date(task.dueDate);
+          if (task.dueTime) {
+            const [hours, minutes] = task.dueTime.split(':').map(Number);
+            dueDateTime.setHours(hours, minutes, 0, 0);
+          } else {
+            dueDateTime.setHours(23, 59, 0, 0);
+          }
+
+          if (dueDateTime > new Date()) {
+            await scheduleNotification(
+              task.id,
+              `Task Due: ${task.title}`,
+              `Your task "${task.title}" is due now!`,
+              dueDateTime
+            );
+          }
+        }
+      }
+    };
+
+    syncNotifications();
+  }, [tasks, isSubscribed]);
+
   // Save tasks to localStorage whenever tasks change and trigger countdown update
   const saveTasks = (updatedTasks: Task[]) => {
     try {
@@ -117,60 +149,39 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
       toast.error("Please enter a task title");
       return;
     }
+    try {
+      const task: Task = {
+        id: crypto.randomUUID(),
+        title: newTask.title,
+        description: newTask.description,
+        dueDate: newTask.dueDate,
+        dueTime: newTask.dueTime,
+        priority: newTask.priority,
+        category: newTask.category,
+        completed: false,
+        createdAt: new Date()
+      };
 
-    const task: Task = {
-      id: crypto.randomUUID(),
-      title: newTask.title,
-      description: newTask.description,
-      dueDate: newTask.dueDate,
-      dueTime: newTask.dueTime,
-      priority: newTask.priority,
-      category: newTask.category,
-      completed: false,
-      createdAt: new Date()
-    };
+      const updatedTasks = [task, ...tasks];
+      updateTasks(updatedTasks);
 
-    const updatedTasks = [task, ...tasks];
-    updateTasks(updatedTasks);
-    
-    // Schedule push notification for task due date
-    if (task.dueDate && !task.completed) {
-      const dueDateTime = new Date(task.dueDate);
-      if (task.dueTime) {
-        const [hours, minutes] = task.dueTime.split(':').map(Number);
-        dueDateTime.setHours(hours, minutes, 0, 0);
-      } else {
-        dueDateTime.setHours(23, 59, 0, 0); // Default to end of day
-      }
-
-      // Only schedule if the due date is in the future
-      if (dueDateTime > new Date()) {
-        const success = await scheduleNotification(
-          task.id,
-          `Task Due: ${task.title}`,
-          `Your task "${task.title}" is due now!`,
-          dueDateTime
-        );
-        
-        if (success) {
-          console.log(`Background notification scheduled for task: ${task.title}`);
-        }
+      toast.success("Task added successfully! 🎉");
+    } catch (error) {
+      console.error("Failed to add task:", error);
+      toast.error("Failed to add task. Please try again.");
+    } finally {
+      setNewTask({
+        title: "",
+        description: "",
+        dueDate: undefined,
+        dueTime: "",
+        priority: "medium",
+        category: "General"
+      });
+      if (onShowAddDialogChange) {
+        onShowAddDialogChange(false);
       }
     }
-    
-    setNewTask({
-      title: "",
-      description: "",
-      dueDate: undefined,
-      dueTime: "",
-      priority: "medium",
-      category: "General"
-    });
-    // setShowAddTaskDialog(false); // Now controlled by parent via onShowAddDialogChange
-    if (onShowAddDialogChange) {
-      onShowAddDialogChange(false);
-    }
-    toast.success("Task added successfully! 🎉");
   };
 
   const toggleTask = (id: string) => {
@@ -493,13 +504,17 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
 
             <div>
               <Label htmlFor="time">Due Time (Optional)</Label>
-              <Input
-                id="time"
-                type="time"
-                value={newTask.dueTime}
-                onChange={(e) => setNewTask({...newTask, dueTime: e.target.value})}
-                placeholder="Select time"
-              />
+              <div className="relative">
+                <Input
+                  id="time"
+                  type="time"
+                  value={newTask.dueTime}
+                  onChange={(e) => setNewTask({...newTask, dueTime: e.target.value})}
+                  placeholder="Select time"
+                  className="pr-8"
+                />
+                <Clock className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              </div>
             </div>
             
             <div className="flex space-x-2 pt-4">

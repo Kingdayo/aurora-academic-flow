@@ -36,7 +36,7 @@ export const useRealtimeMessages = (groupId: string | null) => {
       setLoading(true);
       const { data, error } = await supabase
         .from('messages')
-        .select('*, profiles(full_name, avatar_url)')
+        .select('*, profiles(id, full_name, avatar_url)')
         .eq('group_id', groupId)
         .order('created_at', { ascending: true })
         .limit(100);
@@ -87,44 +87,49 @@ export const useRealtimeMessages = (groupId: string | null) => {
     if (payload.eventType === 'INSERT' && payload.new) {
       const newMessage = { ...payload.new } as Message;
 
-      const addMessageWithProfile = (profile: any) => {
-        newMessage.profiles = profile;
-        setMessages(prev => {
-          if (prev.find(msg => msg.id === newMessage.id)) {
-            return prev;
+      // Ensure profile data is attached to the new message
+      if (!newMessage.profiles) {
+        if (profileCache.current.has(newMessage.user_id)) {
+          newMessage.profiles = profileCache.current.get(newMessage.user_id);
+        } else {
+          try {
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('id, full_name, avatar_url')
+              .eq('id', newMessage.user_id)
+              .single();
+
+            if (error) throw error;
+
+            if (profile) {
+              profileCache.current.set(newMessage.user_id, profile);
+              newMessage.profiles = profile;
+            }
+          } catch (error) {
+            console.error('Error fetching profile for new message:', error);
           }
-          return [...prev, newMessage];
-        });
-      };
-
-      if (profileCache.current.has(newMessage.user_id)) {
-        addMessageWithProfile(profileCache.current.get(newMessage.user_id));
-      } else {
-        try {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('full_name, avatar_url')
-            .eq('id', newMessage.user_id)
-            .single();
-
-          if (error) throw error;
-
-          if (profile) {
-            profileCache.current.set(newMessage.user_id, profile);
-            addMessageWithProfile(profile);
-          } else {
-            addMessageWithProfile(null);
-          }
-        } catch (error) {
-          console.error('Error fetching profile for new message:', error);
-          addMessageWithProfile(null);
         }
       }
+
+      setMessages(prev => {
+        if (prev.find(msg => msg.id === newMessage.id)) {
+          return prev;
+        }
+        return [...prev, newMessage];
+      });
     } else if (payload.eventType === 'UPDATE' && payload.new) {
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === (payload.new as Message).id ? { ...msg, ...(payload.new as Message) } : msg
-        )
+      setMessages(prev =>
+        prev.map(msg => {
+          if (msg.id === (payload.new as Message).id) {
+            const updatedMessage = { ...msg, ...payload.new } as Message;
+            // Re-apply profile from cache if available, to ensure consistency
+            if (profileCache.current.has(updatedMessage.user_id)) {
+              updatedMessage.profiles = profileCache.current.get(updatedMessage.user_id);
+            }
+            return updatedMessage;
+          }
+          return msg;
+        })
       );
     } else if (payload.eventType === 'DELETE' && payload.old) {
       setMessages(prev => 

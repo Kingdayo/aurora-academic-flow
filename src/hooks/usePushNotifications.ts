@@ -148,6 +148,18 @@ export const usePushNotifications = () => {
     }
   };
 
+  const cancelAllScheduledNotifications = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('cancel-all-notifications');
+      if (error) throw error;
+      console.log('All scheduled notifications have been cancelled.');
+      return true;
+    } catch (error) {
+      console.error('Error cancelling scheduled notifications:', error);
+      return false;
+    }
+  };
+
   return {
     isSupported,
     isSubscribed,
@@ -155,5 +167,6 @@ export const usePushNotifications = () => {
     subscribe,
     unsubscribe,
     scheduleNotification,
+    cancelAllScheduledNotifications,
   };
 };
