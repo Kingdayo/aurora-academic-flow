@@ -55,13 +55,6 @@ export const useRealtimeMessages = (groupId: string | null) => {
       if (data) {
         const messages = data as Message[];
         
-        // Debug logging to see what profile data we get for existing messages
-        console.log('Fetched messages with profile data:', messages.map(msg => ({
-          messageId: msg.id,
-          userId: msg.user_id,
-          hasProfileData: !!msg.profiles?.full_name || !!msg.profiles?.email,
-          profileData: msg.profiles
-        })));
         
         setMessages(messages);
       }
@@ -114,13 +107,6 @@ export const useRealtimeMessages = (groupId: string | null) => {
           // The RPC returns a single row, which is our new message object
           const newMessage = data as Message;
           
-          // Debug logging to see what profile data we get for new messages
-          console.log('New message with profile data:', {
-            messageId: newMessage.id,
-            userId: newMessage.user_id,
-            profiles: newMessage.profiles,
-            hasProfileData: !!newMessage.profiles?.full_name || !!newMessage.profiles?.email
-          });
           
           setMessages(prev => {
             if (prev.find(msg => msg.id === newMessage.id)) {
