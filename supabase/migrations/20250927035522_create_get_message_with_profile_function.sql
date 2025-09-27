@@ -46,6 +46,7 @@ BEGIN
       jsonb_build_object(
         'id', p.id,
         'full_name', p.full_name,
+        'email', p.email,
         'avatar_url', p.avatar_url
       ) as profiles
     FROM
