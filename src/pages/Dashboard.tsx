@@ -51,12 +51,12 @@ const Dashboard = () => {
   const { notificationPermission, requestPermission } = useTaskNotifications();
   const isMobile = useIsMobile();
 
-  // Auto-request notification permission
+  // Auto-request notification permission on login
   useEffect(() => {
-    if (notificationPermission === 'default') {
+    if (user && notificationPermission === 'default') {
       requestPermission();
     }
-  }, [notificationPermission, requestPermission]);
+  }, [user, notificationPermission, requestPermission]);
 
   // Voice command handlers
   const handleVoiceAddTask = useCallback(() => {
@@ -150,55 +150,58 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Profile Section */}
-        <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-          <Separator className="bg-border/50" />
-          <div className="p-4 text-center">
-            <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-primary/50">
-              <img src={user?.user_metadata.avatar_url || generateAvatarUrl(user?.email)} alt="User Avatar" />
-              <AvatarFallback>{user?.email?.[0].toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <h2 className="text-xl font-semibold">{user?.user_metadata.full_name || user?.email}</h2>
-            <p className="text-sm text-muted-foreground">{user?.email}</p>
-            <div className="mt-4 flex justify-center items-center space-x-2">
-                <ThemeToggle />
-                <Button variant="ghost" size="sm" onClick={() => logout()}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
-                </Button>
+        {/* Scrollable Area */}
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-6">
+          {/* Profile Section */}
+          <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+            <Separator className="bg-border/50" />
+            <div className="p-4 text-center">
+              <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-primary/50">
+                <img src={user?.user_metadata.avatar_url || generateAvatarUrl(user?.email)} alt="User Avatar" />
+                <AvatarFallback>{user?.email?.[0].toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <h2 className="text-xl font-semibold">{user?.user_metadata.full_name || user?.email}</h2>
+              <p className="text-sm text-muted-foreground">{user?.email}</p>
+              <div className="mt-4 flex justify-center items-center space-x-2">
+                  <ThemeToggle />
+                  <Button variant="ghost" size="sm" onClick={() => logout()}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign Out
+                  </Button>
+              </div>
             </div>
+            <div className="px-4">
+              <TaskCountdown />
+            </div>
+            <Separator className="bg-border/50" />
           </div>
-          <div className="px-4">
-            <TaskCountdown />
-          </div>
-          <Separator className="bg-border/50" />
-        </div>
 
-        {/* Navigation */}
-        <div className="flex-1 space-y-3 animate-fade-in-up overflow-y-auto min-h-0" style={{ animationDelay: '0.2s' }}>
-          <h4 className="font-semibold text-muted-foreground text-sm uppercase tracking-wider px-4 pt-4">
-            Navigation
-          </h4>
-          <div className="space-y-1">
-            {navigationItems.map((item, index) => (
-              <Button
-                key={item.id}
-                variant={activeTab === item.id ? "secondary" : "ghost"}
-                className={`w-full justify-start transition-all duration-300 hover:scale-105 ${activeTab === item.id ? "text-primary" : ""
-                  }`}
-                style={{ animationDelay: `${index * 0.1}s` }}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  if (selectedGroupId && item.id !== "groups") {
-                    setSelectedGroupId(null);
-                  }
-                  if (isMobile) setSidebarOpen(false);
-                }}
-              >
-                <item.icon className="mr-3 h-4 w-4 transition-transform duration-300" />
-                <span className="font-medium">{item.label}</span>
-              </Button>
-            ))}
+          {/* Navigation */}
+          <div className="space-y-3 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            <h4 className="font-semibold text-muted-foreground text-sm uppercase tracking-wider px-4 pt-4">
+              Navigation
+            </h4>
+            <div className="space-y-1">
+              {navigationItems.map((item, index) => (
+                <Button
+                  key={item.id}
+                  variant={activeTab === item.id ? "secondary" : "ghost"}
+                  className={`w-full justify-start transition-all duration-300 hover:scale-105 ${activeTab === item.id ? "text-primary" : ""
+                    }`}
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    if (selectedGroupId && item.id !== "groups") {
+                      setSelectedGroupId(null);
+                    }
+                    if (isMobile) setSidebarOpen(false);
+                  }}
+                >
+                  <item.icon className="mr-3 h-4 w-4 transition-transform duration-300" />
+                  <span className="font-medium">{item.label}</span>
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 

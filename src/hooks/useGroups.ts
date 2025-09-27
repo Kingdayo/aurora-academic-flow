@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEnhancedAuth } from './useEnhancedAuth';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ interface Group {
   join_code: string;
   created_at: string;
   group_members?: any[];
+  member_count: number;
 }
 
 export function useGroups() {
@@ -18,7 +19,7 @@ export function useGroups() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchGroups = async () => {
+  const fetchGroups = useCallback(async () => {
     if (!user) {
       setGroups([]);
       setLoading(false);
@@ -56,28 +57,41 @@ export function useGroups() {
       if (ownedGroupsError) throw ownedGroupsError;
 
       // Combine and deduplicate groups
-      const allGroups = new Map<string, Group>();
+      const allGroupsMap = new Map<string, Omit<Group, 'member_count'>>();
       
-      // Add groups from membership
       userGroups?.forEach(item => {
         if (item.groups) {
-          allGroups.set(item.groups.id, item.groups as Group);
+          allGroupsMap.set(item.groups.id, item.groups as Omit<Group, 'member_count'>);
         }
       });
 
-      // Add owned groups
       ownedGroups?.forEach(group => {
-        allGroups.set(group.id, group);
+        allGroupsMap.set(group.id, group);
       });
 
-      setGroups(Array.from(allGroups.values()));
+      const allGroups = Array.from(allGroupsMap.values());
+
+      const groupsWithCounts = await Promise.all(
+        allGroups.map(async (group) => {
+          const { count, error } = await supabase
+            .from('group_members')
+            .select('id', { count: 'exact' })
+            .eq('group_id', group.id)
+            .eq('status', 'active');
+
+          return { ...group, member_count: error ? 0 : count ?? 0 };
+        })
+      );
+
+      setGroups(groupsWithCounts);
     } catch (error) {
       console.error('Error fetching groups:', error);
       toast.error('Failed to load groups');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
   const createGroup = async (name: string, description?: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
@@ -90,7 +104,7 @@ export function useGroups() {
         .from('groups')
         .insert({
           name: name.trim(),
-          description: description.trim(),
+          description: description?.trim(),
           owner_id: user.id,
           join_code: joinCode,
         })
@@ -230,7 +244,7 @@ export function useGroups() {
 
   useEffect(() => {
     fetchGroups();
-  }, [user]);
+  }, [fetchGroups]);
 
   // Set up real-time subscriptions for group changes
   useEffect(() => {
@@ -265,7 +279,7 @@ export function useGroups() {
     return () => {
       supabase.removeChannel(groupsChannel);
     };
-  }, [user]);
+  }, [user, fetchGroups]);
 
   return {
     groups,
