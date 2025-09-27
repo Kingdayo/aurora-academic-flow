@@ -26,6 +26,7 @@ import useTaskNotifications from "@/hooks/useTaskNotifications";
 import { useIsMobile } from "@/hooks/use-mobile";
 import VoiceCommandButton from "@/components/VoiceCommandButton";
 import ThemeToggle from "@/components/ThemeToggle";
+import { generateAvatarUrl } from "@/lib/utils";
 
 interface Task {
   id: string;
@@ -154,7 +155,7 @@ const Dashboard = () => {
           <Separator className="bg-border/50" />
           <div className="p-4 text-center">
             <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-primary/50">
-              <img src={user?.user_metadata.avatar_url || `https://api.dicebear.com/8.x/adventurer/svg?seed=${user?.email}`} alt="User Avatar" />
+              <img src={user?.user_metadata.avatar_url || generateAvatarUrl(user?.email)} alt="User Avatar" />
               <AvatarFallback>{user?.email?.[0].toUpperCase()}</AvatarFallback>
             </Avatar>
             <h2 className="text-xl font-semibold">{user?.user_metadata.full_name || user?.email}</h2>
@@ -174,8 +175,8 @@ const Dashboard = () => {
         </div>
 
         {/* Navigation */}
-        <div className="flex-1 space-y-3 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-          <h4 className="font-semibold text-muted-foreground text-sm uppercase tracking-wider px-4">
+        <div className="flex-1 space-y-3 animate-fade-in-up overflow-y-auto min-h-0" style={{ animationDelay: '0.2s' }}>
+          <h4 className="font-semibold text-muted-foreground text-sm uppercase tracking-wider px-4 pt-4">
             Navigation
           </h4>
           <div className="space-y-1">

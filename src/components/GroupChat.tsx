@@ -9,7 +9,8 @@ import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
 import { useRealtimeMessages } from '@/hooks/useRealtimeMessages';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, ArrowLeft, Users, Crown } from 'lucide-react';
+import { Send, ArrowLeft, Users, Crown, Edit, Check, X } from 'lucide-react';
+import { generateAvatarUrl } from '@/lib/utils';
 
 interface GroupChatProps {
   groupId: string;
@@ -23,6 +24,8 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
   const [sending, setSending] = useState(false);
   const [groupInfo, setGroupInfo] = useState<any>(null);
   const [memberCount, setMemberCount] = useState(0);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -54,8 +57,24 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
   }, [groupId]);
 
   useEffect(() => {
+    const fetchMemberCount = async () => {
+      const { count, error } = await supabase
+        .from('group_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId)
+        .eq('status', 'active');
+
+      if (error) {
+        console.error('Error fetching member count:', error);
+      } else {
+        setMemberCount(count || 0);
+      }
+    };
+
+    fetchMemberCount();
+
     const channel = supabase
-      .channel(`group_members_${groupId}`)
+      .channel(`group_members_count_${groupId}`)
       .on(
         'postgres_changes',
         {
@@ -64,38 +83,13 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
           table: 'group_members',
           filter: `group_id=eq.${groupId}`,
         },
-        async () => {
-          const { data: members, error } = await supabase
-            .from('group_members')
-            .select('id', { count: 'exact' })
-            .eq('group_id', groupId)
-            .eq('status', 'active');
-
-          if (!error && members) {
-            setMemberCount(members.length);
-          }
-        }
+        () => fetchMemberCount()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [groupId]);
-
-  useEffect(() => {
-    const fetchInitialMemberCount = async () => {
-      const { data, error } = await supabase
-        .from('group_members')
-        .select('id', { count: 'exact' })
-        .eq('group_id', groupId)
-        .eq('status', 'active');
-
-      if (!error && data) {
-        setMemberCount(data.length);
-      }
-    };
-    fetchInitialMemberCount();
   }, [groupId]);
 
 
@@ -117,6 +111,33 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleUpdateGroupName = async () => {
+    if (!newGroupName.trim() || newGroupName === groupInfo.name) {
+      setIsEditingName(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('groups')
+        .update({ name: newGroupName.trim() })
+        .eq('id', groupId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setGroupInfo(data);
+      toast.success('Group name updated successfully');
+    } catch (error) {
+      console.error('Error updating group name:', error);
+      toast.error('Failed to update group name');
+      setNewGroupName(groupInfo.name); // Revert on failure
+    } finally {
+      setIsEditingName(false);
     }
   };
 
@@ -163,16 +184,52 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <Avatar className="h-8 w-8">
-              <AvatarImage src={`https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`} />
+              <AvatarImage src={generateAvatarUrl(groupId)} />
               <AvatarFallback>{groupInfo?.name?.charAt(0) || 'G'}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <CardTitle className="text-base md:text-lg truncate">
-                  {groupInfo?.name || 'Group Chat'}
-                </CardTitle>
-                {isGroupAdmin(groupInfo) && (
-                  <Crown className="h-4 w-4 text-yellow-500 flex-shrink-0" />
+                {isEditingName && isGroupAdmin(groupInfo) ? (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleUpdateGroupName();
+                        if (e.key === 'Escape') setIsEditingName(false);
+                      }}
+                      className="h-8 text-base md:text-lg"
+                      autoFocus
+                    />
+                    <Button variant="ghost" size="sm" onClick={handleUpdateGroupName} className="p-1 h-7 w-7">
+                      <Check className="h-4 w-4 text-green-600" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setIsEditingName(false)} className="p-1 h-7 w-7">
+                      <X className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <CardTitle className="text-base md:text-lg truncate">
+                      {groupInfo?.name || 'Group Chat'}
+                    </CardTitle>
+                    {isGroupAdmin(groupInfo) && (
+                      <>
+                        <Crown className="h-4 w-4 text-yellow-500 flex-shrink-0" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setIsEditingName(true);
+                            setNewGroupName(groupInfo.name);
+                          }}
+                          className="p-1 h-7 w-7"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -214,7 +271,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                       <div className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
                         <Avatar className="h-8 w-8 flex-shrink-0">
                           <AvatarImage
-                            src={message.profiles?.avatar_url || `https://avatar.vercel.sh/${message.user_id}.png`}
+                            src={message.profiles?.avatar_url || generateAvatarUrl(message.user_id)}
                             alt={message.profiles?.full_name || 'User'}
                           />
                           <AvatarFallback className="text-xs">

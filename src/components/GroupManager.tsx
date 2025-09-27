@@ -12,6 +12,7 @@ import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Plus, Crown, Users, UserPlus, Trash2, Copy, MessageCircle } from 'lucide-react';
+import { generateAvatarUrl } from '@/lib/utils';
 
 interface GroupManagerProps {
   onGroupSelect?: (groupId: string) => void;
@@ -235,7 +236,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                   <div className="flex flex-col gap-3 mb-3">
                     <div className="flex items-start gap-3">
                       <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0">
-                        <AvatarImage src={`https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`} />
+                        <AvatarImage src={generateAvatarUrl(group.id)} />
                         <AvatarFallback className="text-xs md:text-sm">{group.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
@@ -328,7 +329,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                                       <div className="flex items-center gap-2 flex-1 min-w-0">
                                         <Avatar className="h-6 w-6 flex-shrink-0">
                                           <AvatarImage
-                                            src={member.profiles?.avatar_url || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`}
+                                            src={member.profiles?.avatar_url || generateAvatarUrl(member.user_id)}
                                             alt={member.profiles?.full_name || 'Member'}
                                           />
                                           <AvatarFallback className="text-xs">
