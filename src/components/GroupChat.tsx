@@ -265,6 +265,16 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                   const isOwnMessage = message.user_id === user?.id;
                   const displayName = message.profiles?.full_name || message.profiles?.email;
                   
+                  // Debug logging to see what profile data we have
+                  if (!displayName && !isOwnMessage) {
+                    console.log('Missing profile data for message:', {
+                      messageId: message.id,
+                      userId: message.user_id,
+                      profiles: message.profiles,
+                      isOwnMessage
+                    });
+                  }
+                  
                   // Get the best display name for avatar initial
                   const getAvatarInitial = () => {
                     if (isOwnMessage) {
@@ -289,7 +299,8 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                              'You';
                     }
                     // For other users, use their profile data or fallback
-                    return displayName || 'Unknown User';
+                    // Try to get user ID as a fallback if no profile data
+                    return displayName || `User ${message.user_id.slice(0, 8)}`;
                   };
 
 
