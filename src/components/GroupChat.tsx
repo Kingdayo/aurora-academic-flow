@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,26 +56,27 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
     loadGroupInfo();
   }, [groupId]);
 
+  const fetchMemberCount = useCallback(async () => {
+    if (!groupId) return;
+    try {
+      const { data, error } = await supabase.rpc('get_group_member_count', {
+        p_group_id: groupId,
+      });
+
+      if (error) throw error;
+
+      setMemberCount(data);
+    } catch (error) {
+      console.error('Error fetching member count:', error);
+      // Do not toast here as it can be annoying on load
+    }
+  }, [groupId]);
+
   useEffect(() => {
-    const fetchMemberCount = async () => {
-      try {
-        const { data, error } = await supabase.rpc('get_group_member_count', {
-          p_group_id: groupId,
-        });
-
-        if (error) throw error;
-
-        setMemberCount(data);
-      } catch (error) {
-        console.error('Error fetching member count:', error);
-        // Do not toast here as it can be annoying on load
-      }
-    };
-
     fetchMemberCount();
 
     const channel = supabase
-      .channel(`group_members_count_${groupId}`)
+      .channel(`realtime_group_members_count_${groupId}`)
       .on(
         'postgres_changes',
         {
@@ -84,14 +85,17 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
           table: 'group_members',
           filter: `group_id=eq.${groupId}`,
         },
-        () => fetchMemberCount()
+        () => {
+          // Add a small delay to allow the database to settle before refetching
+          setTimeout(fetchMemberCount, 500);
+        }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [groupId]);
+  }, [groupId, fetchMemberCount]);
 
 
   const handleSendMessage = async () => {

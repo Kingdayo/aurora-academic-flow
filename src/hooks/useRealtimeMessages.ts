@@ -52,12 +52,6 @@ export const useRealtimeMessages = (groupId: string | null) => {
       if (error) throw error;
 
       if (data) {
-        // Populate the cache from the fetched messages for the realtime handler to use
-        data.forEach(msg => {
-          if (msg.profiles) {
-            profileCache.current.set(msg.user_id, msg.profiles);
-          }
-        });
         setMessages(data as Message[]);
       }
     } catch (error) {
@@ -67,6 +61,30 @@ export const useRealtimeMessages = (groupId: string | null) => {
       setLoading(false);
     }
   }, [groupId]);
+
+  const getProfile = useCallback(async (userId: string) => {
+    if (profileCache.current.has(userId)) {
+      return profileCache.current.get(userId);
+    }
+
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+
+      if (profile) {
+        profileCache.current.set(userId, profile);
+        return profile;
+      }
+    } catch (error) {
+      console.error(`Error fetching profile for user ${userId}:`, error);
+    }
+    return null;
+  }, []);
 
   const sendMessage = async (content: string, messageType: 'text' | 'system' | 'task_update' = 'text', metadata = {}) => {
     if (!groupId) return;
@@ -97,26 +115,8 @@ export const useRealtimeMessages = (groupId: string | null) => {
     if (payload.eventType === 'INSERT' && payload.new) {
       const newMessage = { ...payload.new } as Message;
 
-      // Ensure profile data is attached to the new message
-      if (!newMessage.profiles && profileCache.current.has(newMessage.user_id)) {
-        newMessage.profiles = profileCache.current.get(newMessage.user_id);
-      } else if (!newMessage.profiles) {
-        // Fallback for safety
-        try {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('id, full_name, avatar_url')
-            .eq('id', newMessage.user_id)
-            .single();
-          if (error) throw error;
-          if (profile) {
-            profileCache.current.set(newMessage.user_id, profile);
-            newMessage.profiles = profile;
-          }
-        } catch (error) {
-          console.error('Error fetching profile for new message:', error);
-        }
-      }
+      // The realtime event does not include joined data. We must fetch it.
+      newMessage.profiles = await getProfile(newMessage.user_id);
 
       setMessages(prev => {
         if (prev.find(msg => msg.id === newMessage.id)) {

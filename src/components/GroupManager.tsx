@@ -171,10 +171,6 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                           )}
                         </div>
                         <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">{group.description}</p>
-                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {group.member_count} members
-                        </p>
                       </div>
                     </div>
                     
