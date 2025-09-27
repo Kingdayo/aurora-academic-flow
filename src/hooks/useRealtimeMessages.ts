@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { toast } from 'sonner';
@@ -22,8 +22,8 @@ interface Message {
 export const useRealtimeMessages = (groupId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  const [channel, setChannel] = useState<RealtimeChannel | null>(null);
-  const [profileCache, setProfileCache] = useState<Map<string, any>>(new Map());
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const profileCache = useRef(new Map<string, any>());
 
   const fetchMessages = useCallback(async () => {
     if (!groupId) {
@@ -44,13 +44,11 @@ export const useRealtimeMessages = (groupId: string | null) => {
       if (error) throw error;
       if (data) {
         setMessages(data);
-        const newCache = new Map();
         data.forEach(msg => {
           if (msg.profiles && msg.user_id) {
-            newCache.set(msg.user_id, msg.profiles);
+            profileCache.current.set(msg.user_id, msg.profiles);
           }
         });
-        setProfileCache(newCache);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -99,8 +97,8 @@ export const useRealtimeMessages = (groupId: string | null) => {
         });
       };
 
-      if (profileCache.has(newMessage.user_id)) {
-        addMessageWithProfile(profileCache.get(newMessage.user_id));
+      if (profileCache.current.has(newMessage.user_id)) {
+        addMessageWithProfile(profileCache.current.get(newMessage.user_id));
       } else {
         try {
           const { data: profile, error } = await supabase
@@ -112,7 +110,7 @@ export const useRealtimeMessages = (groupId: string | null) => {
           if (error) throw error;
 
           if (profile) {
-            setProfileCache(prev => new Map(prev).set(newMessage.user_id, profile));
+            profileCache.current.set(newMessage.user_id, profile);
             addMessageWithProfile(profile);
           } else {
             addMessageWithProfile(null);
@@ -133,13 +131,13 @@ export const useRealtimeMessages = (groupId: string | null) => {
         prev.filter(msg => msg.id !== (payload.old as Message).id)
       );
     }
-  }, [profileCache]);
+  }, []);
 
   useEffect(() => {
     if (!groupId) {
-      if (channel) {
-        supabase.removeChannel(channel);
-        setChannel(null);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
       setMessages([]);
       setLoading(false);
@@ -147,6 +145,14 @@ export const useRealtimeMessages = (groupId: string | null) => {
     }
 
     fetchMessages();
+
+    if (channelRef.current && channelRef.current.topic === `messages:${groupId}`) {
+        return;
+    }
+
+    if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+    }
 
     const newChannel = supabase
       .channel(`messages:${groupId}`)
@@ -162,10 +168,13 @@ export const useRealtimeMessages = (groupId: string | null) => {
       )
       .subscribe();
 
-    setChannel(newChannel);
+    channelRef.current = newChannel;
 
     return () => {
-      supabase.removeChannel(newChannel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [groupId, fetchMessages, handleRealtimeMessage]);
 
