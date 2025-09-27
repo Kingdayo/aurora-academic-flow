@@ -263,7 +263,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                   const showDate = index === 0 || 
                     formatDate(message.created_at) !== formatDate(messages[index - 1].created_at);
                   const isOwnMessage = message.user_id === user?.id;
-                  const displayName = message.profiles?.full_name || message.profiles?.email;
+                  const displayName = message.profiles?.full_name || (message.profiles?.email ? message.profiles.email.split('@')[0] : null);
                   
                   // Get the best display name for this message
                   const getBestDisplayName = () => {
@@ -271,15 +271,14 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                       // For own messages, try to get the user's name from their profile data
                       return displayName || 
                              user?.user_metadata?.full_name || 
-                             user?.email?.split('@')[0] || 
-                             'You';
+                             (user?.email ? user.email.split('@')[0] : 'You');
                     }
                     // For other users, only show if we have actual profile data
                     if (displayName && displayName.trim() !== '') {
                       return displayName;
                     }
-                    // If no profile data, show a loading state
-                    return 'Loading...';
+                    // If no profile data, show a fallback
+                    return `User ${message.user_id.substring(0, 8)}`;
                   };
                   
                   
