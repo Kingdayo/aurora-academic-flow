@@ -263,54 +263,54 @@ const TaskCountdown = () => {
         </div>
 
         {/* Countdown Display */}
-        <div className="grid grid-cols-4 gap-2 sm:gap-4 text-center">
-          <div className={`p-2 sm:p-3 rounded-lg ${
-            isOverdue 
-              ? "bg-red-100 dark:bg-red-900/30" 
+        <div className="grid grid-cols-4 gap-1 sm:gap-2 text-center">
+          <div className={`p-1 sm:p-2 rounded-lg ${
+            isOverdue
+              ? "bg-red-100 dark:bg-red-900/30"
               : "bg-white/80 dark:bg-gray-800/80"
           } backdrop-blur-sm`}>
-            <div className={`text-lg sm:text-2xl font-bold ${
+            <div className={`text-base sm:text-xl font-bold ${
               isOverdue ? "text-red-600" : "text-purple-600 dark:text-purple-400"
             }`}>
               {isOverdue ? "0" : timeLeft.days}
             </div>
-            <div className="text-xs text-gray-600 dark:text-gray-300">Days</div>
+            <div className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-300">Days</div>
           </div>
-          <div className={`p-2 sm:p-3 rounded-lg ${
-            isOverdue 
-              ? "bg-red-100 dark:bg-red-900/30" 
+          <div className={`p-1 sm:p-2 rounded-lg ${
+            isOverdue
+              ? "bg-red-100 dark:bg-red-900/30"
               : "bg-white/80 dark:bg-gray-800/80"
           } backdrop-blur-sm`}>
-            <div className={`text-lg sm:text-2xl font-bold ${
+            <div className={`text-base sm:text-xl font-bold ${
               isOverdue ? "text-red-600" : "text-purple-600 dark:text-purple-400"
             }`}>
               {isOverdue ? "0" : timeLeft.hours}
             </div>
-            <div className="text-xs text-gray-600 dark:text-gray-300">Hours</div>
+            <div className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-300">Hours</div>
           </div>
-          <div className={`p-2 sm:p-3 rounded-lg ${
-            isOverdue 
-              ? "bg-red-100 dark:bg-red-900/30" 
+          <div className={`p-1 sm:p-2 rounded-lg ${
+            isOverdue
+              ? "bg-red-100 dark:bg-red-900/30"
               : "bg-white/80 dark:bg-gray-800/80"
           } backdrop-blur-sm`}>
-            <div className={`text-lg sm:text-2xl font-bold ${
+            <div className={`text-base sm:text-xl font-bold ${
               isOverdue ? "text-red-600" : "text-purple-600 dark:text-purple-400"
             }`}>
               {isOverdue ? "0" : timeLeft.minutes}
             </div>
-            <div className="text-xs text-gray-600 dark:text-gray-300">Minutes</div>
+            <div className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-300">Minutes</div>
           </div>
-          <div className={`p-2 sm:p-3 rounded-lg ${
-            isOverdue 
-              ? "bg-red-100 dark:bg-red-900/30" 
+          <div className={`p-1 sm:p-2 rounded-lg ${
+            isOverdue
+              ? "bg-red-100 dark:bg-red-900/30"
               : "bg-white/80 dark:bg-gray-800/80"
           } backdrop-blur-sm`}>
-            <div className={`text-lg sm:text-2xl font-bold ${
+            <div className={`text-base sm:text-xl font-bold ${
               isOverdue ? "text-red-600" : "text-purple-600 dark:text-purple-400"
             }`}>
               {isOverdue ? "0" : timeLeft.seconds}
             </div>
-            <div className="text-xs text-gray-600 dark:text-gray-300">Seconds</div>
+            <div className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-300">Seconds</div>
           </div>
         </div>
 

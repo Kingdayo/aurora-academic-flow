@@ -13,22 +13,17 @@ interface Message {
   created_at: string;
   updated_at: string;
   profiles?: {
-    id: string;
+    id?: string;
     full_name: string | null;
     avatar_url?: string | null;
   };
-}
-
-interface MessagePayload {
-  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
-  new: Message | {};
-  old: Message | {};
 }
 
 export const useRealtimeMessages = (groupId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const [profileCache, setProfileCache] = useState<Map<string, any>>(new Map());
 
   const fetchMessages = useCallback(async () => {
     if (!groupId) {
@@ -41,16 +36,22 @@ export const useRealtimeMessages = (groupId: string | null) => {
       setLoading(true);
       const { data, error } = await supabase
         .from('messages')
-        .select(`
-          *,
-          profiles(full_name, avatar_url)
-        `)
+        .select('*, profiles(full_name, avatar_url)')
         .eq('group_id', groupId)
         .order('created_at', { ascending: true })
         .limit(100);
 
       if (error) throw error;
-      setMessages(data || []);
+      if (data) {
+        setMessages(data);
+        const newCache = new Map();
+        data.forEach(msg => {
+          if (msg.profiles && msg.user_id) {
+            newCache.set(msg.user_id, msg.profiles);
+          }
+        });
+        setProfileCache(newCache);
+      }
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast.error('Failed to load messages');
@@ -84,62 +85,70 @@ export const useRealtimeMessages = (groupId: string | null) => {
     }
   };
 
-  const handleRealtimeMessage = useCallback((payload: any) => {
-    console.log('Realtime message received:', payload);
-
+  const handleRealtimeMessage = useCallback(async (payload: any) => {
     if (payload.eventType === 'INSERT' && payload.new) {
-      // Fetch the complete message with profile data
-      const fetchCompleteMessage = async () => {
+      const newMessage = { ...payload.new } as Message;
+
+      const addMessageWithProfile = (profile: any) => {
+        newMessage.profiles = profile;
+        setMessages(prev => {
+          if (prev.find(msg => msg.id === newMessage.id)) {
+            return prev;
+          }
+          return [...prev, newMessage];
+        });
+      };
+
+      if (profileCache.has(newMessage.user_id)) {
+        addMessageWithProfile(profileCache.get(newMessage.user_id));
+      } else {
         try {
-          const { data, error } = await supabase
-            .from('messages')
-            .select(`
-              *,
-              profiles(id, full_name, avatar_url)
-            `)
-            .eq('id', payload.new.id)
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('full_name, avatar_url')
+            .eq('id', newMessage.user_id)
             .single();
 
           if (error) throw error;
 
-          setMessages(prev => {
-            // Prevent duplicate messages
-            if (prev.find(msg => msg.id === data.id)) {
-              return prev;
-            }
-            return [...prev, data];
-          });
+          if (profile) {
+            setProfileCache(prev => new Map(prev).set(newMessage.user_id, profile));
+            addMessageWithProfile(profile);
+          } else {
+            addMessageWithProfile(null);
+          }
         } catch (error) {
-          console.error('Error fetching complete message:', error);
+          console.error('Error fetching profile for new message:', error);
+          addMessageWithProfile(null);
         }
-      };
-
-      fetchCompleteMessage();
+      }
     } else if (payload.eventType === 'UPDATE' && payload.new) {
       setMessages(prev => 
         prev.map(msg => 
-          msg.id === payload.new.id ? { ...msg, ...payload.new } : msg
+          msg.id === (payload.new as Message).id ? { ...msg, ...(payload.new as Message) } : msg
         )
       );
     } else if (payload.eventType === 'DELETE' && payload.old) {
       setMessages(prev => 
-        prev.filter(msg => msg.id !== payload.old.id)
+        prev.filter(msg => msg.id !== (payload.old as Message).id)
       );
     }
-  }, []);
+  }, [profileCache]);
 
   useEffect(() => {
     if (!groupId) {
+      if (channel) {
+        supabase.removeChannel(channel);
+        setChannel(null);
+      }
       setMessages([]);
       setLoading(false);
       return;
     }
 
-    // Fetch initial messages
     fetchMessages();
 
-    // Set up realtime subscription
-    const messageChannel = supabase
+    const newChannel = supabase
       .channel(`messages:${groupId}`)
       .on(
         'postgres_changes',
@@ -149,36 +158,20 @@ export const useRealtimeMessages = (groupId: string | null) => {
           table: 'messages',
           filter: `group_id=eq.${groupId}`
         },
-        (payload) => {
-          handleRealtimeMessage(payload);
-        }
+        handleRealtimeMessage
       )
-      .subscribe((status) => {
-        console.log('Messages subscription status:', status);
-      });
+      .subscribe();
 
-    setChannel(messageChannel);
+    setChannel(newChannel);
 
     return () => {
-      if (messageChannel) {
-        supabase.removeChannel(messageChannel);
-      }
+      supabase.removeChannel(newChannel);
     };
   }, [groupId, fetchMessages, handleRealtimeMessage]);
-
-  // Cleanup channel on unmount
-  useEffect(() => {
-    return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
-    };
-  }, [channel]);
 
   return {
     messages,
     loading,
     sendMessage,
-    fetchMessages,
   };
 };

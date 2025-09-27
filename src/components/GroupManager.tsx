@@ -32,26 +32,47 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
 
   // Real-time member count updates
   useEffect(() => {
-    const handleNewMember = (payload: any) => {
-      if (payload.table === 'group_members' && payload.event === 'INSERT') {
-        const newMember = payload.new;
-        if (newMember.group_id && memberCounts[newMember.group_id] !== undefined) {
-          setMemberCounts(prevCounts => ({
-            ...prevCounts,
-            [newMember.group_id]: (prevCounts[newMember.group_id] || 0) + 1,
-          }));
-        }
-      }
-    };
+    const channel = supabase
+      .channel('group_members_count_updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'group_members',
+        },
+        () => {
+          // Refetch all counts on any change
+          if (groups.length > 0) {
+            const loadMemberCounts = async () => {
+              const counts: Record<string, number> = {};
+              for (const group of groups) {
+                try {
+                  const { count, error } = await supabase
+                    .from('group_members')
+                    .select('id', { count: 'exact' })
+                    .eq('group_id', group.id)
+                    .eq('status', 'active');
 
-    const channel = supabase.channel('group_members');
-    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'group_members' }, handleNewMember)
+                  if (!error && count !== null) {
+                    counts[group.id] = count;
+                  }
+                } catch (error) {
+                  // silent fail
+                }
+              }
+              setMemberCounts(counts);
+            };
+            loadMemberCounts();
+          }
+        }
+      )
       .subscribe();
 
     return () => {
-      channel.unsubscribe();
+      supabase.removeChannel(channel);
     };
-  }, [memberCounts]);
+  }, [groups]);
 
   // Load member counts for all groups
   useEffect(() => {
@@ -62,14 +83,14 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
       
       for (const group of groups) {
         try {
-          const { data, error } = await supabase
+          const { count, error } = await supabase
             .from('group_members')
-            .select('id')
+            .select('id', { count: 'exact' })
             .eq('group_id', group.id)
             .eq('status', 'active');
           
-          if (!error && data) {
-            counts[group.id] = data.length;
+          if (!error && count !== null) {
+            counts[group.id] = count;
           }
         } catch (error) {
           console.error('Error loading member count for group:', group.id, error);
@@ -131,42 +152,24 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
   const loadGroupMembers = async (groupId: string) => {
     setLoadingMembers(true);
     try {
-      // First get the group members
-      const { data: members, error: membersError } = await supabase
-        .from('group_members')
-        .select('*')
-        .eq('group_id', groupId)
-        .eq('status', 'active')
-        .order('joined_at', { ascending: true });
+      const { data, error } = await supabase.rpc('get_group_members_with_profiles', {
+        p_group_id: groupId
+      });
 
-      if (membersError) throw membersError;
+      if (error) throw error;
 
-      if (!members || members.length === 0) {
-        setGroupMembers([]);
-        return;
-      }
-
-      // Get user IDs
-      const userIds = members.map(member => member.user_id);
-
-      // Get profiles for these users (only available columns)
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url')
-        .in('id', userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Combine the data
-      const membersWithProfiles = members.map(member => ({
+      const membersWithProfiles = data.map(member => ({
         ...member,
-        profiles: profiles?.find(profile => profile.id === member.user_id) || null
+        profiles: {
+          full_name: member.full_name,
+          avatar_url: member.avatar_url,
+        }
       }));
 
       setGroupMembers(membersWithProfiles);
     } catch (error) {
       console.error('Error loading members:', error);
-      toast.error('Failed to load group members');
+      toast.error('Failed to load group members. You must be an admin to view members.');
     } finally {
       setLoadingMembers(false);
     }
