@@ -11,7 +11,6 @@ interface Group {
   join_code: string;
   created_at: string;
   group_members?: any[];
-  member_count: number;
 }
 
 export function useGroups() {
@@ -57,11 +56,11 @@ export function useGroups() {
       if (ownedGroupsError) throw ownedGroupsError;
 
       // Combine and deduplicate groups
-      const allGroupsMap = new Map<string, Omit<Group, 'member_count'>>();
+      const allGroupsMap = new Map<string, Group>();
       
       userGroups?.forEach(item => {
         if (item.groups) {
-          allGroupsMap.set(item.groups.id, item.groups as Omit<Group, 'member_count'>);
+          allGroupsMap.set(item.groups.id, item.groups as Group);
         }
       });
 
@@ -71,19 +70,7 @@ export function useGroups() {
 
       const allGroups = Array.from(allGroupsMap.values());
 
-      const groupsWithCounts = await Promise.all(
-        allGroups.map(async (group) => {
-          const { count, error } = await supabase
-            .from('group_members')
-            .select('id', { count: 'exact' })
-            .eq('group_id', group.id)
-            .eq('status', 'active');
-
-          return { ...group, member_count: error ? 0 : count ?? 0 };
-        })
-      );
-
-      setGroups(groupsWithCounts);
+      setGroups(allGroups);
     } catch (error) {
       console.error('Error fetching groups:', error);
       toast.error('Failed to load groups');
