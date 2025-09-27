@@ -39,7 +39,7 @@ export const useRealtimeMessages = (groupId: string | null) => {
         .from('messages')
         .select(`
           *,
-          profiles (
+          profiles!messages_user_id_fkey (
             id,
             full_name,
             email,

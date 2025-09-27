@@ -138,7 +138,7 @@ const Dashboard = () => {
 
       <div className="p-4 space-y-6 h-full flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between animate-fade-in-up">
+        <div className="flex items-center justify-between animate-fade-in-up pr-10">
           <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary via-purple-500 to-blue-600 bg-clip-text text-transparent animate-gradient">
             Aurora
           </h1>
