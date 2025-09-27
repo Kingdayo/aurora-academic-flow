@@ -23,7 +23,6 @@ export const useRealtimeMessages = (groupId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const profileCache = useRef(new Map<string, any>());
 
   const fetchMessages = useCallback(async () => {
     if (!groupId) {
@@ -62,30 +61,6 @@ export const useRealtimeMessages = (groupId: string | null) => {
     }
   }, [groupId]);
 
-  const getProfile = useCallback(async (userId: string) => {
-    if (profileCache.current.has(userId)) {
-      return profileCache.current.get(userId);
-    }
-
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-
-      if (profile) {
-        profileCache.current.set(userId, profile);
-        return profile;
-      }
-    } catch (error) {
-      console.error(`Error fetching profile for user ${userId}:`, error);
-    }
-    return null;
-  }, []);
-
   const sendMessage = async (content: string, messageType: 'text' | 'system' | 'task_update' = 'text', metadata = {}) => {
     if (!groupId) return;
 
@@ -113,30 +88,36 @@ export const useRealtimeMessages = (groupId: string | null) => {
 
   const handleRealtimeMessage = useCallback(async (payload: any) => {
     if (payload.eventType === 'INSERT' && payload.new) {
-      const newMessage = { ...payload.new } as Message;
+      try {
+        const { data, error } = await supabase
+          .rpc('get_message_with_profile', { p_message_id: payload.new.id })
+          .single();
 
-      // The realtime event does not include joined data. We must fetch it.
-      newMessage.profiles = await getProfile(newMessage.user_id);
-
-      setMessages(prev => {
-        if (prev.find(msg => msg.id === newMessage.id)) {
-          return prev;
+        if (error) {
+          console.error('Error fetching new message with profile:', error);
+          return;
         }
-        return [...prev, newMessage];
-      });
+
+        if (data) {
+          // The RPC returns a single row, which is our new message object
+          const newMessage = data as Message;
+          setMessages(prev => {
+            if (prev.find(msg => msg.id === newMessage.id)) {
+              return prev;
+            }
+            return [...prev, newMessage];
+          });
+        }
+      } catch (error) {
+        console.error('Error in handleRealtimeMessage:', error);
+      }
     } else if (payload.eventType === 'UPDATE' && payload.new) {
       setMessages(prev =>
-        prev.map(msg => {
-          if (msg.id === (payload.new as Message).id) {
-            const updatedMessage = { ...msg, ...payload.new } as Message;
-            // Re-apply profile from cache if available, to ensure consistency
-            if (profileCache.current.has(updatedMessage.user_id)) {
-              updatedMessage.profiles = profileCache.current.get(updatedMessage.user_id);
-            }
-            return updatedMessage;
-          }
-          return msg;
-        })
+        prev.map(msg =>
+          msg.id === (payload.new as Message).id
+            ? { ...msg, ...payload.new }
+            : msg
+        )
       );
     } else if (payload.eventType === 'DELETE' && payload.old) {
       setMessages(prev => 
