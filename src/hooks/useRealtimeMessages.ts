@@ -67,7 +67,7 @@ export const useRealtimeMessages = (groupId: string | null) => {
                   .from('profiles')
                   .select('id, full_name, email, avatar_url')
                   .eq('id', message.user_id)
-                  .single();
+                  .maybeSingle();
 
                 if (!profileError && profileData) {
                   message.profiles = profileData;
@@ -136,7 +136,7 @@ export const useRealtimeMessages = (groupId: string | null) => {
       try {
         const { data, error } = await supabase
           .rpc('get_message_with_profile', { p_message_id: payload.new.id })
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error('Error fetching new message with profile:', error);
@@ -157,7 +157,7 @@ export const useRealtimeMessages = (groupId: string | null) => {
                 .from('profiles')
                 .select('id, full_name, email, avatar_url')
                 .eq('id', newMessage.user_id)
-                .single();
+                .maybeSingle();
 
               if (!profileError && profileData) {
                 newMessage.profiles = profileData;
