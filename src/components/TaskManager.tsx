@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import TaskEditDialog from "./TaskEditDialog";
 import useTaskNotifications from "@/hooks/useTaskNotifications";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import AllCaughtUp from "./AllCaughtUp";
 
 interface Task {
   id: string;
@@ -258,23 +259,13 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
       >
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Task Manager</h2>
-            <p className="text-gray-600 dark:text-gray-300">Organize your academic and personal tasks</p>
+            <h2 className="text-2xl font-bold text-foreground">Task Manager</h2>
+            <p className="text-muted-foreground">Organize your academic and personal tasks</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
-            {isSupported && !isSubscribed && (
-              <Button 
-                onClick={subscribe}
-                disabled={loading}
-                variant="outline"
-                className="flex items-center space-x-2"
-              >
-                <span>{loading ? 'Enabling...' : 'Enable Background Notifications'}</span>
-              </Button>
-            )}
-            <Button 
+            <Button
               onClick={() => onShowAddDialogChange && onShowAddDialogChange(true)}
-              className="bg-purple-gradient hover:opacity-90 flex items-center space-x-2"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center space-x-2"
             >
               <Plus className="w-4 h-4" />
               <span>Add Task</span>
@@ -339,29 +330,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
 
       <div className="space-y-4">
         {filteredTasks.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <div className="text-gray-400 dark:text-gray-600 mb-4">
-                <CheckCircle2 className="w-16 h-16 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No tasks found</h3>
-                <p className="text-sm">
-                  {tasks.length === 0 
-                    ? "Get started by adding your first task!"
-                    : "Try adjusting your search or filters."
-                  }
-                </p>
-              </div>
-              {tasks.length === 0 && (
-                <Button 
-                  onClick={() => onShowAddDialogChange && onShowAddDialogChange(true)}
-                  className="bg-purple-gradient hover:opacity-90"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Your First Task
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+          <AllCaughtUp />
         ) : (
           filteredTasks.map(task => (
             <Card key={task.id} className={`transition-all hover:shadow-lg ${task.completed ? 'opacity-75' : ''}`}>
