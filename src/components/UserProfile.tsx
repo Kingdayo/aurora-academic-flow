@@ -31,16 +31,7 @@ const UserProfile = () => {
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <div data-testid="user-profile-trigger" className="flex items-center space-x-3 cursor-pointer hover-lift transition-all mobile-friendly-toggle">
-          <Avatar className="w-10 h-10 border-2 border-purple-200 dark:border-purple-700 animate-pulse-glow">
-            <AvatarFallback className="bg-purple-gradient text-white font-bold">
-              {getInitials(displayName)}
-            </AvatarFallback>
-          </Avatar>
-        </div>
-      </PopoverTrigger>
-      <PopoverContent 
+      <PopoverContent
         className="w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg border-purple-200/50 dark:border-purple-700/50 animate-scale-in"
         side="bottom"
         align="end"

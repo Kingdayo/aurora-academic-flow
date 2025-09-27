@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { List, Calendar as CalendarIcon, BarChart3, Bot, Bell, Menu, X, Users } from "lucide-react";
+import { List, Calendar as CalendarIcon, BarChart3, Bot, Bell, Menu, X, Users, LogOut } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/App";
 import GroupManager from "@/components/GroupManager";
@@ -25,7 +25,7 @@ import TaskCountdown from "@/components/TaskCountdown";
 import useTaskNotifications from "@/hooks/useTaskNotifications";
 import { useIsMobile } from "@/hooks/use-mobile";
 import VoiceCommandButton from "@/components/VoiceCommandButton";
-import UserProfile from "@/components/UserProfile";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface Task {
   id: string;
@@ -163,6 +163,9 @@ const Dashboard = () => {
               Active Session
             </Badge>
           </div>
+          <div className="px-4">
+            <TaskCountdown />
+          </div>
           <Separator className="bg-border/50" />
         </div>
 
@@ -194,9 +197,15 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Sign Out Button */}
+        {/* User Controls */}
         <div className="animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-          <Button variant="ghost" className="w-full" onClick={() => logout()}>
+          <Separator className="my-4" />
+          <div className="flex items-center justify-between px-4">
+            <h4 className="font-semibold text-muted-foreground text-sm">Theme</h4>
+            <ThemeToggle />
+          </div>
+          <Button variant="ghost" className="w-full justify-start mt-2" onClick={() => logout()}>
+            <LogOut className="mr-3 h-4 w-4" />
             Sign Out
           </Button>
         </div>
@@ -239,28 +248,13 @@ const Dashboard = () => {
               </header>
             )}
 
-            {/* Desktop Header */}
-            {!isMobile && (
-              <header className="bg-transparent p-4 sticky top-0 z-30 transition-all duration-300">
-                <div className="max-w-7xl mx-auto">
-                  <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold text-foreground">
-                      {navigationItems.find(item => item.id === activeTab)?.label}
-                    </h1>
-                     <div className="flex-1 max-w-md mx-8">
-                      <TaskCountdown />
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <UserProfile />
-                    </div>
-                  </div>
-                </div>
-              </header>
-            )}
 
             {/* Content Area */}
             <main className="flex-1 p-4 sm:p-6 lg:p-8">
               <div className="max-w-7xl mx-auto">
+                <h1 className="text-3xl font-bold text-foreground mb-6">
+                  {navigationItems.find(item => item.id === activeTab)?.label}
+                </h1>
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <TabsContent value="tasks" className="space-y-6 animate-fade-in-up">
                     <TaskManager showAddDialog={showAddDialog} onShowAddDialogChange={setShowAddDialog} activeTab={activeTab} />
