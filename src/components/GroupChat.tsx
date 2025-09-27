@@ -264,7 +264,33 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                     formatDate(message.created_at) !== formatDate(messages[index - 1].created_at);
                   const isOwnMessage = message.user_id === user?.id;
                   const displayName = message.profiles?.full_name || message.profiles?.email;
-                  const displayInitial = displayName?.charAt(0)?.toUpperCase() || 'U';
+                  
+                  // Get the best display name for avatar initial
+                  const getAvatarInitial = () => {
+                    if (isOwnMessage) {
+                      return (displayName || 
+                              user?.user_metadata?.full_name || 
+                              user?.email?.split('@')[0] || 
+                              'U')?.charAt(0)?.toUpperCase() || 'U';
+                    }
+                    return displayName?.charAt(0)?.toUpperCase() || 'U';
+                  };
+                  
+                  const displayInitial = getAvatarInitial();
+                  
+                  // For own messages, try to get the user's name from their profile or auth data
+                  const getDisplayName = () => {
+                    if (isOwnMessage) {
+                      // For own messages, try to get the user's name from their profile data
+                      // Priority: profile full_name -> profile email -> auth metadata -> auth email -> 'You'
+                      return displayName || 
+                             user?.user_metadata?.full_name || 
+                             user?.email?.split('@')[0] || 
+                             'You';
+                    }
+                    // For other users, use their profile data or fallback
+                    return displayName || 'Unknown User';
+                  };
 
 
                   return (
@@ -289,7 +315,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                         <div className={`flex-1 max-w-[70%] ${isOwnMessage ? 'text-right' : ''}`}>
                           <div className={`flex items-center gap-2 mb-1 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
                             <span className="text-sm font-medium">
-                              {isOwnMessage ? 'You' : (displayName || 'Unknown User')}
+                              {getDisplayName()}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {formatTime(message.created_at)}

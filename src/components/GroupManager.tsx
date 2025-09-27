@@ -245,13 +245,13 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                                             alt={member.profiles?.full_name || 'Member'}
                                           />
                                           <AvatarFallback className="text-xs">
-                                            {member.profiles?.full_name?.charAt(0) || 'M'}
+                                            {(member.profiles?.full_name || member.profiles?.email || 'M')?.charAt(0)?.toUpperCase() || 'M'}
                                           </AvatarFallback>
                                         </Avatar>
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center gap-1">
                                             <span className="text-sm truncate">
-                                              {member.profiles?.full_name || 'Unknown User'}
+                                              {member.profiles?.full_name || member.profiles?.email || 'Member'}
                                             </span>
                                             {member.role === 'owner' && (
                                               <Crown className="h-3 w-3 text-yellow-500 flex-shrink-0" />
