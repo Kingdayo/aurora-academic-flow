@@ -35,6 +35,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
   const [sending, setSending] = useState(false);
   const [groupInfo, setGroupInfo] = useState<any>(null);
   const [memberCount, setMemberCount] = useState(0);
+  const [userProfiles, setUserProfiles] = useState<Record<string, { full_name: string; avatar_url?: string }>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -44,6 +45,34 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Load user profiles for better username display
+  useEffect(() => {
+    const loadUserProfiles = async () => {
+      try {
+        const { data: profiles, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url');
+
+        if (error) throw error;
+
+        const profileMap: Record<string, { full_name: string; avatar_url?: string }> = {};
+        profiles?.forEach(profile => {
+          if (profile.id) {
+            profileMap[profile.id] = {
+              full_name: profile.full_name || 'User',
+              avatar_url: profile.avatar_url || undefined
+            };
+          }
+        });
+        setUserProfiles(profileMap);
+      } catch (error) {
+        console.error('Error loading user profiles:', error);
+      }
+    };
+
+    loadUserProfiles();
+  }, []);
 
   // Load group info and member count
   useEffect(() => {
@@ -145,7 +174,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
 
             // Show notification if permission is granted
             if (Notification.permission === 'granted') {
-              const senderName = profile?.full_name || 'Someone';
+              const senderName = profile?.full_name || userProfiles[newMessage.user_id]?.full_name || 'Someone';
               new Notification(`New message from ${senderName}`, {
                 body: newMessage.content,
                 icon: profile?.avatar_url || '/favicon.ico',
@@ -154,7 +183,8 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
             }
 
             // Also show toast notification
-            toast.success(`New message from ${profile?.full_name || 'Someone'}`);
+            const senderName = profile?.full_name || userProfiles[newMessage.user_id]?.full_name || 'Someone';
+            toast.success(`New message from ${senderName}`);
           }
         }
       )
@@ -163,7 +193,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [groupId, user?.id]);
+  }, [groupId, user?.id, userProfiles]);
 
   // Real-time member count updates
   useEffect(() => {
@@ -225,6 +255,31 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
       e.preventDefault();
       sendMessage();
     }
+  };
+
+  // Helper function to get user display name
+  const getUserDisplayName = (message: Message, isOwnMessage: boolean) => {
+    if (isOwnMessage) return 'You';
+    
+    // Try to get name from message profiles first
+    if (message.profiles?.full_name) {
+      return message.profiles.full_name;
+    }
+    
+    // Fallback to cached user profiles
+    if (userProfiles[message.user_id]?.full_name) {
+      return userProfiles[message.user_id].full_name;
+    }
+    
+    // Last resort fallback
+    return 'User';
+  };
+
+  // Helper function to get user avatar
+  const getUserAvatar = (message: Message) => {
+    return message.profiles?.avatar_url || 
+           userProfiles[message.user_id]?.avatar_url || 
+           `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`;
   };
 
   const formatTime = (timestamp: string) => {
@@ -324,17 +379,17 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                       <div className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
                         <Avatar className="h-8 w-8 flex-shrink-0">
                           <AvatarImage
-                            src={message.profiles?.avatar_url || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`}
-                            alt={message.profiles?.full_name || 'User'}
+                            src={getUserAvatar(message)}
+                            alt={getUserDisplayName(message, isOwnMessage)}
                           />
                           <AvatarFallback className="text-xs">
-                            {message.profiles?.full_name?.charAt(0) || 'U'}
+                            {getUserDisplayName(message, isOwnMessage).charAt(0)}
                           </AvatarFallback>
                         </Avatar>
                         <div className={`flex-1 max-w-[70%] ${isOwnMessage ? 'text-right' : ''}`}>
                           <div className={`flex items-center gap-2 mb-1 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
                             <span className="text-sm font-medium">
-                              {isOwnMessage ? 'You' : (message.profiles?.full_name || 'Unknown User')}
+                              {getUserDisplayName(message, isOwnMessage)}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {formatTime(message.created_at)}
@@ -379,21 +434,16 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
               size="sm"
               className="px-3"
             >
-<<<<<<< HEAD
-              <Send className="h-4 w-4" />
-            </Button>
-=======
               {sending ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground"></div>
               ) : (
                 <Send className="h-4 w-4" />
               )}
             </Button>
-          </form>
+          </div>
           <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
             <span>{newMessage.length}/1000</span>
             <span className="hidden sm:inline">Press Enter to send</span>
->>>>>>> 44c53470a408f7d668b4ce3cda44098840fa9e85
           </div>
         </CardContent>
       </Card>

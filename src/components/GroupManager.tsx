@@ -172,6 +172,14 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
     }
   };
 
+  // Helper function to get member display name
+  const getMemberDisplayName = (member: any) => {
+    if (member.profiles?.full_name) {
+      return member.profiles.full_name;
+    }
+    return 'User'; // Better fallback than "Unknown User"
+  };
+
   const handleRemoveMember = async (groupId: string, memberId: string) => {
     try {
       const { error } = await supabase
@@ -326,16 +334,16 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                                         <Avatar className="h-6 w-6 flex-shrink-0">
                                           <AvatarImage
                                             src={member.profiles?.avatar_url || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`}
-                                            alt={member.profiles?.full_name || 'Member'}
+                                            alt={getMemberDisplayName(member)}
                                           />
                                           <AvatarFallback className="text-xs">
-                                            {member.profiles?.full_name?.charAt(0) || 'M'}
+                                            {getMemberDisplayName(member).charAt(0)}
                                           </AvatarFallback>
                                         </Avatar>
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center gap-1">
                                             <span className="text-sm truncate">
-                                              {member.profiles?.full_name || 'Unknown User'}
+                                              {getMemberDisplayName(member)}
                                             </span>
                                             {member.role === 'owner' && (
                                               <Crown className="h-3 w-3 text-yellow-500 flex-shrink-0" />
