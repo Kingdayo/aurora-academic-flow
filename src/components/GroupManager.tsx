@@ -29,80 +29,6 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
-  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
-
-  // Real-time member count updates
-  useEffect(() => {
-    const channel = supabase
-      .channel('group_members_count_updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'group_members',
-        },
-        () => {
-          // Refetch all counts on any change
-          if (groups.length > 0) {
-            const loadMemberCounts = async () => {
-              const counts: Record<string, number> = {};
-              for (const group of groups) {
-                try {
-                  const { count, error } = await supabase
-                    .from('group_members')
-                    .select('id', { count: 'exact' })
-                    .eq('group_id', group.id)
-                    .eq('status', 'active');
-
-                  if (!error && count !== null) {
-                    counts[group.id] = count;
-                  }
-                } catch (error) {
-                  // silent fail
-                }
-              }
-              setMemberCounts(counts);
-            };
-            loadMemberCounts();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [groups]);
-
-  // Load member counts for all groups
-  useEffect(() => {
-    const loadMemberCounts = async () => {
-      if (groups.length === 0) return;
-      
-      const counts: Record<string, number> = {};
-      
-      for (const group of groups) {
-        try {
-          const { count, error } = await supabase
-            .from('group_members')
-            .select('id', { count: 'exact' })
-            .eq('group_id', group.id)
-            .eq('status', 'active');
-          
-          if (!error && count !== null) {
-            counts[group.id] = count;
-          }
-        } catch (error) {
-          console.error('Error loading member count for group:', group.id, error);
-        }
-      }
-      
-      setMemberCounts(counts);
-    };
-
-    loadMemberCounts();
-  }, [groups]);
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
@@ -134,15 +60,13 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
 
       if (groupError || !groupData) {
         toast.error('Invalid join code');
+        setIsJoining(false);
         return;
       }
 
       await joinGroup(groupData.id);
       setJoinCode('');
       toast.success('Joined group successfully!');
-      
-      // Refresh member counts after joining
-      refetch();
     } catch (error) {
       toast.error('Failed to join group');
     } finally {
@@ -170,7 +94,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
       setGroupMembers(membersWithProfiles);
     } catch (error) {
       console.error('Error loading members:', error);
-      toast.error('Failed to load group members. You must be an admin to view members.');
+      toast.error('Failed to load group members.');
     } finally {
       setLoadingMembers(false);
     }
@@ -203,35 +127,28 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
     toast.success('Join code copied to clipboard!');
   };
 
-  // Separate user's groups from other groups
-  const userGroups = groups.filter(
-    group =>
-      group.owner_id === user?.id ||
-      group.group_members?.some((member: any) => member.user_id === user?.id)
-  );
-
   if (loading) {
     return <div className="flex justify-center p-8 bg-background">Loading groups...</div>;
   }
 
   return (
     <div className="space-y-4 md:space-y-6 bg-background min-h-screen p-3 md:p-6">
-      {/* Your Groups Section - Moved to top */}
+      {/* Your Groups Section */}
       <Card>
         <CardHeader className="pb-3 md:pb-6">
           <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
             <Users className="h-4 w-4 md:h-5 md:w-5" />
-            Your Groups ({userGroups.length})
+            Your Groups ({groups.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          {userGroups.length === 0 ? (
+          {groups.length === 0 ? (
             <p className="text-muted-foreground text-center py-6 md:py-8 text-sm md:text-base">
               No groups yet. Create or join a group to get started!
             </p>
           ) : (
             <div className="space-y-3 md:space-y-4">
-              {userGroups.map((group) => (
+              {groups.map((group) => (
                 <div key={group.id} className="border rounded-lg p-3 md:p-4 hover:shadow-md transition-shadow bg-card">
                   <div className="flex flex-col gap-3 mb-3">
                     <div className="flex items-start gap-3">
@@ -256,7 +173,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                         <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">{group.description}</p>
                         <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          {memberCounts[group.id] || 0} members
+                          {group.member_count} members
                         </p>
                       </div>
                     </div>
@@ -295,7 +212,6 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-2">
-                      {/* Manage Members - Only for Admins */}
                       {isGroupAdmin(group) && (
                         <Dialog>
                           <DialogTrigger asChild>
