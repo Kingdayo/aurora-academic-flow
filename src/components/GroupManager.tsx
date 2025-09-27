@@ -149,7 +149,7 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
           ) : (
             <div className="space-y-3 md:space-y-4">
               {groups.map((group) => (
-                <div key={group.id} className="border rounded-lg p-3 md:p-4 hover:shadow-md transition-shadow bg-card">
+                <div key={group.id} data-testid={`group-card-${group.id}`} className="border rounded-lg p-3 md:p-4 hover:shadow-md transition-shadow bg-card">
                   <div className="flex flex-col gap-3 mb-3">
                     <div className="flex items-start gap-3">
                       <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0">

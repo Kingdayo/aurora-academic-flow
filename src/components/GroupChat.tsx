@@ -263,6 +263,9 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                   const showDate = index === 0 || 
                     formatDate(message.created_at) !== formatDate(messages[index - 1].created_at);
                   const isOwnMessage = message.user_id === user?.id;
+                  const displayName = message.profiles?.full_name || message.profiles?.username;
+                  const displayInitial = displayName?.charAt(0)?.toUpperCase() || 'U';
+
 
                   return (
                     <div key={message.id}>
@@ -277,16 +280,16 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                         <Avatar className="h-8 w-8 flex-shrink-0">
                           <AvatarImage
                             src={message.profiles?.avatar_url || generateAvatarUrl(message.user_id)}
-                            alt={message.profiles?.full_name || 'User'}
+                            alt={displayName || 'User'}
                           />
                           <AvatarFallback className="text-xs">
-                            {message.profiles?.full_name?.charAt(0) || 'U'}
+                            {displayInitial}
                           </AvatarFallback>
                         </Avatar>
                         <div className={`flex-1 max-w-[70%] ${isOwnMessage ? 'text-right' : ''}`}>
                           <div className={`flex items-center gap-2 mb-1 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
                             <span className="text-sm font-medium">
-                              {isOwnMessage ? 'You' : (message.profiles?.full_name || 'Unknown User')}
+                              {isOwnMessage ? 'You' : (displayName || 'Unknown User')}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {formatTime(message.created_at)}
