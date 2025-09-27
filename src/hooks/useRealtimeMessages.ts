@@ -35,36 +35,30 @@ export const useRealtimeMessages = (groupId: string | null) => {
     try {
       setLoading(true);
 
-      // Pre-populate profile cache with all group members
-      const { data: members, error: membersError } = await supabase
-        .from('group_members')
-        .select('user_id, profiles(id, full_name, avatar_url)')
-        .eq('group_id', groupId);
-
-      if (membersError) throw membersError;
-
-      if (members) {
-        members.forEach((member: any) => {
-          if (member.profiles) {
-            profileCache.current.set(member.user_id, member.profiles);
-          }
-        });
-      }
-
       const { data, error } = await supabase
         .from('messages')
-        .select('*')
+        .select(`
+          *,
+          profiles (
+            id,
+            full_name,
+            avatar_url
+          )
+        `)
         .eq('group_id', groupId)
         .order('created_at', { ascending: true })
         .limit(100);
 
       if (error) throw error;
+
       if (data) {
-        const messagesWithProfiles = data.map(msg => ({
-          ...msg,
-          profiles: profileCache.current.get(msg.user_id)
-        }));
-        setMessages(messagesWithProfiles as Message[]);
+        // Populate the cache from the fetched messages for the realtime handler to use
+        data.forEach(msg => {
+          if (msg.profiles) {
+            profileCache.current.set(msg.user_id, msg.profiles);
+          }
+        });
+        setMessages(data as Message[]);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
