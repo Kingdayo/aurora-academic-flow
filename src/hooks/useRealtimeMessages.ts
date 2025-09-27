@@ -55,8 +55,48 @@ export const useRealtimeMessages = (groupId: string | null) => {
       if (data) {
         const messages = data as Message[];
         
+        // For messages with missing profile data, try to fetch it
+        const messagesWithProfiles = await Promise.all(
+          messages.map(async (message) => {
+            if (!message.profiles || (!message.profiles.full_name && !message.profiles.email)) {
+              console.log('Missing profile data for message, fetching directly:', message.id);
+              
+              try {
+                const { data: profileData, error: profileError } = await supabase
+                  .from('profiles')
+                  .select('id, full_name, email, avatar_url')
+                  .eq('id', message.user_id)
+                  .single();
+
+                if (!profileError && profileData) {
+                  message.profiles = profileData;
+                  console.log('Successfully fetched profile data for message:', message.id, profileData);
+                } else {
+                  console.log('Could not fetch profile data for message:', message.id, profileError);
+                  // Create a basic profile object
+                  message.profiles = {
+                    id: message.user_id,
+                    full_name: '',
+                    email: '',
+                    avatar_url: ''
+                  };
+                }
+              } catch (profileFetchError) {
+                console.log('Error fetching profile data for message:', message.id, profileFetchError);
+                // Create a basic profile object
+                message.profiles = {
+                  id: message.user_id,
+                  full_name: '',
+                  email: '',
+                  avatar_url: ''
+                };
+              }
+            }
+            return message;
+          })
+        );
         
-        setMessages(messages);
+        setMessages(messagesWithProfiles);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -107,6 +147,41 @@ export const useRealtimeMessages = (groupId: string | null) => {
           // The RPC returns a single row, which is our new message object
           const newMessage = data as Message;
           
+          // If profile data is missing, try to fetch it directly
+          if (!newMessage.profiles || (!newMessage.profiles.full_name && !newMessage.profiles.email)) {
+            console.log('Profile data missing, trying to fetch directly for user:', newMessage.user_id);
+            
+            try {
+              const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('id, full_name, email, avatar_url')
+                .eq('id', newMessage.user_id)
+                .single();
+
+              if (!profileError && profileData) {
+                newMessage.profiles = profileData;
+                console.log('Successfully fetched profile data:', profileData);
+              } else {
+                console.log('Could not fetch profile data, error:', profileError);
+                // Create a basic profile object
+                newMessage.profiles = {
+                  id: newMessage.user_id,
+                  full_name: '',
+                  email: '',
+                  avatar_url: ''
+                };
+              }
+            } catch (profileFetchError) {
+              console.log('Error fetching profile data:', profileFetchError);
+              // Create a basic profile object
+              newMessage.profiles = {
+                id: newMessage.user_id,
+                full_name: '',
+                email: '',
+                avatar_url: ''
+              };
+            }
+          }
           
           setMessages(prev => {
             if (prev.find(msg => msg.id === newMessage.id)) {
