@@ -42,14 +42,14 @@
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 262.1 30% 18%;
+    --accent-foreground: 262.1 83.3% 70%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 262.1 83.3% 57.8%;
-    --purple-gradient: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(271, 81%, 56%) 50%, hsl(291, 95%, 92%) 100%);
+    --purple-gradient: linear-gradient(135deg, hsl(var(--primary)) 0%, #a855f7 100%);
   }
 }
 

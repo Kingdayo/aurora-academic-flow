@@ -251,10 +251,6 @@ const Dashboard = () => {
                       <TaskCountdown />
                     </div>
                     <div className="flex items-center space-x-4">
-                       <div className="text-sm text-right text-muted-foreground">
-                        <p className="font-medium">Welcome back,</p>
-                        <p>{user?.email?.split('@')[0] || 'User'}</p>
-                      </div>
                       <UserProfile />
                     </div>
                   </div>
@@ -312,11 +308,9 @@ const Dashboard = () => {
             </main>
           </div>
         </div>
-        {isMobile && (
-          <div className="fixed bottom-4 right-4 z-50">
-            <VoiceCommandButton />
-          </div>
-        )}
+        <div className="fixed bottom-6 right-6 z-50">
+          <VoiceCommandButton />
+        </div>
       </div>
     </TooltipProvider>
   );
