@@ -58,16 +58,17 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
 
   useEffect(() => {
     const fetchMemberCount = async () => {
-      const { count, error } = await supabase
-        .from('group_members')
-        .select('*', { count: 'exact', head: true })
-        .eq('group_id', groupId)
-        .eq('status', 'active');
+      try {
+        const { data, error } = await supabase.rpc('get_group_member_count', {
+          p_group_id: groupId,
+        });
 
-      if (error) {
+        if (error) throw error;
+
+        setMemberCount(data);
+      } catch (error) {
         console.error('Error fetching member count:', error);
-      } else {
-        setMemberCount(count || 0);
+        // Do not toast here as it can be annoying on load
       }
     };
 
