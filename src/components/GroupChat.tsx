@@ -263,7 +263,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                   const showDate = index === 0 || 
                     formatDate(message.created_at) !== formatDate(messages[index - 1].created_at);
                   const isOwnMessage = message.user_id === user?.id;
-                  const displayName = message.profiles?.full_name || message.profiles?.username;
+                  const displayName = message.profiles?.full_name;
                   const displayInitial = displayName?.charAt(0)?.toUpperCase() || 'U';
 
 
