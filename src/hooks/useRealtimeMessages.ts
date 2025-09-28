@@ -59,21 +59,37 @@ export const useRealtimeMessages = (groupId: string | null) => {
         const messagesWithProfiles = await Promise.all(
           messages.map(async (message) => {
             if (!message.profiles || (!message.profiles.full_name && !message.profiles.email)) {
-              console.log('Missing or incomplete profile for message, fetching full user info:', message.id);
-              try {
-                const { data: profileData, error: rpcError } = await supabase
-                  .rpc('get_user_profile_info', { p_user_id: message.user_id })
-                  .single();
+              console.log('Missing profile data for message, fetching user info:', message.id);
 
-                if (profileData && !rpcError) {
+              try {
+                // Try direct profiles table access
+                const { data: profileData, error: profileError } = await supabase
+                  .from('profiles')
+                  .select('id, full_name, email, avatar_url')
+                  .eq('id', message.user_id)
+                  .maybeSingle();
+
+                if (!profileError && profileData) {
                   message.profiles = profileData;
+                  console.log('Successfully fetched profile data for message:', message.id, profileData);
                 } else {
-                  if (rpcError) console.error('Error fetching profile info via RPC:', rpcError.message);
-                  message.profiles = { id: message.user_id, full_name: null, email: null, avatar_url: null };
+                  console.log('Could not fetch profile data for message:', message.id, profileError);
+                  // Create empty profile if no data is available
+                  message.profiles = {
+                    id: message.user_id,
+                    full_name: '',
+                    email: '',
+                    avatar_url: ''
+                  };
                 }
-              } catch (e) {
-                console.error('Exception fetching profile info:', e);
-                message.profiles = { id: message.user_id, full_name: null, email: null, avatar_url: null };
+              } catch (error) {
+                console.log('Error fetching user data for message:', message.id, error);
+                message.profiles = {
+                  id: message.user_id,
+                  full_name: '',
+                  email: '',
+                  avatar_url: ''
+                };
               }
             }
             return message;
@@ -131,22 +147,39 @@ export const useRealtimeMessages = (groupId: string | null) => {
           // The RPC returns a single row, which is our new message object
           const newMessage = data as Message;
           
+          // If profile data is missing, try to fetch it properly
           if (!newMessage.profiles || (!newMessage.profiles.full_name && !newMessage.profiles.email)) {
-            console.log('Profile data missing for new message, fetching full user info for user:', newMessage.user_id);
-            try {
-              const { data: profileData, error: rpcError } = await supabase
-                .rpc('get_user_profile_info', { p_user_id: newMessage.user_id })
-                .single();
+            console.log('Profile data missing, fetching user info for user:', newMessage.user_id);
 
-              if (profileData && !rpcError) {
+            try {
+              // Try direct profiles table access
+              const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('id, full_name, email, avatar_url')
+                .eq('id', newMessage.user_id)
+                .maybeSingle();
+
+              if (!profileError && profileData) {
                 newMessage.profiles = profileData;
+                console.log('Successfully fetched profile data:', profileData);
               } else {
-                if (rpcError) console.error('Error fetching profile info for new message:', rpcError.message);
-                newMessage.profiles = { id: newMessage.user_id, full_name: null, email: null, avatar_url: null };
+                console.log('Could not fetch profile data, error:', profileError);
+                // Create empty profile if no data is available
+                newMessage.profiles = {
+                  id: newMessage.user_id,
+                  full_name: '',
+                  email: '',
+                  avatar_url: ''
+                };
               }
-            } catch (e) {
-              console.error('Exception fetching profile info for new message:', e);
-              newMessage.profiles = { id: newMessage.user_id, full_name: null, email: null, avatar_url: null };
+            } catch (profileFetchError) {
+              console.log('Error fetching user data:', profileFetchError);
+              newMessage.profiles = {
+                id: newMessage.user_id,
+                full_name: '',
+                email: '',
+                avatar_url: ''
+              };
             }
           }
           
