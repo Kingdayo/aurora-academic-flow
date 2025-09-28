@@ -272,7 +272,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                       }
                     : message.profiles;
 
-                  const displayName = getProfileName(profileForName);
+                  const displayName = getProfileName(profileForName, message.user_id);
                   const displayInitial = displayName.charAt(0).toUpperCase();
 
                   return (

@@ -13,18 +13,27 @@ export function generateAvatarUrl(seed?: string | null): string {
   return `https://api.dicebear.com/8.x/adventurer/svg?seed=${encodeURIComponent(seed)}`;
 }
 
-export function getProfileName(profile: { full_name?: string | null, email?: string | null } | null): string {
+export function getProfileName(
+  profile: { full_name?: string | null; email?: string | null } | null,
+  userId?: string | null
+): string {
   if (profile?.full_name) {
     return profile.full_name;
   }
   if (profile?.email) {
     const localPart = profile.email.split('@')[0];
-    // Prevent extremely long or empty local parts from being displayed
-    if (localPart && localPart.length < 30) {
+    // Use local part if it's a reasonable length
+    if (localPart && localPart.length > 0 && localPart.length < 30) {
       return localPart;
     }
-    // Fallback for very long or unusual emails
-    return profile.email;
+    // Otherwise, if it's a valid email, use the full thing
+    if (profile.email.includes('@')) {
+      return profile.email;
+    }
   }
-  return "Unknown User";
+  if (userId) {
+    return `User ${userId.substring(0, 8)}`;
+  }
+  // This should ideally not be reached if a userId is always provided for messages.
+  return 'User';
 }
