@@ -10,7 +10,7 @@ import { useRealtimeMessages } from '@/hooks/useRealtimeMessages';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Send, ArrowLeft, Users, Crown, Edit, Check, X } from 'lucide-react';
-import { generateAvatarUrl, getProfileName } from '@/lib/utils';
+import { generateAvatarUrl } from '@/lib/utils';
 
 interface GroupChatProps {
   groupId: string;
@@ -264,16 +264,15 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                     formatDate(message.created_at) !== formatDate(messages[index - 1].created_at);
                   const isOwnMessage = message.user_id === user?.id;
 
-                  // For own messages, create a composite profile object to get the best name
-                  const profileForName = isOwnMessage
-                    ? {
-                        full_name: message.profiles?.full_name || user?.user_metadata?.full_name,
-                        email: message.profiles?.email || user?.email,
-                      }
-                    : message.profiles;
+                  // With useEnhancedAuth guaranteeing full_name, we can simplify this.
+                  // We still provide fallbacks for transitional states where data hasn't synced yet.
+                  const displayName =
+                    message.profiles?.full_name ||
+                    (message.profiles?.email
+                      ? message.profiles.email.split('@')[0]
+                      : `User ${message.user_id.substring(0, 8)}`);
 
-                  const displayName = getProfileName(profileForName, message.user_id);
-                  const displayInitial = displayName.charAt(0).toUpperCase();
+                  const displayInitial = (displayName.charAt(0) || 'U').toUpperCase();
 
                   return (
                     <div key={message.id}>

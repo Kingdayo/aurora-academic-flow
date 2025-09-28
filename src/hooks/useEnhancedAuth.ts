@@ -89,6 +89,35 @@ export const useEnhancedAuth = (): AuthState & AuthActions => {
     };
   }, [handleAuthStateChange]);
 
+  // This effect ensures the user has a full_name in their metadata.
+  // If not, it generates one from their email.
+  useEffect(() => {
+    const ensureFullName = async (currentUser: User) => {
+      if (!currentUser.user_metadata?.full_name) {
+        if (currentUser.email) {
+          const localPart = currentUser.email.split('@')[0];
+
+          const { error } = await supabase.auth.updateUser({
+            data: { full_name: localPart },
+          });
+
+          if (error) {
+            console.error("Error updating user's full_name:", error);
+            toast({
+              title: "Profile Update Failed",
+              description: "Could not set a display name for your profile.",
+              variant: "destructive"
+            });
+          }
+        }
+      }
+    };
+
+    if (user) {
+      ensureFullName(user);
+    }
+  }, [user, toast]);
+
   useEffect(() => {
     const refreshInterval = setInterval(() => {
       if (session && session.expires_at) {
