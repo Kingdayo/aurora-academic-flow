@@ -3,6 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
+interface Profile {
+  id: string;
+  full_name: string | null;
+  email?: string | null;
+  avatar_url?: string | null;
+}
+
 interface Message {
   id: string;
   group_id: string;
@@ -12,12 +19,7 @@ interface Message {
   metadata: any;
   created_at: string;
   updated_at: string;
-  profiles?: {
-    id?: string;
-    full_name: string | null;
-    email?: string | null;
-    avatar_url?: string | null;
-  };
+  profiles: Profile;
 }
 
 export const useRealtimeMessages = (groupId: string | null) => {
@@ -34,73 +36,31 @@ export const useRealtimeMessages = (groupId: string | null) => {
 
     try {
       setLoading(true);
+      const { data, error } = await supabase.rpc('get_messages_for_group', {
+        p_group_id: groupId,
+      });
 
-      const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          profiles!messages_user_id_fkey (
-            id,
-            full_name,
-            email,
-            avatar_url
-          )
-        `)
-        .eq('group_id', groupId)
-        .order('created_at', { ascending: true })
-        .limit(100);
-
-      if (error) throw error;
+      if (error) {
+        // Handle RLS errors gracefully
+        if (error.code === 'P0001' && error.message.includes('User is not a member')) {
+          toast.error("You don't have access to this group.");
+          setMessages([]);
+        } else {
+          throw error;
+        }
+      }
 
       if (data) {
-        const messages = data as Message[];
-        
-        // For messages with missing profile data, try to fetch it properly
-        const messagesWithProfiles = await Promise.all(
-          messages.map(async (message) => {
-            if (!message.profiles || (!message.profiles.full_name && !message.profiles.email)) {
-              console.log('Missing profile data for message, fetching user info:', message.id);
-
-              try {
-                // Try direct profiles table access
-                const { data: profileData, error: profileError } = await supabase
-                  .from('profiles')
-                  .select('id, full_name, email, avatar_url')
-                  .eq('id', message.user_id)
-                  .maybeSingle();
-
-                if (!profileError && profileData) {
-                  message.profiles = profileData;
-                  console.log('Successfully fetched profile data for message:', message.id, profileData);
-                } else {
-                  console.log('Could not fetch profile data for message:', message.id, profileError);
-                  // Create empty profile if no data is available
-                  message.profiles = {
-                    id: message.user_id,
-                    full_name: '',
-                    email: '',
-                    avatar_url: ''
-                  };
-                }
-              } catch (error) {
-                console.log('Error fetching user data for message:', message.id, error);
-                message.profiles = {
-                  id: message.user_id,
-                  full_name: '',
-                  email: '',
-                  avatar_url: ''
-                };
-              }
-            }
-            return message;
-          })
-        );
-        
-        setMessages(messagesWithProfiles);
+        // The RPC returns a list of messages, each with a 'profiles' JSONB object.
+        // We cast it to our Message type.
+        setMessages(data as Message[]);
+      } else {
+        setMessages([]);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast.error('Failed to load messages');
+      setMessages([]); // Clear messages on error
     } finally {
       setLoading(false);
     }
@@ -134,56 +94,22 @@ export const useRealtimeMessages = (groupId: string | null) => {
   const handleRealtimeMessage = useCallback(async (payload: any) => {
     if (payload.eventType === 'INSERT' && payload.new) {
       try {
+        // The get_message_with_profile function ensures we get profile data securely.
         const { data, error } = await supabase
           .rpc('get_message_with_profile', { p_message_id: payload.new.id })
-          .maybeSingle();
+          .single();
 
         if (error) {
-          console.error('Error fetching new message with profile:', error);
+          console.error('Error fetching new message with profile:', error.message);
+          // If the RPC fails (e.g., due to RLS), we don't add the message.
+          // This is safer than adding a message with missing data.
           return;
         }
 
         if (data) {
-          // The RPC returns a single row, which is our new message object
           const newMessage = data as Message;
-          
-          // If profile data is missing, try to fetch it properly
-          if (!newMessage.profiles || (!newMessage.profiles.full_name && !newMessage.profiles.email)) {
-            console.log('Profile data missing, fetching user info for user:', newMessage.user_id);
-
-            try {
-              // Try direct profiles table access
-              const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('id, full_name, email, avatar_url')
-                .eq('id', newMessage.user_id)
-                .maybeSingle();
-
-              if (!profileError && profileData) {
-                newMessage.profiles = profileData;
-                console.log('Successfully fetched profile data:', profileData);
-              } else {
-                console.log('Could not fetch profile data, error:', profileError);
-                // Create empty profile if no data is available
-                newMessage.profiles = {
-                  id: newMessage.user_id,
-                  full_name: '',
-                  email: '',
-                  avatar_url: ''
-                };
-              }
-            } catch (profileFetchError) {
-              console.log('Error fetching user data:', profileFetchError);
-              newMessage.profiles = {
-                id: newMessage.user_id,
-                full_name: '',
-                email: '',
-                avatar_url: ''
-              };
-            }
-          }
-          
           setMessages(prev => {
+            // Avoid adding duplicate messages that might already be present
             if (prev.find(msg => msg.id === newMessage.id)) {
               return prev;
             }
@@ -191,19 +117,21 @@ export const useRealtimeMessages = (groupId: string | null) => {
           });
         }
       } catch (error) {
-        console.error('Error in handleRealtimeMessage:', error);
+        console.error('Error processing real-time message:', error);
       }
     } else if (payload.eventType === 'UPDATE' && payload.new) {
+      // For updates, we can't easily get the profile, so we update the message content.
+      // This is a trade-off; profile info won't update in real-time, but messages will.
       setMessages(prev =>
         prev.map(msg =>
           msg.id === (payload.new as Message).id
-            ? { ...msg, ...payload.new }
+            ? { ...msg, ...payload.new, profiles: msg.profiles } // Preserve existing profile
             : msg
         )
       );
     } else if (payload.eventType === 'DELETE' && payload.old) {
       setMessages(prev => 
-        prev.filter(msg => msg.id !== (payload.old as Message).id)
+        prev.filter(msg => msg.id !== (payload.old as { id: string }).id)
       );
     }
   }, []);
