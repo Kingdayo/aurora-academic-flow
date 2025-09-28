@@ -10,7 +10,7 @@ import { useRealtimeMessages } from '@/hooks/useRealtimeMessages';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Send, ArrowLeft, Users, Crown, Edit, Check, X } from 'lucide-react';
-import { generateAvatarUrl } from '@/lib/utils';
+import { generateAvatarUrl, getProfileName } from '@/lib/utils';
 
 interface GroupChatProps {
   groupId: string;
@@ -263,36 +263,17 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                   const showDate = index === 0 || 
                     formatDate(message.created_at) !== formatDate(messages[index - 1].created_at);
                   const isOwnMessage = message.user_id === user?.id;
-                  const displayName = message.profiles?.full_name || (message.profiles?.email ? message.profiles.email.split('@')[0] : null);
-                  
-                  // Get the best display name for this message
-                  const getBestDisplayName = () => {
-                    if (isOwnMessage) {
-                      // For own messages, try to get the user's name from their profile data
-                      return displayName || 
-                             user?.user_metadata?.full_name || 
-                             (user?.email ? user.email.split('@')[0] : 'You');
-                    }
-                    // For other users, only show if we have actual profile data
-                    if (displayName && displayName.trim() !== '') {
-                      return displayName;
-                    }
-                    // If no profile data, show a fallback
-                    return `User ${message.user_id.substring(0, 8)}`;
-                  };
-                  
-                  
-                  
-                  
-                  // Get the best display name for avatar initial
-                  const getAvatarInitial = () => {
-                    const bestName = getBestDisplayName();
-                    return bestName.charAt(0).toUpperCase();
-                  };
-                  
-                  const displayInitial = getAvatarInitial();
-                  
 
+                  // For own messages, create a composite profile object to get the best name
+                  const profileForName = isOwnMessage
+                    ? {
+                        full_name: message.profiles?.full_name || user?.user_metadata?.full_name,
+                        email: message.profiles?.email || user?.email,
+                      }
+                    : message.profiles;
+
+                  const displayName = getProfileName(profileForName, message.user_id);
+                  const displayInitial = displayName.charAt(0).toUpperCase();
 
                   return (
                     <div key={message.id}>
@@ -307,7 +288,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                         <Avatar className="h-8 w-8 flex-shrink-0">
                           <AvatarImage
                             src={message.profiles?.avatar_url || generateAvatarUrl(message.user_id)}
-                            alt={displayName || 'User'}
+                            alt={displayName}
                           />
                           <AvatarFallback className="text-xs">
                             {displayInitial}
@@ -316,7 +297,7 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                         <div className={`flex-1 max-w-[70%] ${isOwnMessage ? 'text-right' : ''}`}>
                           <div className={`flex items-center gap-2 mb-1 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
                             <span className="text-sm font-medium">
-                              {getBestDisplayName()}
+                              {displayName}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {formatTime(message.created_at)}
