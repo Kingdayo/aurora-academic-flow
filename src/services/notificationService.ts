@@ -70,6 +70,25 @@ class NotificationService {
       return false;
     }
   }
+
+  public async sendTestNotification(userId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase.functions.invoke('send-push', {
+        body: {
+          userId,
+          title: '🧪 Test Push Notification',
+          body: 'This is a real push notification from Aurora! It works!',
+          tag: 'test-push',
+        },
+      });
+      if (error) throw error;
+      console.log('Successfully triggered test push notification.');
+      return true;
+    } catch (error) {
+      console.error('Error sending test push notification:', error);
+      return false;
+    }
+  }
 }
 
 export const notificationService = new NotificationService();
