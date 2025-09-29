@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/App";
 import { toast } from "sonner";
@@ -194,10 +195,9 @@ const AuthPage = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="auth-password" className="text-sm font-medium">Password</Label>
-                    <Input
+                    <PasswordInput
                       id="auth-password"
                       name="password"
-                      type="password"
                       placeholder="Enter your password"
                       value={formData.password}
                       onChange={handleInputChange}
@@ -308,10 +308,9 @@ const AuthPage = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="auth-password-mobile" className="text-sm font-medium">Password</Label>
-                    <Input
+                    <PasswordInput
                       id="auth-password-mobile"
                       name="password"
-                      type="password"
                       placeholder="Enter your password"
                       value={formData.password}
                       onChange={handleInputChange}
