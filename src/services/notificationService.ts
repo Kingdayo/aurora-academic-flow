@@ -32,6 +32,20 @@ class NotificationService {
       const registration = await navigator.serviceWorker.ready;
       let subscription = await registration.pushManager.getSubscription();
 
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        console.log('Notification permission not granted.');
+        return;
+      }
+
+      if (!VAPID_PUBLIC_KEY) {
+        console.warn('VAPID public key is not configured; skipping push subscription.');
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+
       if (!subscription) {
         console.log('No existing subscription found, creating new one...');
         const applicationServerKey = await this.urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
@@ -45,6 +59,7 @@ class NotificationService {
 
       await this.saveSubscription(subscription);
     } catch (error) {
+      // …
       console.error('Failed to subscribe to push notifications:', error);
     }
   }
