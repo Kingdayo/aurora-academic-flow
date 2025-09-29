@@ -45,7 +45,14 @@ export const useEnhancedAuth = (): AuthState & AuthActions => {
         title: "Welcome Back",
         description: "You have been signed in successfully",
       });
-      notificationService.requestPermissionAndSubscribe();
+      notificationService.requestPermissionAndSubscribe().then(success => {
+        if (success) {
+          toast({
+            title: "Notifications Enabled",
+            description: "You will now receive push notifications.",
+          });
+        }
+      });
     }
   }, [toast]);
 
