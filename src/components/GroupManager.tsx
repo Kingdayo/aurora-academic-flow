@@ -226,8 +226,8 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                           </DialogTrigger>
                           <DialogContent
                             className="w-[95vw] max-w-md mx-auto"
-                            closeButtonClassName="rounded-full h-6 w-6 flex items-center justify-center sm:h-auto sm:w-auto sm:rounded-sm"
-                            closeIconClassName="h-3 w-3 sm:h-4 sm:w-4"
+                            closeButtonClassName="rounded-full h-7 w-7 flex items-center justify-center focus:ring-1"
+                            closeIconClassName="h-4 w-4"
                           >
                             <DialogHeader>
                               <DialogTitle className="text-base md:text-lg">Manage Group Members</DialogTitle>
