@@ -32,7 +32,9 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const urlToOpen = new URL(event.notification.data.url, self.location.origin).href;
+  // Default to '/' if no URL was provided in the notification data
+  const targetUrl = event.notification.data?.url ?? '/';
+  const urlToOpen = new URL(targetUrl, self.location.origin).href;
 
   event.waitUntil(
     self.clients.matchAll({
@@ -47,10 +49,16 @@ self.addEventListener('notificationclick', (event) => {
             client = clientList[i];
           }
         }
-        return client.focus().then((c) => c.navigate(urlToOpen));
+        return client.focus().then((c) => {
+          if (c && 'navigate' in c) {
+            return c.navigate(urlToOpen);
+          }
+          return c;
+        });
       }
       // Otherwise, open a new window.
       return self.clients.openWindow(urlToOpen);
     })
   );
+});
 });
