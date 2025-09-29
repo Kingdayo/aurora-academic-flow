@@ -40,4 +40,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  define: {
+    // This is a temporary workaround because the .env.local file is not being loaded in the environment.
+    // Replace this with a proper environment variable loading mechanism for production.
+    'import.meta.env.VITE_VAPID_PUBLIC_KEY': JSON.stringify('BNo_b-26-OFj3WJgwFp-C9_s-T1d-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-YQ')
+  }
 });
