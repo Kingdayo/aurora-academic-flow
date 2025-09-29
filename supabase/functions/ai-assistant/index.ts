@@ -33,82 +33,61 @@ serve(async (req) => {
       throw new Error('Google Gemini API key not configured');
     }
 
-    // Build academic prompt
     const level = context?.userProfile?.academicLevel || 'university';
-    const systemPrompt = `You are a friendly and helpful academic assistant. Your goal is to provide clear, concise, and accurate answers to academic questions. Please provide answers suitable for a ${level} student. Focus on practical, actionable advice.`;
+    const systemPrompt = `You are an academic assistant. Provide a clear, concise, and accurate answer for a ${level} student. Focus on practical, actionable advice.`;
 
-    const response = await fetch(
+    const requestBody = {
+      contents: [{
+        parts: [{
+          text: `${systemPrompt}\n\nUser question: ${query}`
+        }]
+      }],
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 512,
+      }
+    };
+
+    const apiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `${systemPrompt}\n\nUser question: ${query}`
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 512,
-          }
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
       }
     );
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Gemini API error:', errorData);
-      throw new Error(`Gemini API error: ${response.status}`);
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      console.error('Gemini API error:', errorText);
+      throw new Error(`Gemini API error: ${apiResponse.status}`);
     }
 
-    const data = await response.json();
+    const responseData = await apiResponse.json();
     
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      throw new Error('Invalid response from Gemini API');
+    if (!responseData.candidates?.[0]?.content?.parts?.[0]?.text) {
+      throw new Error('Invalid response structure from Gemini API');
     }
 
-    const generatedText = data.candidates[0].content.parts[0].text.trim();
+    const generatedText = responseData.candidates[0].content.parts[0].text.trim();
 
     return new Response(
-      JSON.stringify({ 
-        response: generatedText,
-        model: 'gemini-1.5-flash'
-      }), 
+      JSON.stringify({ response: generatedText }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
       }
     );
 
   } catch (error) {
-    console.error('Error in ai-assistant function:', error);
-    
-    // Fallback responses for different categories
-    const fallbacks = {
-      study: "Here's a proven study strategy: Use the Pomodoro Technique (25 min focus + 5 min break), create summaries of key concepts, and test yourself regularly. Active recall is more effective than passive reading.",
-      tasks: "Break large tasks into smaller, manageable chunks. Set specific deadlines for each part. Use a priority system: urgent & important first, then important but not urgent.",
-      subjects: "For better subject understanding: Connect new concepts to what you already know, use multiple learning methods (visual, auditory, kinesthetic), and explain concepts to others.",
-      exam: "Effective exam prep: Create a study schedule 2-3 weeks before, practice with past papers, form study groups, and ensure good sleep before the exam.",
-      research: "Good research starts with a clear question. Use academic databases, evaluate source credibility, take detailed notes, and organize your findings thematically.",
-      time: "Time management tips: Use a calendar app, batch similar tasks together, eliminate distractions during study time, and schedule breaks to maintain focus."
-    };
-
-    const { category } = await req.json().catch(() => ({ category: 'study' }));
-    const fallbackResponse = fallbacks[category as keyof typeof fallbacks] || fallbacks.study;
-
+    console.error('Error in ai-assistant function:', error.message);
     return new Response(
-      JSON.stringify({ 
-        response: fallbackResponse,
-        model: 'fallback',
-        error: 'AI service temporarily unavailable'
-      }), 
+      JSON.stringify({ error: 'Failed to generate AI response.' }),
       {
-        status: 200, // Return 200 to avoid breaking the UI
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
       }
     );
   }
