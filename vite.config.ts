@@ -43,6 +43,6 @@ export default defineConfig({
   define: {
     // This is a temporary workaround because the .env.local file is not being loaded in the environment.
     // Replace this with a proper environment variable loading mechanism for production.
-    'import.meta.env.VITE_VAPID_PUBLIC_KEY': JSON.stringify('BNo_b-26-OFj3WJgwFp-C9_s-T1d-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-Y_b-V6-d_b-YQ')
+    'import.meta.env.VITE_VAPID_PUBLIC_KEY': JSON.stringify('BM2c4e5esqI0pBEC85FpD1WNP-pSRseC2aOwdS82iPmuG822hJ1eAD2r5sLq00pZYTscsT3z1FcoDslj5Z3jJ8s')
   }
 });
