@@ -26,6 +26,7 @@ import useTaskNotifications from "@/hooks/useTaskNotifications";
 import { useIsMobile } from "@/hooks/use-mobile";
 import VoiceCommandButton from "@/components/VoiceCommandButton";
 import ThemeToggle from "@/components/ThemeToggle";
+import { notificationService } from "@/services/notificationService";
 import { generateAvatarUrl } from "@/lib/utils";
 
 interface Task {
@@ -164,6 +165,24 @@ const Dashboard = () => {
               <p className="text-sm text-muted-foreground">{user?.email}</p>
               <div className="mt-4 flex justify-center items-center space-x-2">
                   <ThemeToggle />
+                  <Button variant="ghost" size="sm" onClick={async () => {
+                    const success = await notificationService.requestPermissionAndSubscribe();
+                    if (success) {
+                      toast({
+                        title: "Notifications Enabled",
+                        description: "You will now receive push notifications.",
+                      });
+                    } else {
+                      toast({
+                        title: "Notifications Failed",
+                        description: "Could not enable push notifications. Please check your browser settings.",
+                        variant: "destructive",
+                      });
+                    }
+                  }}>
+                    <Bell className="mr-2 h-4 w-4" />
+                    Enable Notifications
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => logout()}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
