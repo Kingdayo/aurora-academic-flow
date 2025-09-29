@@ -1,4 +1,22 @@
-self.addEventListener('push', event => {
+/// <reference lib="WebWorker" />
+
+import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { clientsClaim } from 'workbox-core';
+
+// This is the injection point for the precache manifest.
+// The build process will replace this with an array of assets to cache.
+precacheAndRoute(self.__WB_MANIFEST);
+
+// This ensures that the new service worker takes control of the page as soon as it's activated.
+self.skipWaiting();
+clientsClaim();
+
+// Clean up old, unused caches from previous versions of the service worker.
+cleanupOutdatedCaches();
+
+// --- Custom Push Notification Logic ---
+
+self.addEventListener('push', (event) => {
   const data = event.data.json();
   const title = data.title || 'Aurora';
   const options = {
@@ -12,15 +30,16 @@ self.addEventListener('push', event => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-self.addEventListener('notificationclick', event => {
+self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const urlToOpen = new URL(event.notification.data.url, self.location.origin).href;
 
   event.waitUntil(
-    clients.matchAll({
+    self.clients.matchAll({
       type: 'window',
       includeUncontrolled: true,
-    }).then(clientList => {
+    }).then((clientList) => {
+      // If a window is already open, focus it and navigate.
       if (clientList.length > 0) {
         let client = clientList[0];
         for (let i = 0; i < clientList.length; i++) {
@@ -28,9 +47,10 @@ self.addEventListener('notificationclick', event => {
             client = clientList[i];
           }
         }
-        return client.focus().then(c => c.navigate(urlToOpen));
+        return client.focus().then((c) => c.navigate(urlToOpen));
       }
-      return clients.openWindow(urlToOpen);
+      // Otherwise, open a new window.
+      return self.clients.openWindow(urlToOpen);
     })
   );
 });
