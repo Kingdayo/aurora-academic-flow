@@ -24,6 +24,9 @@ BEGIN
 END;
 $$;
 
+-- Drop the trigger if it exists to ensure idempotency
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
 -- Create the trigger that executes the handle_new_user function
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
