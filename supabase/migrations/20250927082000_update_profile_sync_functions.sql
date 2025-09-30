@@ -5,8 +5,8 @@
 -- Drop the old trigger if it exists from previous attempts
 DROP TRIGGER IF EXISTS on_auth_user_updated ON auth.users;
 
--- 1. Update the function for new user creation to include email
--- This function is originally defined in the initial migration
+-- 1. Update the function for new user creation to include email and handle null avatar_url
+-- This function is originally defined in an earlier migration.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -18,20 +18,11 @@ BEGIN
     NEW.id,
     NEW.raw_user_meta_data->>'full_name',
     NEW.email,
-    NEW.raw_user_meta_data->>'avatar_url'
+    COALESCE(NEW.raw_user_meta_data->>'avatar_url', '') -- Handle null avatar_url on signup
   );
   RETURN NEW;
 END;
 $$;
-
--- Drop the trigger if it exists to ensure idempotency
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-
--- Create the trigger that executes the handle_new_user function
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_new_user();
 
 -- 2. Create a function to handle user updates for full_name, email, and avatar_url
 CREATE OR REPLACE FUNCTION public.update_public_profile_on_user_update()
