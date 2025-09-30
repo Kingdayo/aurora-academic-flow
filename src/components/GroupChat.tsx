@@ -103,8 +103,25 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
 
     setSending(true);
     try {
-      await sendMessageHook(newMessage.trim());
+      const content = newMessage.trim();
+      await sendMessageHook(content);
       setNewMessage('');
+
+      // After sending, trigger the notification function
+      if (user && groupInfo) {
+        const senderName = (user as any).profile?.full_name || 'A user';
+        const notificationBody = `[${groupInfo.name}] ${senderName}: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`;
+
+        supabase.functions.invoke('send-chat-notification', {
+          body: {
+            chatId: groupId,
+            message: notificationBody,
+            senderId: user.id
+          }
+        }).catch(err => {
+            console.error('Error sending chat notification:', err)
+        });
+      }
     } catch (error) {
       toast.error('Failed to send message.');
     } finally {

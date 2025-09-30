@@ -24,6 +24,15 @@ BEGIN
 END;
 $$;
 
+-- Drop the trigger if it exists to ensure idempotency
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Create the trigger that executes the handle_new_user function
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
+
 -- 2. Create a function to handle user updates for full_name, email, and avatar_url
 CREATE OR REPLACE FUNCTION public.update_public_profile_on_user_update()
 RETURNS TRIGGER

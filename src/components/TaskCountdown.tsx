@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Clock, Calendar, AlertTriangle, CheckCircle2 } from "lucide-react";
 import useTaskNotifications from "@/hooks/useTaskNotifications";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface Task {
   id: string;
@@ -29,6 +30,7 @@ const TaskCountdown = () => {
   const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   const { showNotification, markAsNotified, hasBeenNotified } = useTaskNotifications();
+  const { sendPushNotification } = usePushNotifications();
 
   useEffect(() => {
     const loadNextTask = () => {
@@ -144,13 +146,18 @@ const TaskCountdown = () => {
         // Task is overdue or time has reached zero
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         
+        // Task is overdue or time has reached zero
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
         // Send overdue notification if not already sent
-        if (nextTask && !hasBeenNotified(`overdue-${nextTask.id}`)) {
-          showNotification('📅 Task Overdue!', {
-            body: `"${nextTask.title}" is now overdue! Complete it as soon as possible.`,
-            tag: `task-overdue-${nextTask.id}`,
-            data: { taskId: nextTask.id, type: 'task_overdue' }
-          });
+        if (user && nextTask && !hasBeenNotified(`overdue-${nextTask.id}`)) {
+          sendPushNotification(
+            user.id,
+            '📅 Task Overdue!',
+            `"${nextTask.title}" is now overdue! Complete it as soon as possible.`,
+            `task-overdue-${nextTask.id}`,
+            { taskId: nextTask.id, type: 'task_overdue' }
+          );
           markAsNotified(`overdue-${nextTask.id}`);
         }
       }

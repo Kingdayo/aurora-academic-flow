@@ -160,6 +160,20 @@ export const usePushNotifications = () => {
     }
   };
 
+  const sendPushNotification = async (userId: string, title: string, body: string, tag?: string, data?: any) => {
+    try {
+      const { error } = await supabase.functions.invoke('send-push', {
+        body: { userId, title, body, tag, data }
+      });
+      if (error) throw error;
+      console.log('Push notification sent successfully.');
+      return true;
+    } catch (error) {
+      console.error('Error sending push notification:', error);
+      return false;
+    }
+  };
+
   return {
     isSupported,
     isSubscribed,
@@ -168,5 +182,6 @@ export const usePushNotifications = () => {
     unsubscribe,
     scheduleNotification,
     cancelAllScheduledNotifications,
+    sendPushNotification,
   };
 };
