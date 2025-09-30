@@ -40,15 +40,10 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Initialize the Supabase client with the service role key
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      // Use the service role key for backend operations
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
     )
 
     const { userId, title, body, tag, data } = await req.json()

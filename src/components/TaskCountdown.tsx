@@ -107,49 +107,11 @@ const TaskCountdown = () => {
         const seconds = Math.floor((difference % (1000 * 60)) / 1000);
 
         setTimeLeft({ days, hours, minutes, seconds });
-
-        // Check for upcoming deadline notifications (1 hour, 30 min, 15 min, 5 min before)
-        if (days === 0 && hours === 1 && minutes === 0 && seconds === 0) {
-          if (!hasBeenNotified(`hour-${nextTask.id}`)) {
-            showNotification('⏰ Task Due Soon', {
-              body: `"${nextTask.title}" is due in 1 hour!`,
-              tag: `task-hour-${nextTask.id}`
-            });
-            markAsNotified(`hour-${nextTask.id}`);
-          }
-        } else if (days === 0 && hours === 0 && minutes === 30 && seconds === 0) {
-          if (!hasBeenNotified(`30min-${nextTask.id}`)) {
-            showNotification('⏰ Task Due Very Soon', {
-              body: `"${nextTask.title}" is due in 30 minutes!`,
-              tag: `task-30min-${nextTask.id}`
-            });
-            markAsNotified(`30min-${nextTask.id}`);
-          }
-        } else if (days === 0 && hours === 0 && minutes === 15 && seconds === 0) {
-          if (!hasBeenNotified(`15min-${nextTask.id}`)) {
-            showNotification('🚨 Task Due Imminent', {
-              body: `"${nextTask.title}" is due in 15 minutes!`,
-              tag: `task-15min-${nextTask.id}`
-            });
-            markAsNotified(`15min-${nextTask.id}`);
-          }
-        } else if (days === 0 && hours === 0 && minutes === 5 && seconds === 0) {
-          if (!hasBeenNotified(`5min-${nextTask.id}`)) {
-            showNotification('🔥 Final Warning', {
-              body: `"${nextTask.title}" is due in 5 minutes! Complete it now!`,
-              tag: `task-5min-${nextTask.id}`
-            });
-            markAsNotified(`5min-${nextTask.id}`);
-          }
-        }
       } else {
         // Task is overdue or time has reached zero
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         
-        // Task is overdue or time has reached zero
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-
-        // Send overdue notification if not already sent
+        // Send overdue push notification if not already sent
         if (user && nextTask && !hasBeenNotified(`overdue-${nextTask.id}`)) {
           sendPushNotification(
             user.id,
