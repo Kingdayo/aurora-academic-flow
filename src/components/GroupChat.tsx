@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
 import { useRealtimeMessages } from '@/hooks/useRealtimeMessages';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Send, ArrowLeft, Users, Crown, Edit, Check, X } from 'lucide-react';
@@ -20,6 +21,7 @@ interface GroupChatProps {
 export default function GroupChat({ groupId, onBack }: GroupChatProps) {
   const { user } = useEnhancedAuth();
   const { messages, loading, sendMessage: sendMessageHook } = useRealtimeMessages(groupId);
+  const { sendPushNotification } = usePushNotifications();
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [groupInfo, setGroupInfo] = useState<any>(null);
@@ -107,21 +109,35 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
       await sendMessageHook(content);
       setNewMessage('');
 
-      // After sending, trigger the notification function
-      if (user && groupInfo) {
-        const senderName = (user as any).profile?.full_name || 'A user';
-        const notificationBody = `[${groupInfo.name}] ${senderName}: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`;
+      // --- New Notification Logic ---
+      if (user && groupInfo && sendPushNotification) {
+        // 1. Get all users in the chat, excluding the sender
+        const { data: members, error: membersError } = await supabase
+          .from('group_members')
+          .select('user_id')
+          .eq('group_id', groupId)
+          .neq('user_id', user.id);
 
-        supabase.functions.invoke('send-chat-notification', {
-          body: {
-            chatId: groupId,
-            message: notificationBody,
-            senderId: user.id
+        if (membersError) {
+          console.error("Error fetching group members for notification:", membersError);
+          // Don't block sending the message if notification logic fails
+          return;
+        }
+
+        if (members && members.length > 0) {
+          const senderName = (user as any).profile?.full_name || 'A user';
+          const title = `New message in ${groupInfo.name}`;
+          const body = `${senderName}: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`;
+
+          // 2. Send a notification to each member
+          for (const member of members) {
+            sendPushNotification(member.user_id, title, body, `chat-${groupId}`)
+              .catch(err => console.error(`Failed to send notification to user ${member.user_id}:`, err));
           }
-        }).catch(err => {
-            console.error('Error sending chat notification:', err)
-        });
+        }
       }
+      // --- End New Notification Logic ---
+
     } catch (error) {
       toast.error('Failed to send message.');
     } finally {

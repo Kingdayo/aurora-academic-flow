@@ -14,41 +14,36 @@ interface NotificationPayload {
   data?: any
 }
 
-async function sendWebPush(subscription: any, payload: NotificationPayload, vapidPublicKey: string) {
-  try {
-    const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')
-    if (!vapidPrivateKey) {
-      throw new Error('VAPID_PRIVATE_KEY not found')
-    }
+async function sendWebPush(subscription: any, payload: NotificationPayload) {
+  const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')
+  const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')
 
-    webpush.setVapidDetails(
-      'mailto:your-email@example.com',
-      vapidPublicKey,
-      vapidPrivateKey
-    )
-
-    await webpush.sendNotification(
-      subscription,
-      JSON.stringify(payload)
-    )
-    
-    return { success: true }
-  } catch (error) {
-    console.error('Error sending web push:', error)
-    throw error
+  if (!vapidPublicKey || !vapidPrivateKey) {
+    throw new Error('VAPID public and private keys are not configured.')
   }
+
+  webpush.setVapidDetails(
+    'mailto:your-email@example.com', // This should be configured via an environment variable
+    vapidPublicKey,
+    vapidPrivateKey
+  )
+
+  return webpush.sendNotification(
+    subscription,
+    JSON.stringify(payload)
+  )
 }
 
 Deno.serve(async (req) => {
-  // This is needed if you're planning to invoke your function from a browser.
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders, status: 200 })
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      // Use the service role key for backend operations
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
         global: {
           headers: { Authorization: req.headers.get('Authorization')! },
@@ -68,17 +63,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')
-    if (!vapidPublicKey) {
-      return new Response(
-        JSON.stringify({ error: 'VAPID_PUBLIC_KEY not configured' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-
     // Get user's push subscription
     const { data: subscriptionData, error: subError } = await supabaseClient
       .from('push_subscriptions')
@@ -87,17 +71,17 @@ Deno.serve(async (req) => {
       .single()
 
     if (subError || !subscriptionData) {
+      // It's not an error if a user is not subscribed, so just log it.
       console.log(`No push subscription found for user: ${userId}`)
       return new Response(
-        JSON.stringify({ error: 'No push subscription found for user' }),
+        JSON.stringify({ success: true, message: 'No push subscription found for user' }),
         { 
-          status: 404, 
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
     }
 
-    // Construct push subscription object
     const pushSubscription = {
       endpoint: subscriptionData.endpoint,
       keys: {
@@ -106,7 +90,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Prepare notification payload
     const notificationPayload: NotificationPayload = {
       title,
       body,
@@ -114,8 +97,7 @@ Deno.serve(async (req) => {
       data
     }
 
-    // Send push notification
-    await sendWebPush(pushSubscription, notificationPayload, vapidPublicKey)
+    await sendWebPush(pushSubscription, notificationPayload)
 
     console.log(`Push notification sent to user: ${userId}`)
 
@@ -128,7 +110,7 @@ Deno.serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error in send-push function:', error)
+    console.error('Error in send-push function:', error.message)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: errorMessage }),
