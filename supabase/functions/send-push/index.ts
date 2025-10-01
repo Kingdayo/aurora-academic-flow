@@ -35,6 +35,7 @@ async function sendWebPush(subscription: any, payload: NotificationPayload) {
 }
 
 Deno.serve(async (req) => {
+  // Handle OPTIONS request
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders, status: 200 })
   }
