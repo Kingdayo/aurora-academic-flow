@@ -120,20 +120,18 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
 
         if (membersError) {
           console.error("Error fetching group members for notification:", membersError);
-          // Don't block sending the message if notification logic fails
-          return;
+          return; // Don't block sending the message, but log the error.
         }
 
         if (members && members.length > 0) {
+          const recipientIds = members.map(m => m.user_id);
           const senderName = (user as any).profile?.full_name || 'A user';
           const title = `New message in ${groupInfo.name}`;
           const body = `${senderName}: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`;
 
-          // 2. Send a notification to each member
-          for (const member of members) {
-            sendPushNotification(member.user_id, title, body, `chat-${groupId}`)
-              .catch(err => console.error(`Failed to send notification to user ${member.user_id}:`, err));
-          }
+          // 2. Send notifications in a single batch
+          sendPushNotification(recipientIds, title, body, `chat-${groupId}`)
+            .catch(err => console.error(`Failed to send batch notification:`, err));
         }
       }
       // --- End New Notification Logic ---

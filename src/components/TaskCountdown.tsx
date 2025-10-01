@@ -29,7 +29,7 @@ const TaskCountdown = () => {
   });
   const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
   const { user } = useAuth();
-  const { showNotification, markAsNotified, hasBeenNotified } = useTaskNotifications();
+  const { markAsNotified, hasBeenNotified } = useTaskNotifications();
   const { sendPushNotification } = usePushNotifications();
 
   useEffect(() => {
@@ -107,6 +107,31 @@ const TaskCountdown = () => {
         const seconds = Math.floor((difference % (1000 * 60)) / 1000);
 
         setTimeLeft({ days, hours, minutes, seconds });
+
+        // Check for upcoming deadline notifications (1 hour, 30 min, 15 min, 5 min before)
+        if (user) {
+          if (days === 0 && hours === 1 && minutes === 0 && seconds === 0) {
+            if (!hasBeenNotified(`hour-${nextTask.id}`)) {
+              sendPushNotification(user.id, '⏰ Task Due Soon', `"${nextTask.title}" is due in 1 hour!`, `task-hour-${nextTask.id}`);
+              markAsNotified(`hour-${nextTask.id}`);
+            }
+          } else if (days === 0 && hours === 0 && minutes === 30 && seconds === 0) {
+            if (!hasBeenNotified(`30min-${nextTask.id}`)) {
+              sendPushNotification(user.id, '⏰ Task Due Very Soon', `"${nextTask.title}" is due in 30 minutes!`, `task-30min-${nextTask.id}`);
+              markAsNotified(`30min-${nextTask.id}`);
+            }
+          } else if (days === 0 && hours === 0 && minutes === 15 && seconds === 0) {
+            if (!hasBeenNotified(`15min-${nextTask.id}`)) {
+              sendPushNotification(user.id, '🚨 Task Due Imminent', `"${nextTask.title}" is due in 15 minutes!`, `task-15min-${nextTask.id}`);
+              markAsNotified(`15min-${nextTask.id}`);
+            }
+          } else if (days === 0 && hours === 0 && minutes === 5 && seconds === 0) {
+            if (!hasBeenNotified(`5min-${nextTask.id}`)) {
+              sendPushNotification(user.id, '🔥 Final Warning', `"${nextTask.title}" is due in 5 minutes!`, `task-5min-${nextTask.id}`);
+              markAsNotified(`5min-${nextTask.id}`);
+            }
+          }
+        }
       } else {
         // Task is overdue or time has reached zero
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });

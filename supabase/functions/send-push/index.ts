@@ -36,7 +36,7 @@ async function sendWebPush(subscription: any, payload: NotificationPayload) {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders, status: 200 })
   }
 
   try {
@@ -46,43 +46,44 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
 
-    const { userId, title, body, tag, data } = await req.json()
+    // The function now accepts an array of userIds or a single userId
+    const { userIds, userId, title, body, tag, data } = await req.json()
 
-    if (!userId || !title || !body) {
+    let targetUserIds = [];
+    if (userIds && Array.isArray(userIds)) {
+      targetUserIds = userIds;
+    } else if (userId) {
+      targetUserIds.push(userId);
+    }
+
+    if (targetUserIds.length === 0 || !title || !body) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: userId, title, body' }),
+        JSON.stringify({ error: 'Missing required fields: userIds (or userId), title, body' }),
         { 
-          status: 400, 
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
     }
 
-    // Get user's push subscription
-    const { data: subscriptionData, error: subError } = await supabaseClient
+    // Get users' push subscriptions
+    const { data: subscriptions, error: subsError } = await supabaseClient
       .from('push_subscriptions')
-      .select('endpoint, p256dh, auth')
-      .eq('user_id', userId)
-      .single()
+      .select('endpoint, p256dh, auth, user_id')
+      .in('user_id', targetUserIds)
 
-    if (subError || !subscriptionData) {
-      // It's not an error if a user is not subscribed, so just log it.
-      console.log(`No push subscription found for user: ${userId}`)
+    if (subsError) {
+      throw new Error(`Failed to fetch push subscriptions: ${subsError.message}`);
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, message: 'No push subscription found for user' }),
+        JSON.stringify({ success: true, message: 'No push subscriptions found for the given users.' }),
         { 
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
-    }
-
-    const pushSubscription = {
-      endpoint: subscriptionData.endpoint,
-      keys: {
-        p256dh: subscriptionData.p256dh,
-        auth: subscriptionData.auth
-      }
     }
 
     const notificationPayload: NotificationPayload = {
@@ -92,12 +93,23 @@ Deno.serve(async (req) => {
       data
     }
 
-    await sendWebPush(pushSubscription, notificationPayload)
+    const sendPromises = subscriptions.map(sub => {
+      const pushSubscription = {
+        endpoint: sub.endpoint,
+        keys: { p256dh: sub.p256dh, auth: sub.auth }
+      };
+      return sendWebPush(pushSubscription, notificationPayload).catch(error => {
+        console.error(`Failed to send push to user ${sub.user_id}:`, error.body || error.message);
+        // Return a failed status for this specific push
+        return { status: 'failed', userId: sub.user_id, error: error.message };
+      });
+    });
 
-    console.log(`Push notification sent to user: ${userId}`)
+    const results = await Promise.allSettled(sendPromises);
+    console.log('Push notification results:', results);
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Push notification sent successfully' }),
+      JSON.stringify({ success: true, message: 'Push notifications processed.' }),
       { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

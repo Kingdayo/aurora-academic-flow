@@ -160,11 +160,19 @@ export const usePushNotifications = () => {
     }
   };
 
-  const sendPushNotification = async (userId: string, title: string, body: string, tag?: string, data?: any) => {
+  const sendPushNotification = async (userId: string | string[], title: string, body: string, tag?: string, data?: any) => {
     try {
+      const bodyPayload: { [key: string]: any } = { title, body, tag, data };
+      if (Array.isArray(userId)) {
+        bodyPayload.userIds = userId;
+      } else {
+        bodyPayload.userId = userId;
+      }
+
       const { error } = await supabase.functions.invoke('send-push', {
-        body: { userId, title, body, tag, data }
+        body: bodyPayload
       });
+
       if (error) throw error;
       console.log('Push notification sent successfully.');
       return true;

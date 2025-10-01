@@ -94,9 +94,11 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
   // Effect to sync notifications with tasks
   useEffect(() => {
     const syncNotifications = async () => {
-      if (!isSubscribed) return;
+      if (!isSubscribed || !scheduleNotification || !cancelAllScheduledNotifications) return;
 
       await cancelAllScheduledNotifications();
+
+      const promises: Promise<boolean | void>[] = [];
 
       for (const task of tasks) {
         if (task.dueDate && !task.completed) {
@@ -105,23 +107,52 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
             const [hours, minutes] = task.dueTime.split(':').map(Number);
             dueDateTime.setHours(hours, minutes, 0, 0);
           } else {
-            dueDateTime.setHours(23, 59, 0, 0);
+            dueDateTime.setHours(9, 0, 0, 0); // Default to 9 AM on the due day
           }
 
-          if (dueDateTime > new Date()) {
-            await scheduleNotification(
+          const now = new Date();
+
+          // Schedule "due now" notification
+          if (dueDateTime > now) {
+            promises.push(scheduleNotification(
               task.id,
-              `Task Due: ${task.title}`,
-              `Your task "${task.title}" is due now!`,
+              `⌛ Task Due: ${task.title}`,
+              `Your task "${task.title}" is due now.`,
               dueDateTime
-            );
+            ));
+          }
+
+          // --- Schedule Reminder Notifications ---
+          const reminders = [
+            { time: 60 * 60 * 1000, id: '1h', msg: 'in 1 hour' },
+            { time: 30 * 60 * 1000, id: '30m', msg: 'in 30 minutes' },
+            { time: 15 * 60 * 1000, id: '15m', msg: 'in 15 minutes' },
+          ];
+
+          for (const reminder of reminders) {
+            const reminderTime = new Date(dueDateTime.getTime() - reminder.time);
+            if (reminderTime > now) {
+              promises.push(scheduleNotification(
+                `${task.id}-${reminder.id}`,
+                '⏰ Task Reminder',
+                `"${task.title}" is due ${reminder.msg}.`,
+                reminderTime
+              ));
+            }
           }
         }
+      }
+
+      try {
+        await Promise.all(promises);
+        console.log('Successfully synced all task notifications.');
+      } catch (error) {
+        console.error('An error occurred while syncing notifications:', error);
       }
     };
 
     syncNotifications();
-  }, [tasks, isSubscribed]);
+  }, [tasks, isSubscribed, scheduleNotification, cancelAllScheduledNotifications]);
 
   // Save tasks to localStorage whenever tasks change and trigger countdown update
   const saveTasks = (updatedTasks: Task[]) => {
@@ -198,15 +229,7 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
         // Task is being completed
         toast.success("Task completed! 🎉");
         
-        // Send browser notification for task completion
-        showNotification(`🎉 Task Completed!`, {
-          body: `"${task.title}" has been completed successfully!`,
-          icon: '/favicon.ico',
-          tag: `task-completed-${task.id}`,
-          data: { taskId: task.id, type: 'task_completed' }
-        });
-        
-        markAsNotified(`completed-${task.id}`);
+        // The notification schedule will be updated by the useEffect hook when the task's completed status changes.
       }
     }
   };
