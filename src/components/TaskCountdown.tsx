@@ -147,6 +147,15 @@ const TaskCountdown = () => {
           );
           markAsNotified(`overdue-${nextTask.id}`);
         }
+        if (user && nextTask && !countdownCompleted.has(nextTask.id)) {
+            setCountdownCompleted(prev => new Set([...prev, nextTask.id]));
+            sendPushNotification(
+                user.id,
+                '⏰ Task Time\'s Up!',
+                `The countdown for "${nextTask.title}" has finished.`,
+                `task-completed-${nextTask.id}`
+            );
+        }
       }
     };
 

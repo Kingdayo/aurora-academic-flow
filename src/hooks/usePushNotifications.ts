@@ -173,11 +173,19 @@ export const usePushNotifications = () => {
         body: bodyPayload
       });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message);
+      }
+
       console.log('Push notification sent successfully.');
       return true;
     } catch (error) {
       console.error('Error sending push notification:', error);
+      toast({
+        title: 'Notification Error',
+        description: 'Failed to send push notification. Please check your connection and try again.',
+        variant: 'destructive'
+      });
       return false;
     }
   };

@@ -1,3 +1,4 @@
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import webpush from 'https://esm.sh/web-push@3.6.6'
 
@@ -34,7 +35,7 @@ async function sendWebPush(subscription: any, payload: NotificationPayload) {
   )
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   // Handle OPTIONS request
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders, status: 200 })
