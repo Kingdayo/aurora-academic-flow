@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { User, Session } from "@supabase/gotrue-js";
+import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
@@ -11,7 +11,8 @@ import SplashScreen from "./components/SplashScreen";
 import { toast } from "sonner";
 import { PasswordResetDialog } from "@/components/PasswordResetDialog";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Sun, Moon, User as UserIcon } from "lucide-react";
+import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
+import LoadingScreen from '@/components/LoadingScreen';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,8 +44,8 @@ export const useTheme = () => {
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  login: (email: string, password: string) => Promise<{ error: any }>;
-  register: (name: string, email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (name: string, email: string, password: string) => Promise<{ error: any }>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   logout: () => Promise<void>;
   loading: boolean;
@@ -62,57 +63,35 @@ export const useAuth = () => {
 };
 
 function App() {
-  const { user, loading } = useEnhancedAuth();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'groups' | 'chat'>('dashboard');
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const authContextValue = useEnhancedAuth();
+  const { user, loading } = authContextValue;
+  const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const storedTheme = localStorage.getItem('aurora-theme');
+    return (storedTheme as 'light' | 'dark') || 'light';
+  });
 
-  if (!user) {
-    return <AuthPage />;
-  }
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(theme);
+    localStorage.setItem('aurora-theme', theme);
+  }, [theme]);
 
-  const handleGroupSelect = (groupId: string) => {
-    setSelectedGroupId(groupId);
-    setCurrentView('chat');
+  const toggleTheme = () => {
+    setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
-  const handleBackToGroups = () => {
-    setSelectedGroupId(null);
-    setCurrentView('groups');
-  };
+  const themeContextValue = { theme, toggleTheme };
 
-  const handleBackToDashboard = () => {
-    setCurrentView('dashboard');
-    setSelectedGroupId(null);
+  const handlePasswordUpdate = async (password: string) => {
+    // Add password update logic here
+    console.log('Password update requested with:', password);
+    setIsPasswordResetOpen(false);
   };
 
   return (
-<<<<<<< HEAD
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              {currentView !== 'dashboard' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={currentView === 'chat' ? handleBackToGroups : handleBackToDashboard}
-                  className="p-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              )}
-              <h1 className="text-2xl font-bold">
-                {currentView === 'dashboard' && 'Dashboard'}
-                {currentView === 'groups' && 'Groups'}
-                {currentView === 'chat' && 'Group Chat'}
-              </h1>
-=======
     <QueryClientProvider client={queryClient}>
       <ThemeContext.Provider value={themeContextValue}>
         <BrowserRouter>
@@ -124,7 +103,9 @@ function App() {
               onClose={() => setIsPasswordResetOpen(false)}
               onSubmit={handlePasswordUpdate}
             />
-            <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
+            {loading ? (
+              <LoadingScreen />
+            ) : (
               <Routes>
                 <Route
                   path="/"
@@ -134,38 +115,15 @@ function App() {
                 />
                 <Route
                   path="/dashboard"
-                  element={
-                    user ? <Dashboard /> : <Navigate to="/" replace />
-                  }
+                  element={user ? <Dashboard /> : <Navigate to="/" replace />}
                 />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
->>>>>>> 44c53470a408f7d668b4ce3cda44098840fa9e85
-            </div>
-            <div className="flex items-center space-x-2">
-              <ThemeToggle />
-              <UserProfile />
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex-1">
-            {currentView === 'dashboard' && (
-              <Dashboard onNavigateToGroups={() => setCurrentView('groups')} />
             )}
-            {currentView === 'groups' && (
-              <GroupManager onGroupSelect={handleGroupSelect} />
-            )}
-            {currentView === 'chat' && selectedGroupId && (
-              <GroupChat
-                groupId={selectedGroupId}
-                onBack={handleBackToGroups}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+          </AuthContext.Provider>
+        </BrowserRouter>
+      </ThemeContext.Provider>
+    </QueryClientProvider>
   );
 }
 

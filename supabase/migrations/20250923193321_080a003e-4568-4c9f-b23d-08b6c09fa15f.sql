@@ -12,7 +12,7 @@ CREATE TABLE public.groups (
 CREATE TABLE public.group_members (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   group_id UUID NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member')),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'removed')),
   joined_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),

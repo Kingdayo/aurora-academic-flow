@@ -148,6 +148,40 @@ export const usePushNotifications = () => {
     }
   };
 
+  const cancelAllScheduledNotifications = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('cancel-all-notifications');
+      if (error) throw error;
+      console.log('All scheduled notifications have been cancelled.');
+      return true;
+    } catch (error) {
+      console.error('Error cancelling scheduled notifications:', error);
+      return false;
+    }
+  };
+
+  const sendPushNotification = async (userId: string | string[], title: string, body: string, tag?: string, data?: any) => {
+    try {
+      const bodyPayload: { [key: string]: any } = { title, body, tag, data };
+      if (Array.isArray(userId)) {
+        bodyPayload.userIds = userId;
+      } else {
+        bodyPayload.userId = userId;
+      }
+
+      const { error } = await supabase.functions.invoke('send-push', {
+        body: bodyPayload
+      });
+
+      if (error) throw error;
+      console.log('Push notification sent successfully.');
+      return true;
+    } catch (error) {
+      console.error('Error sending push notification:', error);
+      return false;
+    }
+  };
+
   return {
     isSupported,
     isSubscribed,
@@ -155,5 +189,7 @@ export const usePushNotifications = () => {
     subscribe,
     unsubscribe,
     scheduleNotification,
+    cancelAllScheduledNotifications,
+    sendPushNotification,
   };
 };

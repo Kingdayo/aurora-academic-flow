@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,21 +6,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
+import { useRealtimeMessages } from '@/hooks/useRealtimeMessages';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, ArrowLeft, Users, Crown } from 'lucide-react';
-
-interface Message {
-  id: string;
-  content: string;
-  user_id: string;
-  group_id: string;
-  created_at: string;
-  profiles?: {
-    full_name: string;
-    avatar_url?: string;
-  };
-}
+import { Send, ArrowLeft, Users, Crown, Edit, Check, X } from 'lucide-react';
+import { generateAvatarUrl } from '@/lib/utils';
 
 interface GroupChatProps {
   groupId: string;
@@ -29,13 +20,14 @@ interface GroupChatProps {
 
 export default function GroupChat({ groupId, onBack }: GroupChatProps) {
   const { user } = useEnhancedAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { messages, loading, sendMessage: sendMessageHook } = useRealtimeMessages(groupId);
+  const { sendPushNotification } = usePushNotifications();
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [groupInfo, setGroupInfo] = useState<any>(null);
   const [memberCount, setMemberCount] = useState(0);
-  const [userProfiles, setUserProfiles] = useState<Record<string, { full_name: string; avatar_url?: string }>>({});
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -46,35 +38,6 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
     scrollToBottom();
   }, [messages]);
 
-  // Load user profiles for better username display
-  useEffect(() => {
-    const loadUserProfiles = async () => {
-      try {
-        const { data: profiles, error } = await supabase
-          .from('profiles')
-          .select('id, full_name, avatar_url');
-
-        if (error) throw error;
-
-        const profileMap: Record<string, { full_name: string; avatar_url?: string }> = {};
-        profiles?.forEach(profile => {
-          if (profile.id) {
-            profileMap[profile.id] = {
-              full_name: profile.full_name || 'User',
-              avatar_url: profile.avatar_url || undefined
-            };
-          }
-        });
-        setUserProfiles(profileMap);
-      } catch (error) {
-        console.error('Error loading user profiles:', error);
-      }
-    };
-
-    loadUserProfiles();
-  }, []);
-
-  // Load group info and member count
   useEffect(() => {
     const loadGroupInfo = async () => {
       try {
@@ -86,17 +49,6 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
 
         if (groupError) throw groupError;
         setGroupInfo(group);
-
-        // Load member count
-        const { data: members, error: membersError } = await supabase
-          .from('group_members')
-          .select('id')
-          .eq('group_id', groupId)
-          .eq('status', 'active');
-
-        if (!membersError && members) {
-          setMemberCount(members.length);
-        }
       } catch (error) {
         console.error('Error loading group info:', error);
         toast.error('Failed to load group information');
@@ -106,99 +58,27 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
     loadGroupInfo();
   }, [groupId]);
 
-  // Load messages
-  useEffect(() => {
-    const loadMessages = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('messages')
-          .select(`
-            *,
-            profiles (
-              full_name,
-              avatar_url
-            )
-          `)
-          .eq('group_id', groupId)
-          .order('created_at', { ascending: true });
+  const fetchMemberCount = useCallback(async () => {
+    if (!groupId) return;
+    try {
+      const { data, error } = await supabase.rpc('get_group_member_count', {
+        p_group_id: groupId,
+      });
 
-        if (error) throw error;
-        setMessages(data || []);
-      } catch (error) {
-        console.error('Error loading messages:', error);
-        toast.error('Failed to load messages');
-      } finally {
-        setLoading(false);
-      }
-    };
+      if (error) throw error;
 
-    loadMessages();
+      setMemberCount(data);
+    } catch (error) {
+      console.error('Error fetching member count:', error);
+      // Do not toast here as it can be annoying on load
+    }
   }, [groupId]);
 
-  // Real-time message subscription
   useEffect(() => {
+    fetchMemberCount();
+
     const channel = supabase
-      .channel(`group_chat_${groupId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `group_id=eq.${groupId}`,
-        },
-        async (payload) => {
-          const newMessage = payload.new as Message;
-          
-          // Get user profile for the new message
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, avatar_url')
-            .eq('id', newMessage.user_id)
-            .single();
-
-          const messageWithProfile = {
-            ...newMessage,
-            profiles: profile
-          };
-
-          setMessages(prev => [...prev, messageWithProfile]);
-
-          // Show notification if message is from another user
-          if (newMessage.user_id !== user?.id) {
-            // Request notification permission if not granted
-            if (Notification.permission === 'default') {
-              await Notification.requestPermission();
-            }
-
-            // Show notification if permission is granted
-            if (Notification.permission === 'granted') {
-              const senderName = profile?.full_name || userProfiles[newMessage.user_id]?.full_name || 'Someone';
-              new Notification(`New message from ${senderName}`, {
-                body: newMessage.content,
-                icon: profile?.avatar_url || '/favicon.ico',
-                tag: `group_${groupId}`,
-              });
-            }
-
-            // Also show toast notification
-            const senderName = profile?.full_name || userProfiles[newMessage.user_id]?.full_name || 'Someone';
-            toast.success(`New message from ${senderName}`);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [groupId, user?.id, userProfiles]);
-
-  // Real-time member count updates
-  useEffect(() => {
-    const channel = supabase
-      .channel(`group_members_${groupId}`)
+      .channel(`realtime_group_members_count_${groupId}`)
       .on(
         'postgres_changes',
         {
@@ -207,17 +87,9 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
           table: 'group_members',
           filter: `group_id=eq.${groupId}`,
         },
-        async () => {
-          // Reload member count when members change
-          const { data: members, error } = await supabase
-            .from('group_members')
-            .select('id')
-            .eq('group_id', groupId)
-            .eq('status', 'active');
-
-          if (!error && members) {
-            setMemberCount(members.length);
-          }
+        () => {
+          // Add a small delay to allow the database to settle before refetching
+          setTimeout(fetchMemberCount, 500);
         }
       )
       .subscribe();
@@ -225,26 +97,47 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [groupId]);
+  }, [groupId, fetchMemberCount]);
 
-  const sendMessage = async () => {
+
+  const handleSendMessage = async () => {
     if (!newMessage.trim() || sending) return;
 
     setSending(true);
     try {
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          content: newMessage.trim(),
-          group_id: groupId,
-          user_id: user?.id,
-        });
-
-      if (error) throw error;
+      const content = newMessage.trim();
+      await sendMessageHook(content);
       setNewMessage('');
+
+      // --- New Notification Logic ---
+      if (user && groupInfo && sendPushNotification) {
+        // 1. Get all users in the chat, excluding the sender
+        const { data: members, error: membersError } = await supabase
+          .from('group_members')
+          .select('user_id')
+          .eq('group_id', groupId)
+          .neq('user_id', user.id);
+
+        if (membersError) {
+          console.error("Error fetching group members for notification:", membersError);
+          return; // Don't block sending the message, but log the error.
+        }
+
+        if (members && members.length > 0) {
+          const recipientIds = members.map(m => m.user_id);
+          const senderName = (user as any).profile?.full_name || 'A user';
+          const title = `New message in ${groupInfo.name}`;
+          const body = `${senderName}: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`;
+
+          // 2. Send notifications in a single batch
+          sendPushNotification(recipientIds, title, body, `chat-${groupId}`)
+            .catch(err => console.error(`Failed to send batch notification:`, err));
+        }
+      }
+      // --- End New Notification Logic ---
+
     } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Failed to send message');
+      toast.error('Failed to send message.');
     } finally {
       setSending(false);
     }
@@ -253,7 +146,34 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      handleSendMessage();
+    }
+  };
+
+  const handleUpdateGroupName = async () => {
+    if (!newGroupName.trim() || newGroupName === groupInfo.name) {
+      setIsEditingName(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('groups')
+        .update({ name: newGroupName.trim() })
+        .eq('id', groupId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setGroupInfo(data);
+      toast.success('Group name updated successfully');
+    } catch (error) {
+      console.error('Error updating group name:', error);
+      toast.error('Failed to update group name');
+      setNewGroupName(groupInfo.name); // Revert on failure
+    } finally {
+      setIsEditingName(false);
     }
   };
 
@@ -308,39 +228,69 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
     return group?.owner_id === user?.id;
   };
 
-  if (loading) {
+  if (!groupInfo) {
     return (
       <div className="flex justify-center items-center h-64 bg-background">
-        <div className="text-muted-foreground">Loading chat...</div>
+        <div className="text-muted-foreground">Loading group...</div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Header */}
       <Card className="rounded-b-none border-b">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onBack}
-              className="p-2 h-8 w-8"
-            >
+            <Button variant="ghost" size="sm" onClick={onBack} className="p-2 h-8 w-8">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <Avatar className="h-8 w-8">
-              <AvatarImage src={`https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`} />
+              <AvatarImage src={generateAvatarUrl(groupId)} />
               <AvatarFallback>{groupInfo?.name?.charAt(0) || 'G'}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <CardTitle className="text-base md:text-lg truncate">
-                  {groupInfo?.name || 'Group Chat'}
-                </CardTitle>
-                {isGroupAdmin(groupInfo) && (
-                  <Crown className="h-4 w-4 text-yellow-500 flex-shrink-0" />
+                {isEditingName && isGroupAdmin(groupInfo) ? (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleUpdateGroupName();
+                        if (e.key === 'Escape') setIsEditingName(false);
+                      }}
+                      className="h-8 text-base md:text-lg"
+                      autoFocus
+                    />
+                    <Button variant="ghost" size="sm" onClick={handleUpdateGroupName} className="p-1 h-7 w-7">
+                      <Check className="h-4 w-4 text-green-600" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setIsEditingName(false)} className="p-1 h-7 w-7">
+                      <X className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <CardTitle className="text-base md:text-lg truncate">
+                      {groupInfo?.name || 'Group Chat'}
+                    </CardTitle>
+                    {isGroupAdmin(groupInfo) && (
+                      <>
+                        <Crown className="h-4 w-4 text-yellow-500 flex-shrink-0" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setIsEditingName(true);
+                            setNewGroupName(groupInfo.name);
+                          }}
+                          className="p-1 h-7 w-7"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -352,11 +302,14 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
         </CardHeader>
       </Card>
 
-      {/* Messages */}
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="p-4 space-y-4">
-            {messages.length === 0 ? (
+            {loading ? (
+                 <div className="text-center text-muted-foreground py-8">
+                 Loading messages...
+               </div>
+            ) : messages.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 No messages yet. Start the conversation!
               </div>
@@ -366,6 +319,16 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                   const showDate = index === 0 || 
                     formatDate(message.created_at) !== formatDate(messages[index - 1].created_at);
                   const isOwnMessage = message.user_id === user?.id;
+
+                  // With useEnhancedAuth guaranteeing full_name, we can simplify this.
+                  // We still provide fallbacks for transitional states where data hasn't synced yet.
+                  const displayName =
+                    message.profiles?.full_name ||
+                    (message.profiles?.email
+                      ? message.profiles.email.split('@')[0]
+                      : `User ${message.user_id.substring(0, 8)}`);
+
+                  const displayInitial = (displayName.charAt(0) || 'U').toUpperCase();
 
                   return (
                     <div key={message.id}>
@@ -379,17 +342,17 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
                       <div className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
                         <Avatar className="h-8 w-8 flex-shrink-0">
                           <AvatarImage
-                            src={getUserAvatar(message)}
-                            alt={getUserDisplayName(message, isOwnMessage)}
+                            src={message.profiles?.avatar_url || generateAvatarUrl(message.user_id)}
+                            alt={displayName}
                           />
                           <AvatarFallback className="text-xs">
-                            {getUserDisplayName(message, isOwnMessage).charAt(0)}
+                            {displayInitial}
                           </AvatarFallback>
                         </Avatar>
                         <div className={`flex-1 max-w-[70%] ${isOwnMessage ? 'text-right' : ''}`}>
                           <div className={`flex items-center gap-2 mb-1 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
                             <span className="text-sm font-medium">
-                              {getUserDisplayName(message, isOwnMessage)}
+                              {displayName}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {formatTime(message.created_at)}
@@ -416,7 +379,6 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
         </ScrollArea>
       </div>
 
-      {/* Message Input */}
       <Card className="rounded-t-none border-t">
         <CardContent className="p-4">
           <div className="flex gap-2">
@@ -427,9 +389,10 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
               onKeyPress={handleKeyPress}
               disabled={sending}
               className="flex-1"
+              maxLength={1000}
             />
             <Button
-              onClick={sendMessage}
+              onClick={handleSendMessage}
               disabled={sending || !newMessage.trim()}
               size="sm"
               className="px-3"
