@@ -2,10 +2,19 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import webpush from 'https://esm.sh/web-push@3.6.6'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://aurora-task-flow.netlify.app',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+const allowedOrigins = [
+  'https://aurora-task-flow.netlify.app',
+  'http://localhost:3000',
+  'http://localhost:5173' // Default Vite dev server port
+];
+
+function getCorsHeaders(origin: string | null) {
+  const isAllowed = origin && allowedOrigins.includes(origin);
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : allowedOrigins[0], // Fallback to the main prod URL
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
 }
 
 interface NotificationPayload {
@@ -36,9 +45,12 @@ async function sendWebPush(subscription: any, payload: NotificationPayload) {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   // Handle OPTIONS request
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders, status: 200 })
+    return new Response('ok', { headers: corsHeaders, status: 200 })
   }
 
   try {
