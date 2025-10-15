@@ -61,40 +61,6 @@ export const useRealtimeNotifications = () => {
         setIsConnected(status === 'SUBSCRIBED');
       });
 
-    const showNotification = (title: string, body: string, task: Task) => {
-      // Show toast notification
-      toast({
-        title,
-        description: body,
-      });
-
-      // Show browser notification if permission granted
-      if ('Notification' in window && Notification.permission === 'granted') {
-        const notification = new Notification(title, {
-          body,
-          icon: '/favicon.ico',
-          tag: `task-${task.id}`,
-          requireInteraction: false,
-          silent: false,
-        });
-
-        // Trigger vibration on mobile devices
-        if ('vibrate' in navigator) {
-          navigator.vibrate([200, 100, 200]);
-        }
-
-        // Close notification after 5 seconds
-        setTimeout(() => {
-          notification.close();
-        }, 5000);
-
-        notification.onclick = () => {
-          window.focus();
-          notification.close();
-        };
-      }
-    };
-
     const handleTaskChange = (payload: any) => {
       const { eventType, new: newTask, old: oldTask } = payload;
 
@@ -126,6 +92,40 @@ export const useRealtimeNotifications = () => {
             task
           );
         }
+      }
+    };
+
+    const showNotification = (title: string, body: string, task: Task) => {
+      // Show toast notification
+      toast({
+        title,
+        description: body,
+      });
+
+      // Show browser notification if permission granted
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const notification = new Notification(title, {
+          body,
+          icon: '/favicon.ico',
+          tag: `task-${task.id}`,
+          requireInteraction: false,
+          silent: false,
+        });
+
+        // Trigger vibration on mobile devices
+        if ('vibrate' in navigator) {
+          navigator.vibrate([200, 100, 200]);
+        }
+
+        // Close notification after 5 seconds
+        setTimeout(() => {
+          notification.close();
+        }, 5000);
+
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
       }
     };
 

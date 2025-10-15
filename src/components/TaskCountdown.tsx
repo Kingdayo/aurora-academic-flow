@@ -29,7 +29,7 @@ const TaskCountdown = () => {
   const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
   const [countdownCompleted, setCountdownCompleted] = useState<Set<string>>(new Set());
   const { user } = useAuth();
-  const { markAsNotified, hasBeenNotified } = useTaskNotifications();
+  const { showNotification, markAsNotified, hasBeenNotified } = useTaskNotifications();
   const { sendPushNotification } = usePushNotifications();
 
   useEffect(() => {
