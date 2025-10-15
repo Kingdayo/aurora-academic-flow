@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/App";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +27,7 @@ const TaskCountdown = () => {
     seconds: 0
   });
   const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
+  const [countdownCompleted, setCountdownCompleted] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   const { markAsNotified, hasBeenNotified } = useTaskNotifications();
   const { sendPushNotification } = usePushNotifications();
@@ -154,7 +154,7 @@ const TaskCountdown = () => {
     const timer = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(timer);
-  }, [nextTask]);
+  }, [nextTask, countdownCompleted, hasBeenNotified, markAsNotified, showNotification]);
 
   useEffect(() => {
     if (nextTask && user && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {

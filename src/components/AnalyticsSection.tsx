@@ -1,10 +1,11 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
-import { TrendingUp, Target, Clock, BookOpen, CheckCircle, AlertCircle } from "lucide-react";
+import { TrendingUp, Target, Clock, BookOpen, CheckCircle, AlertCircle, Bell } from "lucide-react";
+import useTaskNotifications from "@/hooks/useTaskNotifications";
 
 interface Task {
   id: string;
@@ -20,6 +21,7 @@ interface Task {
 
 const AnalyticsSection = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const { showNotification, requestPermission, notificationPermission } = useTaskNotifications();
 
   useEffect(() => {
     const loadTasks = () => {
@@ -57,6 +59,20 @@ const AnalyticsSection = () => {
       window.removeEventListener('tasks-updated', handleTasksUpdate as EventListener);
     };
   }, []);
+
+  const handleTestNotification = async () => {
+    // Request permission if not granted
+    if (notificationPermission !== 'granted') {
+      await requestPermission();
+    }
+    
+    // Show test notification
+    showNotification('🔔 Test Notification', {
+      body: 'Push notifications are working! You\'ll receive alerts for your tasks.',
+      tag: 'test-notification',
+      vibrationPattern: [200, 100, 200]
+    });
+  };
 
   const completedTasks = tasks.filter(task => task.completed);
   const pendingTasks = tasks.filter(task => !task.completed);
@@ -181,6 +197,29 @@ const AnalyticsSection = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Test Notification Button */}
+      <Card className="border-purple-200 dark:border-purple-800 hover-lift transition-all">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center space-x-2 text-purple-600 dark:text-purple-400">
+                <Bell className="w-5 h-5" />
+                <span>Push Notifications</span>
+              </CardTitle>
+              <CardDescription>Test your browser notifications</CardDescription>
+            </div>
+            <Button 
+              onClick={handleTestNotification}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <Bell className="w-4 h-4" />
+              Test Notification
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
+
       {/* AI Insights Card */}
       {aiInsights.length > 0 && (
         <Card className="border-blue-200 dark:border-blue-800 hover-lift transition-all animate-fade-in-up">

@@ -100,6 +100,14 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
     }
   };
 
+  // Helper function to get member display name
+  const getMemberDisplayName = (member: any) => {
+    if (member.profiles?.full_name) {
+      return member.profiles.full_name;
+    }
+    return 'User'; // Better fallback than "Unknown User"
+  };
+
   const handleRemoveMember = async (groupId: string, memberId: string) => {
     try {
       const { error } = await supabase
