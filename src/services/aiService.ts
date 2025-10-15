@@ -117,7 +117,7 @@ class AIService {
       return response;
     } catch (error) {
       console.error('AI generation error:', error);
-      return this.getFallbackResponse(category, query);
+      throw new Error('Failed to generate AI response. Please try again.');
     }
   }
 

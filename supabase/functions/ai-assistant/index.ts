@@ -51,7 +51,7 @@ serve(async (req) => {
     };
 
     const apiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -82,7 +82,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in ai-assistant function:', error.message);
+    console.error('Error in ai-assistant function:', error instanceof Error ? error.message : String(error));
     return new Response(
       JSON.stringify({ error: 'Failed to generate AI response.' }),
       {
