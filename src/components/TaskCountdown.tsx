@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/App";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +26,7 @@ const TaskCountdown = () => {
     seconds: 0
   });
   const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
+  const [countdownCompleted, setCountdownCompleted] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   const { showNotification, markAsNotified, hasBeenNotified } = useTaskNotifications();
 
@@ -144,6 +144,17 @@ const TaskCountdown = () => {
         // Task is overdue or time has reached zero
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         
+        // Send countdown completion notification when timer reaches zero
+        if (nextTask && !countdownCompleted.has(nextTask.id)) {
+          showNotification('⏰ Time\'s Up!', {
+            body: `The countdown for "${nextTask.title}" has completed! Time to take action.`,
+            tag: `task-countdown-complete-${nextTask.id}`,
+            data: { taskId: nextTask.id, type: 'countdown_complete' },
+            vibrationPattern: [200, 100, 200]
+          });
+          setCountdownCompleted(prev => new Set([...prev, nextTask.id]));
+        }
+        
         // Send overdue notification if not already sent
         if (nextTask && !hasBeenNotified(`overdue-${nextTask.id}`)) {
           showNotification('📅 Task Overdue!', {
@@ -160,7 +171,7 @@ const TaskCountdown = () => {
     const timer = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(timer);
-  }, [nextTask]);
+  }, [nextTask, countdownCompleted, hasBeenNotified, markAsNotified, showNotification]);
 
   useEffect(() => {
     if (nextTask && user && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
