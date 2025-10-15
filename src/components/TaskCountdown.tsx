@@ -28,7 +28,7 @@ const TaskCountdown = () => {
   const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
   const [countdownCompleted, setCountdownCompleted] = useState<Set<string>>(new Set());
   const { user } = useAuth();
-  const taskNotifications = useTaskNotifications();
+  const { showNotification, hasBeenNotified, markAsNotified } = useTaskNotifications();
 
   useEffect(() => {
     const loadNextTask = () => {
@@ -108,36 +108,36 @@ const TaskCountdown = () => {
 
         // Check for upcoming deadline notifications (1 hour, 30 min, 15 min, 5 min before)
         if (days === 0 && hours === 1 && minutes === 0 && seconds === 0) {
-          if (!taskNotifications.hasBeenNotified(`hour-${nextTask.id}`)) {
-            taskNotifications.showNotification('⏰ Task Due Soon', {
+          if (!hasBeenNotified(`hour-${nextTask.id}`)) {
+            showNotification('⏰ Task Due Soon', {
               body: `"${nextTask.title}" is due in 1 hour!`,
               tag: `task-hour-${nextTask.id}`
             });
-            taskNotifications.markAsNotified(`hour-${nextTask.id}`);
+            markAsNotified(`hour-${nextTask.id}`);
           }
         } else if (days === 0 && hours === 0 && minutes === 30 && seconds === 0) {
-          if (!taskNotifications.hasBeenNotified(`30min-${nextTask.id}`)) {
-            taskNotifications.showNotification('⏰ Task Due Very Soon', {
+          if (!hasBeenNotified(`30min-${nextTask.id}`)) {
+            showNotification('⏰ Task Due Very Soon', {
               body: `"${nextTask.title}" is due in 30 minutes!`,
               tag: `task-30min-${nextTask.id}`
             });
-            taskNotifications.markAsNotified(`30min-${nextTask.id}`);
+            markAsNotified(`30min-${nextTask.id}`);
           }
         } else if (days === 0 && hours === 0 && minutes === 15 && seconds === 0) {
-          if (!taskNotifications.hasBeenNotified(`15min-${nextTask.id}`)) {
-            taskNotifications.showNotification('🚨 Task Due Imminent', {
+          if (!hasBeenNotified(`15min-${nextTask.id}`)) {
+            showNotification('🚨 Task Due Imminent', {
               body: `"${nextTask.title}" is due in 15 minutes!`,
               tag: `task-15min-${nextTask.id}`
             });
-            taskNotifications.markAsNotified(`15min-${nextTask.id}`);
+            markAsNotified(`15min-${nextTask.id}`);
           }
         } else if (days === 0 && hours === 0 && minutes === 5 && seconds === 0) {
-          if (!taskNotifications.hasBeenNotified(`5min-${nextTask.id}`)) {
-            taskNotifications.showNotification('🔥 Final Warning', {
+          if (!hasBeenNotified(`5min-${nextTask.id}`)) {
+            showNotification('🔥 Final Warning', {
               body: `"${nextTask.title}" is due in 5 minutes! Complete it now!`,
               tag: `task-5min-${nextTask.id}`
             });
-            taskNotifications.markAsNotified(`5min-${nextTask.id}`);
+            markAsNotified(`5min-${nextTask.id}`);
           }
         }
       } else {
@@ -146,7 +146,7 @@ const TaskCountdown = () => {
         
         // Send countdown completion notification when timer reaches zero
         if (nextTask && !countdownCompleted.has(nextTask.id)) {
-          taskNotifications.showNotification('⏰ Time\'s Up!', {
+          showNotification('⏰ Time\'s Up!', {
             body: `The countdown for "${nextTask.title}" has completed! Time to take action.`,
             tag: `task-countdown-complete-${nextTask.id}`,
             data: { taskId: nextTask.id, type: 'countdown_complete' },
@@ -156,13 +156,13 @@ const TaskCountdown = () => {
         }
         
         // Send overdue notification if not already sent
-        if (nextTask && !taskNotifications.hasBeenNotified(`overdue-${nextTask.id}`)) {
-          taskNotifications.showNotification('📅 Task Overdue!', {
+        if (nextTask && !hasBeenNotified(`overdue-${nextTask.id}`)) {
+          showNotification('📅 Task Overdue!', {
             body: `"${nextTask.title}" is now overdue! Complete it as soon as possible.`,
             tag: `task-overdue-${nextTask.id}`,
             data: { taskId: nextTask.id, type: 'task_overdue' }
           });
-          taskNotifications.markAsNotified(`overdue-${nextTask.id}`);
+          markAsNotified(`overdue-${nextTask.id}`);
         }
       }
     };
@@ -171,7 +171,7 @@ const TaskCountdown = () => {
     const timer = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(timer);
-  }, [nextTask, countdownCompleted, taskNotifications]);
+  }, [nextTask, countdownCompleted, showNotification, hasBeenNotified, markAsNotified]);
 
   useEffect(() => {
     if (nextTask && user && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
