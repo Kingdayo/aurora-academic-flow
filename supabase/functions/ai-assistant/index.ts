@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const geminiApiKey = Deno.env.get('GOOGLE_GEMINI_API_KEY');
+const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,49 +29,46 @@ serve(async (req) => {
       context?: AcademicContext 
     } = await req.json();
 
-    if (!geminiApiKey) {
-      throw new Error('Google Gemini API key not configured');
+    if (!lovableApiKey) {
+      throw new Error('Lovable API key not configured');
     }
 
     const level = context?.userProfile?.academicLevel || 'university';
     const systemPrompt = `You are an academic assistant. Provide a clear, concise, and accurate answer for a ${level} student. Focus on practical, actionable advice.`;
 
-    const requestBody = {
-      contents: [{
-        parts: [{
-          text: `${systemPrompt}\n\nUser question: ${query}`
-        }]
-      }],
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 512,
-      }
-    };
-
     const apiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+      'https://ai.gateway.lovable.dev/v1/chat/completions',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+        headers: { 
+          'Authorization': `Bearer ${lovableApiKey}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: query }
+          ],
+          max_tokens: 512,
+          temperature: 0.7
+        }),
       }
     );
 
     if (!apiResponse.ok) {
       const errorText = await apiResponse.text();
-      console.error('Gemini API error:', errorText);
-      throw new Error(`Gemini API error: ${apiResponse.status}`);
+      console.error('Lovable AI error:', errorText);
+      throw new Error(`Lovable AI error: ${apiResponse.status}`);
     }
 
     const responseData = await apiResponse.json();
     
-    if (!responseData.candidates?.[0]?.content?.parts?.[0]?.text) {
-      throw new Error('Invalid response structure from Gemini API');
+    if (!responseData.choices?.[0]?.message?.content) {
+      throw new Error('Invalid response structure from Lovable AI');
     }
 
-    const generatedText = responseData.candidates[0].content.parts[0].text.trim();
+    const generatedText = responseData.choices[0].message.content.trim();
 
     return new Response(
       JSON.stringify({ response: generatedText }),
