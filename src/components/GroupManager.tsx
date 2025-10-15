@@ -12,6 +12,7 @@ import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Plus, Crown, Users, UserPlus, Trash2, Copy, MessageCircle } from 'lucide-react';
+import { generateAvatarUrl } from '@/lib/utils';
 
 interface GroupManagerProps {
   onGroupSelect?: (groupId: string) => void;
@@ -28,59 +29,6 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
-  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
-
-  // Real-time member count updates
-  useEffect(() => {
-    const handleNewMember = (payload: any) => {
-      if (payload.table === 'group_members' && payload.event === 'INSERT') {
-        const newMember = payload.new;
-        if (newMember.group_id && memberCounts[newMember.group_id] !== undefined) {
-          setMemberCounts(prevCounts => ({
-            ...prevCounts,
-            [newMember.group_id]: (prevCounts[newMember.group_id] || 0) + 1,
-          }));
-        }
-      }
-    };
-
-    const channel = supabase.channel('group_members');
-    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'group_members' }, handleNewMember)
-      .subscribe();
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [memberCounts]);
-
-  // Load member counts for all groups
-  useEffect(() => {
-    const loadMemberCounts = async () => {
-      if (groups.length === 0) return;
-      
-      const counts: Record<string, number> = {};
-      
-      for (const group of groups) {
-        try {
-          const { data, error } = await supabase
-            .from('group_members')
-            .select('id')
-            .eq('group_id', group.id)
-            .eq('status', 'active');
-          
-          if (!error && data) {
-            counts[group.id] = data.length;
-          }
-        } catch (error) {
-          console.error('Error loading member count for group:', group.id, error);
-        }
-      }
-      
-      setMemberCounts(counts);
-    };
-
-    loadMemberCounts();
-  }, [groups]);
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
@@ -112,15 +60,13 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
 
       if (groupError || !groupData) {
         toast.error('Invalid join code');
+        setIsJoining(false);
         return;
       }
 
       await joinGroup(groupData.id);
       setJoinCode('');
       toast.success('Joined group successfully!');
-      
-      // Refresh member counts after joining
-      refetch();
     } catch (error) {
       toast.error('Failed to join group');
     } finally {
@@ -131,42 +77,24 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
   const loadGroupMembers = async (groupId: string) => {
     setLoadingMembers(true);
     try {
-      // First get the group members
-      const { data: members, error: membersError } = await supabase
-        .from('group_members')
-        .select('*')
-        .eq('group_id', groupId)
-        .eq('status', 'active')
-        .order('joined_at', { ascending: true });
+      const { data, error } = await supabase.rpc('get_group_members_with_profiles', {
+        p_group_id: groupId
+      });
 
-      if (membersError) throw membersError;
+      if (error) throw error;
 
-      if (!members || members.length === 0) {
-        setGroupMembers([]);
-        return;
-      }
-
-      // Get user IDs
-      const userIds = members.map(member => member.user_id);
-
-      // Get profiles for these users (only available columns)
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url')
-        .in('id', userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Combine the data
-      const membersWithProfiles = members.map(member => ({
+      const membersWithProfiles = data.map(member => ({
         ...member,
-        profiles: profiles?.find(profile => profile.id === member.user_id) || null
+        profiles: {
+          full_name: member.full_name,
+          avatar_url: member.avatar_url,
+        }
       }));
 
       setGroupMembers(membersWithProfiles);
     } catch (error) {
       console.error('Error loading members:', error);
-      toast.error('Failed to load group members');
+      toast.error('Failed to load group members.');
     } finally {
       setLoadingMembers(false);
     }
@@ -207,40 +135,33 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
     toast.success('Join code copied to clipboard!');
   };
 
-  // Separate user's groups from other groups
-  const userGroups = groups.filter(
-    group =>
-      group.owner_id === user?.id ||
-      group.group_members?.some((member: any) => member.user_id === user?.id)
-  );
-
   if (loading) {
     return <div className="flex justify-center p-8 bg-background">Loading groups...</div>;
   }
 
   return (
     <div className="space-y-4 md:space-y-6 bg-background min-h-screen p-3 md:p-6">
-      {/* Your Groups Section - Moved to top */}
+      {/* Your Groups Section */}
       <Card>
         <CardHeader className="pb-3 md:pb-6">
           <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
             <Users className="h-4 w-4 md:h-5 md:w-5" />
-            Your Groups ({userGroups.length})
+            Your Groups ({groups.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          {userGroups.length === 0 ? (
+          {groups.length === 0 ? (
             <p className="text-muted-foreground text-center py-6 md:py-8 text-sm md:text-base">
               No groups yet. Create or join a group to get started!
             </p>
           ) : (
             <div className="space-y-3 md:space-y-4">
-              {userGroups.map((group) => (
-                <div key={group.id} className="border rounded-lg p-3 md:p-4 hover:shadow-md transition-shadow bg-card">
+              {groups.map((group) => (
+                <div key={group.id} data-testid={`group-card-${group.id}`} className="border rounded-lg p-3 md:p-4 hover:shadow-md transition-shadow bg-card">
                   <div className="flex flex-col gap-3 mb-3">
                     <div className="flex items-start gap-3">
                       <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0">
-                        <AvatarImage src={`https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`} />
+                        <AvatarImage src={generateAvatarUrl(group.id)} />
                         <AvatarFallback className="text-xs md:text-sm">{group.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
@@ -258,10 +179,6 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                           )}
                         </div>
                         <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">{group.description}</p>
-                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {memberCounts[group.id] || 0} members
-                        </p>
                       </div>
                     </div>
                     
@@ -299,7 +216,6 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-2">
-                      {/* Manage Members - Only for Admins */}
                       {isGroupAdmin(group) && (
                         <Dialog>
                           <DialogTrigger asChild>
@@ -316,7 +232,11 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                               Manage Members
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="w-[95vw] max-w-md mx-auto">
+                          <DialogContent
+                            className="w-[95vw] max-w-md mx-auto"
+                            closeButtonClassName="rounded-full h-7 w-7 flex items-center justify-center focus:ring-1"
+                            closeIconClassName="h-4 w-4"
+                          >
                             <DialogHeader>
                               <DialogTitle className="text-base md:text-lg">Manage Group Members</DialogTitle>
                               <DialogDescription className="text-sm">
@@ -333,17 +253,17 @@ export default function GroupManager({ onGroupSelect }: GroupManagerProps) {
                                       <div className="flex items-center gap-2 flex-1 min-w-0">
                                         <Avatar className="h-6 w-6 flex-shrink-0">
                                           <AvatarImage
-                                            src={member.profiles?.avatar_url || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`}
-                                            alt={getMemberDisplayName(member)}
+                                            src={member.profiles?.avatar_url || generateAvatarUrl(member.user_id)}
+                                            alt={member.profiles?.full_name || 'Member'}
                                           />
                                           <AvatarFallback className="text-xs">
-                                            {getMemberDisplayName(member).charAt(0)}
+                                            {(member.profiles?.full_name || member.profiles?.email || 'M')?.charAt(0)?.toUpperCase() || 'M'}
                                           </AvatarFallback>
                                         </Avatar>
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center gap-1">
                                             <span className="text-sm truncate">
-                                              {getMemberDisplayName(member)}
+                                              {member.profiles?.full_name || member.profiles?.email || 'Member'}
                                             </span>
                                             {member.role === 'owner' && (
                                               <Crown className="h-3 w-3 text-yellow-500 flex-shrink-0" />

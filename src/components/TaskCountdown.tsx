@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Clock, Calendar, AlertTriangle, CheckCircle2 } from "lucide-react";
 import useTaskNotifications from "@/hooks/useTaskNotifications";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface Task {
   id: string;
@@ -28,7 +29,8 @@ const TaskCountdown = () => {
   const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
   const [countdownCompleted, setCountdownCompleted] = useState<Set<string>>(new Set());
   const { user } = useAuth();
-  const { showNotification, markAsNotified, hasBeenNotified } = useTaskNotifications();
+  const { markAsNotified, hasBeenNotified } = useTaskNotifications();
+  const { sendPushNotification } = usePushNotifications();
 
   useEffect(() => {
     const loadNextTask = () => {
@@ -107,61 +109,42 @@ const TaskCountdown = () => {
         setTimeLeft({ days, hours, minutes, seconds });
 
         // Check for upcoming deadline notifications (1 hour, 30 min, 15 min, 5 min before)
-        if (days === 0 && hours === 1 && minutes === 0 && seconds === 0) {
-          if (!hasBeenNotified(`hour-${nextTask.id}`)) {
-            showNotification('⏰ Task Due Soon', {
-              body: `"${nextTask.title}" is due in 1 hour!`,
-              tag: `task-hour-${nextTask.id}`
-            });
-            markAsNotified(`hour-${nextTask.id}`);
-          }
-        } else if (days === 0 && hours === 0 && minutes === 30 && seconds === 0) {
-          if (!hasBeenNotified(`30min-${nextTask.id}`)) {
-            showNotification('⏰ Task Due Very Soon', {
-              body: `"${nextTask.title}" is due in 30 minutes!`,
-              tag: `task-30min-${nextTask.id}`
-            });
-            markAsNotified(`30min-${nextTask.id}`);
-          }
-        } else if (days === 0 && hours === 0 && minutes === 15 && seconds === 0) {
-          if (!hasBeenNotified(`15min-${nextTask.id}`)) {
-            showNotification('🚨 Task Due Imminent', {
-              body: `"${nextTask.title}" is due in 15 minutes!`,
-              tag: `task-15min-${nextTask.id}`
-            });
-            markAsNotified(`15min-${nextTask.id}`);
-          }
-        } else if (days === 0 && hours === 0 && minutes === 5 && seconds === 0) {
-          if (!hasBeenNotified(`5min-${nextTask.id}`)) {
-            showNotification('🔥 Final Warning', {
-              body: `"${nextTask.title}" is due in 5 minutes! Complete it now!`,
-              tag: `task-5min-${nextTask.id}`
-            });
-            markAsNotified(`5min-${nextTask.id}`);
+        if (user) {
+          if (days === 0 && hours === 1 && minutes === 0 && seconds === 0) {
+            if (!hasBeenNotified(`hour-${nextTask.id}`)) {
+              sendPushNotification(user.id, '⏰ Task Due Soon', `"${nextTask.title}" is due in 1 hour!`, `task-hour-${nextTask.id}`);
+              markAsNotified(`hour-${nextTask.id}`);
+            }
+          } else if (days === 0 && hours === 0 && minutes === 30 && seconds === 0) {
+            if (!hasBeenNotified(`30min-${nextTask.id}`)) {
+              sendPushNotification(user.id, '⏰ Task Due Very Soon', `"${nextTask.title}" is due in 30 minutes!`, `task-30min-${nextTask.id}`);
+              markAsNotified(`30min-${nextTask.id}`);
+            }
+          } else if (days === 0 && hours === 0 && minutes === 15 && seconds === 0) {
+            if (!hasBeenNotified(`15min-${nextTask.id}`)) {
+              sendPushNotification(user.id, '🚨 Task Due Imminent', `"${nextTask.title}" is due in 15 minutes!`, `task-15min-${nextTask.id}`);
+              markAsNotified(`15min-${nextTask.id}`);
+            }
+          } else if (days === 0 && hours === 0 && minutes === 5 && seconds === 0) {
+            if (!hasBeenNotified(`5min-${nextTask.id}`)) {
+              sendPushNotification(user.id, '🔥 Final Warning', `"${nextTask.title}" is due in 5 minutes!`, `task-5min-${nextTask.id}`);
+              markAsNotified(`5min-${nextTask.id}`);
+            }
           }
         }
       } else {
         // Task is overdue or time has reached zero
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         
-        // Send countdown completion notification when timer reaches zero
-        if (nextTask && !countdownCompleted.has(nextTask.id)) {
-          showNotification('⏰ Time\'s Up!', {
-            body: `The countdown for "${nextTask.title}" has completed! Time to take action.`,
-            tag: `task-countdown-complete-${nextTask.id}`,
-            data: { taskId: nextTask.id, type: 'countdown_complete' },
-            vibrationPattern: [200, 100, 200]
-          });
-          setCountdownCompleted(prev => new Set([...prev, nextTask.id]));
-        }
-        
-        // Send overdue notification if not already sent
-        if (nextTask && !hasBeenNotified(`overdue-${nextTask.id}`)) {
-          showNotification('📅 Task Overdue!', {
-            body: `"${nextTask.title}" is now overdue! Complete it as soon as possible.`,
-            tag: `task-overdue-${nextTask.id}`,
-            data: { taskId: nextTask.id, type: 'task_overdue' }
-          });
+        // Send overdue push notification if not already sent
+        if (user && nextTask && !hasBeenNotified(`overdue-${nextTask.id}`)) {
+          sendPushNotification(
+            user.id,
+            '📅 Task Overdue!',
+            `"${nextTask.title}" is now overdue! Complete it as soon as possible.`,
+            `task-overdue-${nextTask.id}`,
+            { taskId: nextTask.id, type: 'task_overdue' }
+          );
           markAsNotified(`overdue-${nextTask.id}`);
         }
       }
@@ -274,54 +257,54 @@ const TaskCountdown = () => {
         </div>
 
         {/* Countdown Display */}
-        <div className="grid grid-cols-4 gap-2 sm:gap-4 text-center">
-          <div className={`p-2 sm:p-3 rounded-lg ${
-            isOverdue 
-              ? "bg-red-100 dark:bg-red-900/30" 
+        <div className="grid grid-cols-4 gap-1 sm:gap-1.5 text-center">
+          <div className={`p-1 sm:p-1.5 rounded-lg ${
+            isOverdue
+              ? "bg-red-100 dark:bg-red-900/30"
               : "bg-white/80 dark:bg-gray-800/80"
           } backdrop-blur-sm`}>
-            <div className={`text-lg sm:text-2xl font-bold ${
+            <div className={`text-sm sm:text-lg font-bold ${
               isOverdue ? "text-red-600" : "text-purple-600 dark:text-purple-400"
             }`}>
               {isOverdue ? "0" : timeLeft.days}
             </div>
-            <div className="text-xs text-gray-600 dark:text-gray-300">Days</div>
+            <div className="text-[9px] sm:text-[11px] text-gray-600 dark:text-gray-300">Days</div>
           </div>
-          <div className={`p-2 sm:p-3 rounded-lg ${
-            isOverdue 
-              ? "bg-red-100 dark:bg-red-900/30" 
+          <div className={`p-1 sm:p-1.5 rounded-lg ${
+            isOverdue
+              ? "bg-red-100 dark:bg-red-900/30"
               : "bg-white/80 dark:bg-gray-800/80"
           } backdrop-blur-sm`}>
-            <div className={`text-lg sm:text-2xl font-bold ${
+            <div className={`text-sm sm:text-lg font-bold ${
               isOverdue ? "text-red-600" : "text-purple-600 dark:text-purple-400"
             }`}>
               {isOverdue ? "0" : timeLeft.hours}
             </div>
-            <div className="text-xs text-gray-600 dark:text-gray-300">Hours</div>
+            <div className="text-[9px] sm:text-[11px] text-gray-600 dark:text-gray-300">Hours</div>
           </div>
-          <div className={`p-2 sm:p-3 rounded-lg ${
-            isOverdue 
-              ? "bg-red-100 dark:bg-red-900/30" 
+          <div className={`p-1 sm:p-1.5 rounded-lg ${
+            isOverdue
+              ? "bg-red-100 dark:bg-red-900/30"
               : "bg-white/80 dark:bg-gray-800/80"
           } backdrop-blur-sm`}>
-            <div className={`text-lg sm:text-2xl font-bold ${
+            <div className={`text-sm sm:text-lg font-bold ${
               isOverdue ? "text-red-600" : "text-purple-600 dark:text-purple-400"
             }`}>
               {isOverdue ? "0" : timeLeft.minutes}
             </div>
-            <div className="text-xs text-gray-600 dark:text-gray-300">Minutes</div>
+            <div className="text-[9px] sm:text-[11px] text-gray-600 dark:text-gray-300">Minutes</div>
           </div>
-          <div className={`p-2 sm:p-3 rounded-lg ${
-            isOverdue 
-              ? "bg-red-100 dark:bg-red-900/30" 
+          <div className={`p-1 sm:p-1.5 rounded-lg ${
+            isOverdue
+              ? "bg-red-100 dark:bg-red-900/30"
               : "bg-white/80 dark:bg-gray-800/80"
           } backdrop-blur-sm`}>
-            <div className={`text-lg sm:text-2xl font-bold ${
+            <div className={`text-sm sm:text-lg font-bold ${
               isOverdue ? "text-red-600" : "text-purple-600 dark:text-purple-400"
             }`}>
               {isOverdue ? "0" : timeLeft.seconds}
             </div>
-            <div className="text-xs text-gray-600 dark:text-gray-300">Seconds</div>
+            <div className="text-[9px] sm:text-[11px] text-gray-600 dark:text-gray-300">Seconds</div>
           </div>
         </div>
 

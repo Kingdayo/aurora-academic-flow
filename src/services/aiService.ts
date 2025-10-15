@@ -103,16 +103,7 @@ class AIService {
         throw new Error('Invalid response from AI service');
       }
 
-      let response = data.response.trim();
-      
-      // Clean up response
-      response = this.cleanResponse(response, query);
-      
-      // If cleaned response is too generic or short, use fallback
-      if (response.length < 10 || this.isGenericResponse(response)) {
-        console.log('AI response too generic, using fallback');
-        return this.getFallbackResponse(category, query);
-      }
+      const response = data.response.trim();
       
       // Add to conversation history
       this.conversationHistory.push(`Q: ${query}`);
@@ -126,38 +117,8 @@ class AIService {
       return response;
     } catch (error) {
       console.error('AI generation error:', error);
-      return this.getFallbackResponse(category, query);
+      throw new Error('Failed to generate AI response. Please try again.');
     }
-  }
-
-  private cleanResponse(response: string, originalQuery?: string): string {
-    // Remove common artifacts
-    response = response
-      .replace(/^(Answer:|Response:|A:)/i, '')
-      .replace(/\n+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    // If response is too short or generic, don't return it
-    if (response.length < 10) {
-      return '';
-    }
-
-    return response;
-  }
-
-  private isGenericResponse(response: string): boolean {
-    const genericPhrases = [
-      'great job',
-      'lifelong adventure',
-      'staying on top',
-      'what\'s your biggest challenge',
-      'i can provide',
-      'personalized advice'
-    ];
-    
-    const lowerResponse = response.toLowerCase();
-    return genericPhrases.some(phrase => lowerResponse.includes(phrase));
   }
 
   clearConversationHistory(): void {
