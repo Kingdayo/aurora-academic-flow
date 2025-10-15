@@ -61,40 +61,6 @@ export const useRealtimeNotifications = () => {
         setIsConnected(status === 'SUBSCRIBED');
       });
 
-    const handleTaskChange = (payload: any) => {
-      const { eventType, new: newTask, old: oldTask } = payload;
-
-      // Show notification based on event type
-      if (eventType === 'INSERT') {
-        const task = newTask as Task;
-        showNotification(
-          'New Task Created',
-          `"${task.title}" has been added to your tasks`,
-          task
-        );
-      } else if (eventType === 'UPDATE') {
-        const task = newTask as Task;
-        const oldTaskData = oldTask as Task;
-        
-        // Check if task was marked as completed
-        if (!oldTaskData.completed && task.completed) {
-          showNotification(
-            'Task Completed',
-            `"${task.title}" has been marked as completed! 🎉`,
-            task
-          );
-        }
-        // Check if due date was updated
-        else if (oldTaskData.due_date !== task.due_date || oldTaskData.due_time !== task.due_time) {
-          showNotification(
-            'Task Updated',
-            `Due date for "${task.title}" has been updated`,
-            task
-          );
-        }
-      }
-    };
-
     const showNotification = (title: string, body: string, task: Task) => {
       // Show toast notification
       toast({
@@ -126,6 +92,40 @@ export const useRealtimeNotifications = () => {
           window.focus();
           notification.close();
         };
+      }
+    };
+
+    const handleTaskChange = (payload: any) => {
+      const { eventType, new: newTask, old: oldTask } = payload;
+
+      // Show notification based on event type
+      if (eventType === 'INSERT') {
+        const task = newTask as Task;
+        showNotification(
+          'New Task Created',
+          `"${task.title}" has been added to your tasks`,
+          task
+        );
+      } else if (eventType === 'UPDATE') {
+        const task = newTask as Task;
+        const oldTaskData = oldTask as Task;
+
+        // Check if task was marked as completed
+        if (!oldTaskData.completed && task.completed) {
+          showNotification(
+            'Task Completed',
+            `"${task.title}" has been marked as completed! 🎉`,
+            task
+          );
+        }
+        // Check if due date was updated
+        else if (oldTaskData.due_date !== task.due_date || oldTaskData.due_time !== task.due_time) {
+          showNotification(
+            'Task Updated',
+            `Due date for "${task.title}" has been updated`,
+            task
+          );
+        }
       }
     };
 
