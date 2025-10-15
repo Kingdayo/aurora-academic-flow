@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/App";
 import { toast } from "sonner";
@@ -20,7 +21,7 @@ const AuthPage = () => {
     email: "",
     password: ""
   });
-  const { login, register, resetPassword } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,32 +30,21 @@ const AuthPage = () => {
     try {
       let result;
       if (isLogin) {
-        result = await login(formData.email, formData.password);
+        result = await signIn(formData.email, formData.password);
       } else {
-        result = await register(formData.name, formData.email, formData.password);
+        result = await signUp(formData.name, formData.email, formData.password);
       }
 
       if (result.error) {
         toast.error(result.error.message);
-        setIsLoading(false);
-      } else {
-        if (isLogin) {
-          toast.success("Welcome back! 🎉");
-          // Extended loading time to 15 seconds before redirect for login
-          setTimeout(() => {
-            setIsLoading(false);
-          }, 15000);
-        } else {
-          toast.success("Account created successfully! Please sign in to continue. 📧");
-          // For signup, redirect to login immediately
-          setIsLoading(false);
-          setIsLogin(true);
-          setFormData({ name: "", email: "", password: "" });
-        }
-        return;
+      } else if (!isLogin) {
+        toast.success("Account created successfully! Please sign in to continue. 📧");
+        setIsLogin(true);
+        setFormData({ name: "", email: "", password: "" });
       }
     } catch (error: any) {
       toast.error(error.message || "An error occurred");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -205,10 +195,9 @@ const AuthPage = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="auth-password" className="text-sm font-medium">Password</Label>
-                    <Input
+                    <PasswordInput
                       id="auth-password"
                       name="password"
-                      type="password"
                       placeholder="Enter your password"
                       value={formData.password}
                       onChange={handleInputChange}
@@ -319,10 +308,9 @@ const AuthPage = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="auth-password-mobile" className="text-sm font-medium">Password</Label>
-                    <Input
+                    <PasswordInput
                       id="auth-password-mobile"
                       name="password"
-                      type="password"
                       placeholder="Enter your password"
                       value={formData.password}
                       onChange={handleInputChange}

@@ -6,14 +6,18 @@ import { Badge } from '@/components/ui/badge';
 import { Bell, BellOff, Settings, Clock, Smartphone, AlertTriangle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import useTaskNotifications from '@/hooks/useTaskNotifications';
+import { useAuth } from '@/App';
+import { useToast } from '@/hooks/use-toast';
+import { notificationService } from '@/services/notificationService';
 
 const SmartNotifications = () => {
   const { 
     notificationPermission, 
     requestPermission, 
-    showNotification,
     isSupported
   } = useTaskNotifications();
+  const { user } = useAuth();
+  const { toast } = useToast();
   
   const [notificationSettings, setNotificationSettings] = useState({
     oneHourBefore: true,
@@ -49,22 +53,35 @@ const SmartNotifications = () => {
     localStorage.setItem('aurora-notification-settings', JSON.stringify(newSettings));
   };
 
-  const handleTestNotification = () => {
-    // Trigger vibration separately for mobile
-    if (isMobile && 'vibrate' in navigator) {
-      try {
-        navigator.vibrate([200, 100, 200]);
-      } catch (error) {
-        console.warn('Vibration not supported:', error);
-      }
+  const handleTestNotification = async () => {
+    if (!user) {
+      toast({
+        title: 'Authentication Error',
+        description: 'You must be logged in to send a test notification.',
+        variant: 'destructive',
+      });
+      return;
     }
 
-    showNotification('🧪 Test Notification', {
-      body: 'This is a test notification from Aurora! Your notifications are working perfectly.',
-      icon: '/favicon.ico',
-      tag: 'test',
-      requireInteraction: false
+    toast({
+      title: 'Sending Test Notification...',
+      description: 'Please wait a moment.',
     });
+
+    const success = await notificationService.sendTestNotification(user.id);
+
+    if (success) {
+      toast({
+        title: 'Test Notification Sent!',
+        description: 'You should receive a push notification shortly.',
+      });
+    } else {
+      toast({
+        title: 'Failed to Send',
+        description: 'Could not send test notification. Please check your connection or subscription status.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const getPermissionStatus = () => {

@@ -1,44 +1,50 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
-import { VitePWA } from "vite-plugin-pwa";
+import { defineConfig, loadEnv } from 'vite'
+import react from '@vitejs/plugin-react-swc'
+import path from "path"
+import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "127.0.0.1",
-    port: 8080,
-  },
-  plugins: [
-    react(),
-    mode === 'development' &&
-    componentTagger(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      srcDir: 'public',
-      filename: 'sw.js',
-      strategies: 'injectManifest',
-      injectManifest: {
-        maximumFileSizeToCacheInBytes: 50 * 1024 * 1024, // 50MB limit for AI models
-        manifestTransforms: [
-          (entries) => {
-            // Filter out very large AI model files from precaching
-            const filteredEntries = entries.filter(entry => {
-              return !entry.url.includes('ort-wasm') && entry.size < 10 * 1024 * 1024;
-            });
-            return { manifest: filteredEntries };
-          }
-        ]
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+
+  return {
+    plugins: [
+      react(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        strategies: 'injectManifest',
+        srcDir: 'public',
+        filename: 'sw.js',
+        devOptions: {
+          enabled: true
+        },
+        manifest: {
+          name: 'Aurora',
+          short_name: 'Aurora',
+          description: 'AI-Powered Academic Planner',
+          theme_color: '#8B5CF6',
+          icons: [
+            {
+              src: 'pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png'
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png'
+            }
+          ]
+        }
+      })
+    ],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
       },
-      devOptions: {
-        enabled: true
-      }
-    })
-  ].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
     },
-  },
-}));
+    define: {
+      'import.meta.env.VITE_VAPID_PUBLIC_KEY': JSON.stringify(env.VITE_VAPID_PUBLIC_KEY)
+    }
+  }
+});

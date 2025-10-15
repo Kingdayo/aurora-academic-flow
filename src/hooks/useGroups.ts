@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEnhancedAuth } from './useEnhancedAuth';
 import { toast } from 'sonner';
@@ -18,7 +18,7 @@ export function useGroups() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchGroups = async () => {
+  const fetchGroups = useCallback(async () => {
     if (!user) {
       setGroups([]);
       setLoading(false);
@@ -56,35 +56,31 @@ export function useGroups() {
       if (ownedGroupsError) throw ownedGroupsError;
 
       // Combine and deduplicate groups
-      const allGroups = new Map<string, Group>();
+      const allGroupsMap = new Map<string, Group>();
       
-      // Add groups from membership
       userGroups?.forEach(item => {
-        if (item.groups) {
-          allGroups.set(item.groups.id, item.groups as Group);
+        if (item.groups && !Array.isArray(item.groups)) {
+          allGroupsMap.set((item.groups as any).id, item.groups as Group);
         }
       });
 
-      // Add owned groups
       ownedGroups?.forEach(group => {
-        allGroups.set(group.id, group);
+        allGroupsMap.set(group.id, group);
       });
 
-      setGroups(Array.from(allGroups.values()));
+      const allGroups = Array.from(allGroupsMap.values());
+
+      setGroups(allGroups);
     } catch (error) {
       console.error('Error fetching groups:', error);
       toast.error('Failed to load groups');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-<<<<<<< HEAD
-  const createGroup = async (name: string, description: string = '') => {
-=======
   const createGroup = async (name: string, description?: string) => {
     const { data: { user } } = await supabase.auth.getUser();
->>>>>>> 44c53470a408f7d668b4ce3cda44098840fa9e85
     if (!user) throw new Error('User not authenticated');
 
     try {
@@ -95,7 +91,7 @@ export function useGroups() {
         .from('groups')
         .insert({
           name: name.trim(),
-          description: description.trim(),
+          description: description?.trim(),
           owner_id: user.id,
           join_code: joinCode,
         })
@@ -235,7 +231,7 @@ export function useGroups() {
 
   useEffect(() => {
     fetchGroups();
-  }, [user]);
+  }, [fetchGroups]);
 
   // Set up real-time subscriptions for group changes
   useEffect(() => {
@@ -270,7 +266,7 @@ export function useGroups() {
     return () => {
       supabase.removeChannel(groupsChannel);
     };
-  }, [user]);
+  }, [user, fetchGroups]);
 
   return {
     groups,
