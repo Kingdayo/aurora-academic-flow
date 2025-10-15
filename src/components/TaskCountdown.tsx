@@ -154,7 +154,7 @@ const TaskCountdown = () => {
     const timer = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(timer);
-  }, [nextTask, countdownCompleted, taskNotifications]);
+  }, [nextTask, countdownCompleted, showNotification, hasBeenNotified, markAsNotified]);
 
   useEffect(() => {
     if (nextTask && user && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
