@@ -59,8 +59,8 @@ export function useGroups() {
       const allGroupsMap = new Map<string, Group>();
       
       userGroups?.forEach(item => {
-        if (item.groups) {
-          allGroupsMap.set(item.groups.id, item.groups as Group);
+        if (item.groups && !Array.isArray(item.groups)) {
+          allGroupsMap.set((item.groups as any).id, item.groups as Group);
         }
       });
 

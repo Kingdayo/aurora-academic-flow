@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { User, Session } from "@supabase/gotrue-js";
+import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
@@ -44,8 +44,8 @@ export const useTheme = () => {
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  login: (email: string, password: string) => Promise<{ error: any }>;
-  register: (name: string, email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (name: string, email: string, password: string) => Promise<{ error: any }>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   logout: () => Promise<void>;
   loading: boolean;
@@ -85,7 +85,7 @@ function App() {
 
   const themeContextValue = { theme, toggleTheme };
 
-  const handlePasswordUpdate = (password: string) => {
+  const handlePasswordUpdate = async (password: string) => {
     // Add password update logic here
     console.log('Password update requested with:', password);
     setIsPasswordResetOpen(false);
