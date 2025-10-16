@@ -40,8 +40,26 @@ function base64UrlEncode(data: Uint8Array): string {
   return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
-async function importPrivateKey(privateKeyBase64: string): Promise<CryptoKey> {
-  const privateKeyBytes = urlBase64ToUint8Array(privateKeyBase64)
+async function importPrivateKey(privateKeyString: string): Promise<CryptoKey> {
+  // Try to parse as JWK first
+  try {
+    const jwk = JSON.parse(privateKeyString)
+    if (jwk.kty && jwk.crv) {
+      // It's a JWK format
+      return await crypto.subtle.importKey(
+        'jwk',
+        jwk,
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        false,
+        ['sign']
+      )
+    }
+  } catch {
+    // Not JSON, treat as base64-encoded PKCS#8
+  }
+  
+  // Import as PKCS#8
+  const privateKeyBytes = await urlBase64ToUint8Array(privateKeyString)
   return await crypto.subtle.importKey(
     'pkcs8',
     privateKeyBytes,
