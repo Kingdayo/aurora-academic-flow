@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/App";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,7 @@ const TaskCountdown = () => {
     minutes: 0,
     seconds: 0
   });
-  const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
+  const [isAppVisible, setIsAppVisible] = useState(true);
   const [countdownCompleted, setCountdownCompleted] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   const { showNotification, markAsNotified, hasBeenNotified } = useTaskNotifications();
@@ -40,19 +40,15 @@ const TaskCountdown = () => {
         const incompleteTasks = tasks.filter(task => !task.completed && task.dueDate);
         
         if (incompleteTasks.length > 0) {
-          // Sort by due date and time to get the most urgent task
           const sortedTasks = incompleteTasks.sort((a, b) => {
             const dateA = new Date(a.dueDate);
             const dateB = new Date(b.dueDate);
-            
-            // If both have time, include it in comparison
             if (a.dueTime && b.dueTime) {
               const [hoursA, minutesA] = a.dueTime.split(':').map(Number);
               const [hoursB, minutesB] = b.dueTime.split(':').map(Number);
-              dateA.setHours(hoursA, minutesA);
-              dateB.setHours(hoursB, minutesB);
+              dateA.setUTCHours(hoursA, minutesA);
+              dateB.setUTCHours(hoursB, minutesB);
             }
-            
             return dateA.getTime() - dateB.getTime();
           });
           setNextTask(sortedTasks[0]);
@@ -63,53 +59,40 @@ const TaskCountdown = () => {
     };
 
     loadNextTask();
-
-    // Listen for task updates
-    const handleTaskUpdate = () => {
-      loadNextTask();
-    };
-
-    window.addEventListener('tasks-updated', handleTaskUpdate);
-    window.addEventListener('tasks-changed', handleTaskUpdate);
-
-    // Refresh every 5 seconds to catch any missed updates
+    window.addEventListener('tasks-updated', loadNextTask);
+    window.addEventListener('tasks-changed', loadNextTask);
     const interval = setInterval(loadNextTask, 5000);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('tasks-updated', handleTaskUpdate);
-      window.removeEventListener('tasks-changed', handleTaskUpdate);
+      window.removeEventListener('tasks-updated', loadNextTask);
+      window.removeEventListener('tasks-changed', loadNextTask);
     };
   }, []);
 
-  useEffect(() => {
+  const updateCountdown = useCallback(() => {
     if (!nextTask || !nextTask.dueDate) return;
 
-    const updateCountdown = () => {
-      const now = new Date().getTime();
-      const dueDate = new Date(nextTask.dueDate);
-      
-      // If task has a specific time, set it
-      if (nextTask.dueTime) {
-        const [hours, minutes] = nextTask.dueTime.split(':').map(Number);
-        dueDate.setHours(hours, minutes, 0, 0);
-      } else {
-        // Default to end of day if no specific time
-        dueDate.setHours(23, 59, 59, 999);
-      }
-      
-      const difference = dueDate.getTime() - now;
+    const now = new Date();
+    const dueDate = new Date(nextTask.dueDate);
 
-      if (difference > 0) {
-        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+    if (nextTask.dueTime) {
+      const [hours, minutes] = nextTask.dueTime.split(':').map(Number);
+      dueDate.setUTCHours(hours, minutes, 0, 0);
+    } else {
+      dueDate.setUTCHours(23, 59, 59, 999);
+    }
 
-        setTimeLeft({ days, hours, minutes, seconds });
+    const difference = dueDate.getTime() - now.getTime();
 
-        // Check for upcoming deadline notifications (1 hour, 30 min, 15 min, 5 min before)
-        if (user) {
+    if (difference > 0) {
+      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+      setTimeLeft({ days, hours, minutes, seconds });
+
+      if (user) {
           if (days === 0 && hours === 1 && minutes === 0 && seconds === 0) {
             if (!hasBeenNotified(`hour-${nextTask.id}`)) {
               sendPushNotification(user.id, '⏰ Task Due Soon', `"${nextTask.title}" is due in 1 hour!`, `task-hour-${nextTask.id}`);
@@ -132,38 +115,61 @@ const TaskCountdown = () => {
             }
           }
         }
-      } else {
-        // Task is overdue or time has reached zero
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-        
-        // Send overdue push notification if not already sent
-        if (user && nextTask && !hasBeenNotified(`overdue-${nextTask.id}`)) {
+
+    } else {
+      setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      if (user && nextTask && !hasBeenNotified(`overdue-${nextTask.id}`)) {
+        sendPushNotification(
+          user.id,
+          '📅 Task Overdue!',
+          `"${nextTask.title}" is now overdue! Complete it as soon as possible.`,
+          `task-overdue-${nextTask.id}`,
+          { taskId: nextTask.id, type: 'task_overdue' }
+        );
+        markAsNotified(`overdue-${nextTask.id}`);
+      }
+      if (user && nextTask && !countdownCompleted.has(nextTask.id)) {
+          setCountdownCompleted(prev => new Set([...prev, nextTask.id]));
           sendPushNotification(
-            user.id,
-            '📅 Task Overdue!',
-            `"${nextTask.title}" is now overdue! Complete it as soon as possible.`,
-            `task-overdue-${nextTask.id}`,
-            { taskId: nextTask.id, type: 'task_overdue' }
+              user.id,
+              '⏰ Task Time\'s Up!',
+              `The countdown for "${nextTask.title}" has finished.`,
+              `task-completed-${nextTask.id}`
           );
-          markAsNotified(`overdue-${nextTask.id}`);
-        }
-        if (user && nextTask && !countdownCompleted.has(nextTask.id)) {
-            setCountdownCompleted(prev => new Set([...prev, nextTask.id]));
-            sendPushNotification(
-                user.id,
-                '⏰ Task Time\'s Up!',
-                `The countdown for "${nextTask.title}" has finished.`,
-                `task-completed-${nextTask.id}`
-            );
-        }
+      }
+    }
+  }, [nextTask, user, hasBeenNotified, markAsNotified, sendPushNotification, countdownCompleted, isAppVisible]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setIsAppVisible(true);
+        updateCountdown(); // Recalculate immediately on becoming visible
+      } else {
+        setIsAppVisible(false);
       }
     };
 
-    updateCountdown();
-    const timer = setInterval(updateCountdown, 1000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [updateCountdown]);
 
+  useEffect(() => {
+    updateCountdown();
+    const interval = isAppVisible ? 1000 : 30000;
+    const timer = setInterval(updateCountdown, interval);
     return () => clearInterval(timer);
-  }, [nextTask, countdownCompleted, showNotification, hasBeenNotified, markAsNotified]);
+  }, [nextTask, updateCountdown, isAppVisible]);
+
+  useEffect(() => {
+    if (nextTask && user && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SCHEDULE_TASK_NOTIFICATION',
+        task: nextTask,
+        userId: user.id,
+      });
+    }
+  }, [nextTask, user]);
 
   useEffect(() => {
     if (nextTask && user && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
