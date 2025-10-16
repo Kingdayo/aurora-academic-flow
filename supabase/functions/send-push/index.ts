@@ -24,7 +24,7 @@ interface NotificationPayload {
   data?: any
 }
 
-async function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - base64String.length % 4) % 4)
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
   const rawData = atob(base64)
@@ -59,7 +59,7 @@ async function importPrivateKey(privateKeyString: string): Promise<CryptoKey> {
   }
   
   // Import as PKCS#8
-  const privateKeyBytes = await urlBase64ToUint8Array(privateKeyString)
+  const privateKeyBytes = urlBase64ToUint8Array(privateKeyString)
   return await crypto.subtle.importKey(
     'pkcs8',
     privateKeyBytes,
@@ -117,17 +117,24 @@ async function sendWebPush(subscription: any, payload: NotificationPayload) {
   const payloadString = JSON.stringify(payload)
   const jwt = await createVapidAuthHeader(vapidKeys, subscription.endpoint)
   
+  // Encode payload as UTF-8 bytes
+  const encoder = new TextEncoder()
+  const payloadBytes = encoder.encode(payloadString)
+  
   const headers: Record<string, string> = {
-    'Content-Type': 'application/octet-stream',
-    'Content-Encoding': 'aes128gcm',
+    'Content-Type': 'application/json',
     'TTL': '86400',
-    'Authorization': jwt.authorization
+    'Authorization': jwt.authorization,
+    'Urgency': 'high'
   }
+
+  console.log('Sending push to endpoint:', subscription.endpoint)
+  console.log('Payload:', payloadString)
 
   const response = await fetch(subscription.endpoint, {
     method: 'POST',
     headers,
-    body: payloadString
+    body: payloadBytes
   })
 
   if (!response.ok) {
