@@ -24,6 +24,64 @@ interface NotificationPayload {
   data?: any
 }
 
+async function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; i++) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
+function base64UrlEncode(data: Uint8Array): string {
+  const base64 = btoa(String.fromCharCode(...data))
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+}
+
+async function importPrivateKey(privateKeyBase64: string): Promise<CryptoKey> {
+  const privateKeyBytes = urlBase64ToUint8Array(privateKeyBase64)
+  return await crypto.subtle.importKey(
+    'pkcs8',
+    privateKeyBytes,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign']
+  )
+}
+
+async function createVapidAuthHeader(vapidKeys: { publicKey: string, privateKey: string, subject: string }, endpoint: string): Promise<{ authorization: string }> {
+  const url = new URL(endpoint)
+  const audience = `${url.protocol}//${url.host}`
+  
+  const header = { typ: 'JWT', alg: 'ES256' }
+  const payload = {
+    aud: audience,
+    exp: Math.floor(Date.now() / 1000) + (12 * 60 * 60),
+    sub: vapidKeys.subject
+  }
+  
+  const encoder = new TextEncoder()
+  const encodedHeader = base64UrlEncode(encoder.encode(JSON.stringify(header)))
+  const encodedPayload = base64UrlEncode(encoder.encode(JSON.stringify(payload)))
+  const unsignedToken = `${encodedHeader}.${encodedPayload}`
+  
+  const privateKey = await importPrivateKey(vapidKeys.privateKey)
+  const signature = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' },
+    privateKey,
+    encoder.encode(unsignedToken)
+  )
+  
+  const encodedSignature = base64UrlEncode(new Uint8Array(signature))
+  const jwt = `${unsignedToken}.${encodedSignature}`
+  
+  return {
+    authorization: `vapid t=${jwt}, k=${vapidKeys.publicKey}`
+  }
+}
+
 async function sendWebPush(subscription: any, payload: NotificationPayload) {
   const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')
   const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')
@@ -32,25 +90,20 @@ async function sendWebPush(subscription: any, payload: NotificationPayload) {
     throw new Error('VAPID public and private keys are not configured.')
   }
 
-  // Use Web Crypto API for VAPID signature (Deno native)
   const vapidKeys = {
     publicKey: vapidPublicKey,
     privateKey: vapidPrivateKey,
     subject: 'mailto:noreply@aurora.app'
   }
 
-  const encoder = new TextEncoder()
   const payloadString = JSON.stringify(payload)
-  
-  // Create VAPID headers
   const jwt = await createVapidAuthHeader(vapidKeys, subscription.endpoint)
   
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/octet-stream',
     'Content-Encoding': 'aes128gcm',
     'TTL': '86400',
-    'Authorization': jwt.authorization,
-    'Crypto-Key': jwt.cryptoKey
+    'Authorization': jwt.authorization
   }
 
   const response = await fetch(subscription.endpoint, {
@@ -60,38 +113,11 @@ async function sendWebPush(subscription: any, payload: NotificationPayload) {
   })
 
   if (!response.ok) {
-    throw new Error(`Push failed: ${response.status} ${response.statusText}`)
+    const errorText = await response.text()
+    throw new Error(`Push failed: ${response.status} ${response.statusText} - ${errorText}`)
   }
 
   return response
-}
-
-async function createVapidAuthHeader(vapidKeys: any, endpoint: string) {
-  const url = new URL(endpoint)
-  const audience = `${url.protocol}//${url.host}`
-  
-  // Simple JWT creation for VAPID (HS256)
-  const header = { typ: 'JWT', alg: 'ES256' }
-  const payload = {
-    aud: audience,
-    exp: Math.floor(Date.now() / 1000) + (12 * 60 * 60), // 12 hours
-    sub: vapidKeys.subject
-  }
-  
-  const encodedHeader = base64UrlEncode(JSON.stringify(header))
-  const encodedPayload = base64UrlEncode(JSON.stringify(payload))
-  
-  return {
-    authorization: `vapid t=${encodedHeader}.${encodedPayload}.signature, k=${vapidKeys.publicKey}`,
-    cryptoKey: `p256ecdsa=${vapidKeys.publicKey}`
-  }
-}
-
-function base64UrlEncode(str: string): string {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(str)
-  let base64 = btoa(String.fromCharCode(...data))
-  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
 serve(async (req) => {
