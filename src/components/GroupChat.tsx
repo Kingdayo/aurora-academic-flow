@@ -177,30 +177,6 @@ export default function GroupChat({ groupId, onBack }: GroupChatProps) {
     }
   };
 
-  // Helper function to get user display name
-  const getUserDisplayName = (message: Message, isOwnMessage: boolean) => {
-    if (isOwnMessage) return 'You';
-    
-    // Try to get name from message profiles first
-    if (message.profiles?.full_name) {
-      return message.profiles.full_name;
-    }
-    
-    // Fallback to cached user profiles
-    if (userProfiles[message.user_id]?.full_name) {
-      return userProfiles[message.user_id].full_name;
-    }
-    
-    // Last resort fallback
-    return 'User';
-  };
-
-  // Helper function to get user avatar
-  const getUserAvatar = (message: Message) => {
-    return message.profiles?.avatar_url || 
-           userProfiles[message.user_id]?.avatar_url || 
-           `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`;
-  };
 
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString([], { 

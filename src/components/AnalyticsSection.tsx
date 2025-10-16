@@ -69,8 +69,7 @@ const AnalyticsSection = () => {
     // Show test notification
     showNotification('🔔 Test Notification', {
       body: 'Push notifications are working! You\'ll receive alerts for your tasks.',
-      tag: 'test-notification',
-      vibrationPattern: [200, 100, 200]
+      tag: 'test-notification'
     });
   };
 
