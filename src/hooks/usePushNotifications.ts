@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import React from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -9,22 +10,66 @@ export const usePushNotifications = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if push notifications are supported
     const supported = 'serviceWorker' in navigator && 'PushManager' in window;
     setIsSupported(supported);
 
     if (supported) {
       checkSubscriptionStatus();
+
+      // Periodically refresh subscription
+      const interval = setInterval(refreshSubscription, 24 * 60 * 60 * 1000); // every 24 hours
+      return () => clearInterval(interval);
     }
   }, []);
+
+  const refreshSubscription = async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        // Here you could potentially send the subscription to your server again
+        // to ensure it's up-to-date, but for now, we'll just log it.
+        console.log('Push subscription refreshed.');
+      } else {
+        // If subscription is gone, update state
+        setIsSubscribed(false);
+      }
+    } catch (error) {
+      console.error('Error refreshing push subscription:', error);
+    }
+  };
 
   const checkSubscriptionStatus = async () => {
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
-      setIsSubscribed(!!subscription);
+      const isSubscribed = !!subscription;
+      setIsSubscribed(isSubscribed);
+
+      if (!isSubscribed) {
+        const permission = await Notification.requestPermission();
+        if (permission === 'prompt') {
+            toast({
+                title: "Enable Task Reminders?",
+                description: "Get push notifications so you never miss a deadline.",
+                action: React.createElement(
+                    'button',
+                    {
+                        onClick: subscribe,
+                        className: "px-3 py-1.5 text-sm font-semibold rounded-md bg-primary text-primary-foreground"
+                    },
+                    'Enable'
+                ),
+            });
+        }
+      }
     } catch (error) {
       console.error('Error checking subscription status:', error);
+      toast({
+        title: "Push Notification Error",
+        description: "Could not check subscription status.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -162,33 +207,48 @@ export const usePushNotifications = () => {
 
   const sendPushNotification = async (userId: string | string[], title: string, body: string, tag?: string, data?: any) => {
     try {
-      const bodyPayload: { [key: string]: any } = { title, body, tag, data };
-      if (Array.isArray(userId)) {
-        bodyPayload.userIds = userId;
-      } else {
-        bodyPayload.userId = userId;
-      }
+        const { taskId, type, taskTitle, taskDescription, taskDueDate } = data || {};
+        const notificationPayload = {
+            title,
+            body,
+            tag,
+            data: {
+                url: `/tasks/${taskId}`,
+                taskId,
+                notification_type: type,
+                taskTitle,
+                taskDescription,
+                taskDueDate,
+            },
+        };
 
-      const { error } = await supabase.functions.invoke('send-push', {
-        body: bodyPayload
-      });
+        const bodyPayload: { [key: string]: any } = { ...notificationPayload };
+        if (Array.isArray(userId)) {
+            bodyPayload.userIds = userId;
+        } else {
+            bodyPayload.userId = userId;
+        }
 
-      if (error) {
-        throw new Error(error.message);
-      }
+        const { error } = await supabase.functions.invoke('send-push', {
+            body: bodyPayload,
+        });
 
-      console.log('Push notification sent successfully.');
-      return true;
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        console.log('Push notification sent successfully.');
+        return true;
     } catch (error) {
-      console.error('Error sending push notification:', error);
-      toast({
-        title: 'Notification Error',
-        description: 'Failed to send push notification. Please check your connection and try again.',
-        variant: 'destructive'
-      });
-      return false;
+        console.error('Error sending push notification:', error);
+        toast({
+            title: 'Notification Error',
+            description: 'Failed to send push notification. Please check your connection and try again.',
+            variant: 'destructive',
+        });
+        return false;
     }
-  };
+};
 
   return {
     isSupported,

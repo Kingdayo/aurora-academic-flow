@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { List, Calendar as CalendarIcon, BarChart3, Bot, Bell, Menu, X, Users, LogOut } from "lucide-react";
+import { List, Calendar as CalendarIcon, BarChart3, Bot, Bell, Menu, X, Users, LogOut, Settings } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/App";
 import GroupManager from "@/components/GroupManager";
@@ -182,6 +182,10 @@ const Dashboard = () => {
                   }}>
                     <Bell className="mr-2 h-4 w-4" />
                     Enable Notifications
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => logout()}>
                     <LogOut className="mr-2 h-4 w-4" />

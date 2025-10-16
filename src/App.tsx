@@ -7,6 +7,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
+import SettingsPage from "./pages/SettingsPage";
 import SplashScreen from "./components/SplashScreen";
 import { toast } from "sonner";
 import { PasswordResetDialog } from "@/components/PasswordResetDialog";
@@ -116,6 +117,10 @@ function App() {
                 <Route
                   path="/dashboard"
                   element={user ? <Dashboard /> : <Navigate to="/" replace />}
+                />
+                <Route
+                  path="/settings"
+                  element={user ? <SettingsPage /> : <Navigate to="/" replace />}
                 />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
