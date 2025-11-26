@@ -168,96 +168,11 @@ export const usePushNotifications = () => {
     }
   };
 
-  const scheduleNotification = async (taskId: string, title: string, body: string, sendAt: Date) => {
-    try {
-      const { error } = await supabase.functions.invoke('schedule-notification', {
-        body: {
-          taskId,
-          title,
-          body,
-          sendAt: sendAt.toISOString(),
-          tag: `task-${taskId}`,
-          data: { taskId }
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      console.log(`Notification scheduled for task ${taskId} at ${sendAt}`);
-      return true;
-    } catch (error) {
-      console.error('Error scheduling notification:', error);
-      return false;
-    }
-  };
-
-  const cancelAllScheduledNotifications = async () => {
-    try {
-      const { error } = await supabase.functions.invoke('cancel-all-notifications');
-      if (error) throw error;
-      console.log('All scheduled notifications have been cancelled.');
-      return true;
-    } catch (error) {
-      console.error('Error cancelling scheduled notifications:', error);
-      return false;
-    }
-  };
-
-  const sendPushNotification = async (userId: string | string[], title: string, body: string, tag?: string, data?: any) => {
-    try {
-        const { taskId, type, taskTitle, taskDescription, taskDueDate } = data || {};
-        const notificationPayload = {
-            title,
-            body,
-            tag,
-            data: {
-                url: `/tasks/${taskId}`,
-                taskId,
-                notification_type: type,
-                taskTitle,
-                taskDescription,
-                taskDueDate,
-            },
-        };
-
-        const bodyPayload: { [key: string]: any } = { ...notificationPayload };
-        if (Array.isArray(userId)) {
-            bodyPayload.userIds = userId;
-        } else {
-            bodyPayload.userId = userId;
-        }
-
-        const { error } = await supabase.functions.invoke('send-push', {
-            body: bodyPayload,
-        });
-
-        if (error) {
-            throw new Error(error.message);
-        }
-
-        console.log('Push notification sent successfully.');
-        return true;
-    } catch (error) {
-        console.error('Error sending push notification:', error);
-        toast({
-            title: 'Notification Error',
-            description: 'Failed to send push notification. Please check your connection and try again.',
-            variant: 'destructive',
-        });
-        return false;
-    }
-};
-
   return {
     isSupported,
     isSubscribed,
     loading,
     subscribe,
     unsubscribe,
-    scheduleNotification,
-    cancelAllScheduledNotifications,
-    sendPushNotification,
   };
 };

@@ -24,3 +24,7 @@ verify_jwt = true
 
 [functions.process-scheduled-notifications]
 verify_jwt = false
+
+[cron.process-notifications]
+schedule = "* * * * *"
+function = "process-scheduled-notifications"

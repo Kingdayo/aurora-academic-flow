@@ -1,16 +1,14 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 serve(async (req) => {
-  // This is needed if you're planning to invoke your function from a browser.
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders, status: 200 })
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
@@ -19,130 +17,50 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { type, taskData, userId, notificationTime } = await req.json()
+    const { event_type, new_task, old_task } = await req.json()
 
-    console.log('Notification request received:', { type, taskData, userId })
+    let title = ''
+    let body = ''
+    let userId = ''
 
-    // Validate request
-    if (!type || !taskData || !userId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+    if (event_type === 'INSERT') {
+      title = 'New Task Created'
+      body = `"${new_task.title}" has been added to your tasks`
+      userId = new_task.user_id
+    } else if (event_type === 'UPDATE') {
+      if (!old_task.completed && new_task.completed) {
+        title = 'Task Completed'
+        body = `"${new_task.title}" has been marked as completed! 🎉`
+        userId = new_task.user_id
+      } else if (old_task.due_date !== new_task.due_date || old_task.due_time !== new_task.due_time) {
+        title = 'Task Updated'
+        body = `Due date for "${new_task.title}" has been updated`
+        userId = new_task.user_id
+      }
     }
 
-    let notificationTitle = ''
-    let notificationBody = ''
-    let shouldSend = false
-
-    // Determine notification content based on type
-    switch (type) {
-      case 'task_due':
-        notificationTitle = '⌛ Task Due Now'
-        notificationBody = `Your task "${taskData.title}" is due now.`
-        shouldSend = true
-        break
-
-      case 'task_due_soon':
-        notificationTitle = '⏰ Task Due Soon'
-        notificationBody = `"${taskData.title}" is due at ${taskData.dueTime}`
-        shouldSend = true
-        break
-        
-      case 'task_overdue':
-        notificationTitle = '🚨 Task Overdue'
-        notificationBody = `"${taskData.title}" is overdue!`
-        shouldSend = true
-        break
-        
-      case 'daily_reminder':
-        notificationTitle = '📝 Daily Task Reminder'
-        notificationBody = `You have ${taskData.count} pending tasks for today`
-        shouldSend = true
-        break
-        
-      case 'high_priority_alert':
-        notificationTitle = '🔥 High Priority Task'
-        notificationBody = `"${taskData.title}" requires immediate attention`
-        shouldSend = true
-        break
-        
-      default:
-        return new Response(
-          JSON.stringify({ error: 'Invalid notification type' }),
-          { 
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        )
+    if (title && body && userId) {
+      await supabase.functions.invoke('send-push', {
+        body: {
+          userId,
+          title,
+          body,
+          data: {
+            url: `/tasks/${new_task.id}`,
+            taskId: new_task.id,
+            notification_type: 'task_update',
+          },
+        },
+      })
     }
 
-    if (shouldSend) {
-      const { data: subscription, error } = await supabase
-        .from('push_subscriptions')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (error || !subscription) {
-        return new Response(
-          JSON.stringify({ error: 'Push subscription not found' }),
-          {
-            status: 404,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-      }
-
-      const schedule = new Date(notificationTime).toISOString();
-      const cronExpression = `${new Date(schedule).getUTCMinutes()} ${new Date(schedule).getUTCHours()} ${new Date(schedule).getUTCDate()} ${new Date(schedule).getUTCMonth() + 1} *`;
-
-      const { error: cronError } = await supabase.rpc('cron.schedule', {
-        schedule: cronExpression,
-        command: `SELECT send_push_notification('${JSON.stringify(subscription)}', '${notificationTitle}', '${notificationBody}')`,
-      });
-
-      if (cronError) {
-        console.error('Error scheduling notification:', cronError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to schedule notification' }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Notification scheduled successfully',
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({ success: true, message: 'No notification required' }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
-
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   } catch (error) {
-    console.error('Error processing notification request:', error)
-    
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+    })
   }
 })

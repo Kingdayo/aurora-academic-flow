@@ -25,6 +25,7 @@ Deno.serve(async (req) => {
       .select('*')
       .is('sent_at', null)
       .lte('send_at', new Date().toISOString())
+      .limit(100)
 
     if (fetchError) {
       console.error('Error fetching notifications:', fetchError)
