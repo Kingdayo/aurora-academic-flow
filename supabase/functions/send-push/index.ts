@@ -62,7 +62,7 @@ async function importPrivateKey(privateKeyString: string): Promise<CryptoKey> {
   const privateKeyBytes = urlBase64ToUint8Array(privateKeyString)
   return await crypto.subtle.importKey(
     'pkcs8',
-    privateKeyBytes,
+    privateKeyBytes.buffer,
     { name: 'ECDSA', namedCurve: 'P-256' },
     false,
     ['sign']

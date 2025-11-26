@@ -22,11 +22,10 @@ import CalendarSection from "@/components/CalendarSection";
 import AIAssistant from "@/components/AIAssistant";
 import PomodoroTimer from "@/components/PomodoroTimer";
 import TaskCountdown from "@/components/TaskCountdown";
-import useTaskNotifications from "@/hooks/useTaskNotifications";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useIsMobile } from "@/hooks/use-mobile";
 import VoiceCommandButton from "@/components/VoiceCommandButton";
 import ThemeToggle from "@/components/ThemeToggle";
-import { notificationService } from "@/services/notificationService";
 import { generateAvatarUrl } from "@/lib/utils";
 
 interface Task {
@@ -49,15 +48,15 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, logout } = useAuth();
-  const { notificationPermission, requestPermission } = useTaskNotifications();
+  const { isSubscribed, subscribe, isSupported } = usePushNotifications();
   const isMobile = useIsMobile();
 
-  // Auto-request notification permission on login
+  // Auto-subscribe to push notifications on login
   useEffect(() => {
-    if (user && notificationPermission === 'default') {
-      requestPermission();
+    if (user && isSupported && !isSubscribed) {
+      subscribe();
     }
-  }, [user, notificationPermission, requestPermission]);
+  }, [user, isSupported, isSubscribed, subscribe]);
 
   // Voice command handlers
   const handleVoiceAddTask = useCallback(() => {
@@ -165,24 +164,14 @@ const Dashboard = () => {
               <p className="text-sm text-muted-foreground">{user?.email}</p>
               <div className="mt-4 flex justify-center items-center space-x-2">
                   <ThemeToggle />
-                  <Button variant="ghost" size="sm" onClick={async () => {
-                    const success = await notificationService.requestPermissionAndSubscribe();
-                    if (success) {
-                      toast({
-                        title: "Notifications Enabled",
-                        description: "You will now receive push notifications.",
-                      });
-                    } else {
-                      toast({
-                        title: "Notifications Failed",
-                        description: "Could not enable push notifications. Please check your browser settings.",
-                        variant: "destructive",
-                      });
-                    }
-                  }}>
-                    <Bell className="mr-2 h-4 w-4" />
-                    Enable Notifications
-                  </Button>
+                  {!isSubscribed && isSupported && (
+                    <Button variant="ghost" size="sm" onClick={async () => {
+                      await subscribe();
+                    }}>
+                      <Bell className="mr-2 h-4 w-4" />
+                      Enable Notifications
+                    </Button>
+                  )}
                   <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>
                     <Settings className="mr-2 h-4 w-4" />
                     Settings

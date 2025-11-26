@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import { Plus, Calendar as CalendarIcon, Clock, AlertTriangle, CheckCircle2, Circle, Trash2, Edit, Filter, Search } from "lucide-react";
 import { format } from "date-fns";
 import TaskEditDialog from "./TaskEditDialog";
-import useTaskNotifications from "@/hooks/useTaskNotifications";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import AllCaughtUp from "./AllCaughtUp";
 
@@ -46,7 +45,6 @@ const TaskManager = ({ showAddDialog = false, onShowAddDialogChange, activeTab }
   // const [showAddTaskDialog, setShowAddTaskDialog] = useState(showAddDialog); // Controlled by prop
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const { showNotification, markAsNotified, hasBeenNotified } = useTaskNotifications();
   const { isSupported, isSubscribed, loading, subscribe, scheduleNotification, cancelAllScheduledNotifications } = usePushNotifications();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPriority, setFilterPriority] = useState<string>("all");

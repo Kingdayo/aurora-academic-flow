@@ -50,6 +50,13 @@ export type Database = {
             referencedRelation: "groups"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "group_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       groups: {
@@ -115,6 +122,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_user_profile"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "messages_group_id_fkey"
             columns: ["group_id"]
             isOneToOne: false
@@ -134,6 +148,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          email: string | null
           full_name: string | null
           id: string
           updated_at: string
@@ -141,6 +156,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id: string
           updated_at?: string
@@ -148,6 +164,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id?: string
           updated_at?: string
@@ -267,7 +284,46 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_group_member_count: { Args: { p_group_id: string }; Returns: number }
+      get_group_members_with_profiles: {
+        Args: { p_group_id: string }
+        Returns: {
+          avatar_url: string
+          full_name: string
+          id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }[]
+      }
+      get_message_with_profile: {
+        Args: { p_message_id: string }
+        Returns: {
+          content: string
+          created_at: string
+          group_id: string
+          id: string
+          message_type: string
+          metadata: Json
+          profiles: Json
+          updated_at: string
+          user_id: string
+        }[]
+      }
+      get_messages_for_group: {
+        Args: { p_group_id: string }
+        Returns: {
+          content: string
+          created_at: string
+          group_id: string
+          id: string
+          message_type: string
+          metadata: Json
+          profiles: Json
+          updated_at: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

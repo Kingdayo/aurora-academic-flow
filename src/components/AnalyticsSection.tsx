@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { TrendingUp, Target, Clock, BookOpen, CheckCircle, AlertCircle, Bell } from "lucide-react";
-import useTaskNotifications from "@/hooks/useTaskNotifications";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useToast } from "@/hooks/use-toast";
 
 interface Task {
   id: string;
@@ -21,7 +22,8 @@ interface Task {
 
 const AnalyticsSection = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const { showNotification, requestPermission, notificationPermission } = useTaskNotifications();
+  const { subscribe, isSubscribed, isSupported } = usePushNotifications();
+  const { toast } = useToast();
 
   useEffect(() => {
     const loadTasks = () => {
@@ -61,15 +63,18 @@ const AnalyticsSection = () => {
   }, []);
 
   const handleTestNotification = async () => {
-    // Request permission if not granted
-    if (notificationPermission !== 'granted') {
-      await requestPermission();
+    if (!isSubscribed) {
+      toast({
+        title: "Not Subscribed",
+        description: "Please enable push notifications first.",
+        variant: "destructive",
+      });
+      return;
     }
     
-    // Show test notification
-    showNotification('🔔 Test Notification', {
-      body: 'Push notifications are working! You\'ll receive alerts for your tasks.',
-      tag: 'test-notification'
+    toast({
+      title: "Test Notification",
+      description: "Push notifications are configured! Check the Smart Notifications section to send a test.",
     });
   };
 
