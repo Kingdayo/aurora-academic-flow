@@ -7,6 +7,10 @@ schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
+[db]
+port = 54322
+major_version = 15
+
 [functions.ai-assistant]
 verify_jwt = false
 
@@ -24,3 +28,7 @@ verify_jwt = true
 
 [functions.process-scheduled-notifications]
 verify_jwt = false
+schedule = "* * * * *"
+
+[functions.cancel-notification]
+verify_jwt = true
