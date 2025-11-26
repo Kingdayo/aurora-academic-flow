@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
         p256dh: subscription.keys.p256dh,
         auth: subscription.keys.auth,
       }, {
-        onConflict: 'user_id'
+        onConflict: 'endpoint'
       })
 
     if (upsertError) {

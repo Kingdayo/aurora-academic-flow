@@ -12,58 +12,7 @@ export const usePushNotifications = () => {
   useEffect(() => {
     const supported = 'serviceWorker' in navigator && 'PushManager' in window;
     setIsSupported(supported);
-
-    if (supported) {
-      checkSubscriptionStatus();
-
-      // Periodically refresh subscription
-      const interval = setInterval(refreshSubscription, 24 * 60 * 60 * 1000); // every 24 hours
-      return () => clearInterval(interval);
-    }
   }, []);
-
-  const refreshSubscription = async () => {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      if (subscription) {
-        // Here you could potentially send the subscription to your server again
-        // to ensure it's up-to-date, but for now, we'll just log it.
-        console.log('Push subscription refreshed.');
-      } else {
-        // If subscription is gone, update state
-        setIsSubscribed(false);
-      }
-    } catch (error) {
-      console.error('Error refreshing push subscription:', error);
-    }
-  };
-
-  const checkSubscriptionStatus = async () => {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      const isSubscribed = !!subscription;
-      setIsSubscribed(isSubscribed);
-
-      if (!isSubscribed) {
-        const permission = Notification.permission;
-        if (permission === 'default') {
-          toast({
-            title: "Enable Task Reminders?",
-            description: "Get push notifications so you never miss a deadline. Use the toggle in Smart Notifications section.",
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error checking subscription status:', error);
-      toast({
-        title: "Push Notification Error",
-        description: "Could not check subscription status.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const subscribe = async () => {
     if (!isSupported) {
@@ -189,14 +138,22 @@ export const usePushNotifications = () => {
     }
   };
 
-  const cancelAllScheduledNotifications = async () => {
+  const cancelNotification = async (taskId: string) => {
     try {
-      const { error } = await supabase.functions.invoke('cancel-all-notifications');
-      if (error) throw error;
-      console.log('All scheduled notifications have been cancelled.');
+      const { error } = await supabase.functions.invoke('cancel-notification', {
+        body: {
+          taskId,
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      console.log(`Notification cancelled for task ${taskId}`);
       return true;
     } catch (error) {
-      console.error('Error cancelling scheduled notifications:', error);
+      console.error('Error cancelling notification:', error);
       return false;
     }
   };
@@ -253,7 +210,7 @@ export const usePushNotifications = () => {
     subscribe,
     unsubscribe,
     scheduleNotification,
-    cancelAllScheduledNotifications,
+    cancelNotification,
     sendPushNotification,
   };
 };

@@ -104,6 +104,9 @@ async function sendWebPush(subscription: any, payload: NotificationPayload) {
   const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')
   const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')
 
+  console.log('VAPID public key:', vapidPublicKey ? 'Loaded' : 'Missing');
+  console.log('VAPID private key:', vapidPrivateKey ? 'Loaded' : 'Missing');
+
   if (!vapidPublicKey || !vapidPrivateKey) {
     throw new Error('VAPID public and private keys are not configured.')
   }
@@ -139,9 +142,15 @@ async function sendWebPush(subscription: any, payload: NotificationPayload) {
 
   if (!response.ok) {
     const errorText = await response.text()
+    console.error('Push service response:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorText,
+    });
     throw new Error(`Push failed: ${response.status} ${response.statusText} - ${errorText}`)
   }
 
+  console.log('Push sent successfully:', response.status, response.statusText);
   return response
 }
 
