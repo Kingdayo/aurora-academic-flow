@@ -47,20 +47,12 @@ export const usePushNotifications = () => {
       setIsSubscribed(isSubscribed);
 
       if (!isSubscribed) {
-        const permission = await Notification.requestPermission();
-        if (permission === 'prompt') {
-            toast({
-                title: "Enable Task Reminders?",
-                description: "Get push notifications so you never miss a deadline.",
-                action: React.createElement(
-                    'button',
-                    {
-                        onClick: subscribe,
-                        className: "px-3 py-1.5 text-sm font-semibold rounded-md bg-primary text-primary-foreground"
-                    },
-                    'Enable'
-                ),
-            });
+        const permission = Notification.permission;
+        if (permission === 'default') {
+          toast({
+            title: "Enable Task Reminders?",
+            description: "Get push notifications so you never miss a deadline. Use the toggle in Smart Notifications section.",
+          });
         }
       }
     } catch (error) {
@@ -102,8 +94,12 @@ export const usePushNotifications = () => {
       const registration = await navigator.serviceWorker.register('/sw.js');
       await navigator.serviceWorker.ready;
 
-      // Get VAPID public key from environment
-      const vapidPublicKey = 'BLnLJfq6t7DMUWLBusaWXsb2eP4f6eWgqlBiu9g-ZdfhfYn9tn9OO9GJa_ZyaJLss288SB-wQZVAJnCBOz3D3uA';
+      // Get VAPID public key from environment variable
+      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      
+      if (!vapidPublicKey) {
+        throw new Error('VAPID public key not configured');
+      }
 
       // Subscribe to push notifications
       const subscription = await registration.pushManager.subscribe({

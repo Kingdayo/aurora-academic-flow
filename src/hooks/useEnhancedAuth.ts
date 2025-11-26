@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { notificationService } from '@/services/notificationService';
 
 interface AuthState {
   user: User | null;
@@ -44,14 +43,6 @@ export const useEnhancedAuth = (): AuthState & AuthActions => {
       toast({
         title: "Welcome Back",
         description: "You have been signed in successfully",
-      });
-      notificationService.requestPermissionAndSubscribe().then(success => {
-        if (success) {
-          toast({
-            title: "Notifications Enabled",
-            description: "You will now receive push notifications.",
-          });
-        }
       });
     }
   }, [toast]);

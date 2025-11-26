@@ -3,7 +3,6 @@ import { useAuth } from "@/App";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Calendar, AlertTriangle, CheckCircle2 } from "lucide-react";
-import useTaskNotifications from "@/hooks/useTaskNotifications";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface Task {
@@ -27,10 +26,9 @@ const TaskCountdown = () => {
     seconds: 0
   });
   const [isAppVisible, setIsAppVisible] = useState(true);
-  const [countdownCompleted, setCountdownCompleted] = useState<Set<string>>(new Set());
+  const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
   const { user } = useAuth();
-  const { showNotification, markAsNotified, hasBeenNotified } = useTaskNotifications();
-  const { sendPushNotification } = usePushNotifications();
+  const { sendPushNotification, isSubscribed } = usePushNotifications();
 
   useEffect(() => {
     const loadNextTask = () => {
@@ -70,7 +68,7 @@ const TaskCountdown = () => {
     };
   }, []);
 
-  const updateCountdown = useCallback(() => {
+  const updateCountdown = useCallback(async () => {
     if (!nextTask || !nextTask.dueDate) return;
 
     const now = new Date();
@@ -78,9 +76,9 @@ const TaskCountdown = () => {
 
     if (nextTask.dueTime) {
       const [hours, minutes] = nextTask.dueTime.split(':').map(Number);
-      dueDate.setUTCHours(hours, minutes, 0, 0);
+      dueDate.setHours(hours, minutes, 0, 0);
     } else {
-      dueDate.setUTCHours(23, 59, 59, 999);
+      dueDate.setHours(23, 59, 59, 999);
     }
 
     const difference = dueDate.getTime() - now.getTime();
@@ -92,59 +90,104 @@ const TaskCountdown = () => {
       const seconds = Math.floor((difference % (1000 * 60)) / 1000);
       setTimeLeft({ days, hours, minutes, seconds });
 
-      if (user) {
-          if (days === 0 && hours === 1 && minutes === 0 && seconds === 0) {
-            if (!hasBeenNotified(`hour-${nextTask.id}`)) {
-              sendPushNotification(user.id, '⏰ Task Due Soon', `"${nextTask.title}" is due in 1 hour!`, `task-hour-${nextTask.id}`);
-              markAsNotified(`hour-${nextTask.id}`);
-            }
-          } else if (days === 0 && hours === 0 && minutes === 30 && seconds === 0) {
-            if (!hasBeenNotified(`30min-${nextTask.id}`)) {
-              sendPushNotification(user.id, '⏰ Task Due Very Soon', `"${nextTask.title}" is due in 30 minutes!`, `task-30min-${nextTask.id}`);
-              markAsNotified(`30min-${nextTask.id}`);
-            }
-          } else if (days === 0 && hours === 0 && minutes === 15 && seconds === 0) {
-            if (!hasBeenNotified(`15min-${nextTask.id}`)) {
-              sendPushNotification(user.id, '🚨 Task Due Imminent', `"${nextTask.title}" is due in 15 minutes!`, `task-15min-${nextTask.id}`);
-              markAsNotified(`15min-${nextTask.id}`);
-            }
-          } else if (days === 0 && hours === 0 && minutes === 5 && seconds === 0) {
-            if (!hasBeenNotified(`5min-${nextTask.id}`)) {
-              sendPushNotification(user.id, '🔥 Final Warning', `"${nextTask.title}" is due in 5 minutes!`, `task-5min-${nextTask.id}`);
-              markAsNotified(`5min-${nextTask.id}`);
-            }
+      // Send push notifications at specific intervals
+      if (user && isSubscribed) {
+        // 1 hour before
+        if (days === 0 && hours === 1 && minutes === 0 && seconds === 0) {
+          const key = `hour-${nextTask.id}`;
+          if (!notifiedTasks.has(key)) {
+            await sendPushNotification(
+              user.id, 
+              '⏰ Task Due Soon', 
+              `"${nextTask.title}" is due in 1 hour!`, 
+              `task-hour-${nextTask.id}`,
+              { taskId: nextTask.id, type: 'task_reminder' }
+            );
+            setNotifiedTasks(prev => new Set([...prev, key]));
           }
         }
-
+        // 30 minutes before
+        else if (days === 0 && hours === 0 && minutes === 30 && seconds === 0) {
+          const key = `30min-${nextTask.id}`;
+          if (!notifiedTasks.has(key)) {
+            await sendPushNotification(
+              user.id, 
+              '⏰ Task Due Very Soon', 
+              `"${nextTask.title}" is due in 30 minutes!`, 
+              `task-30min-${nextTask.id}`,
+              { taskId: nextTask.id, type: 'task_reminder' }
+            );
+            setNotifiedTasks(prev => new Set([...prev, key]));
+          }
+        }
+        // 15 minutes before
+        else if (days === 0 && hours === 0 && minutes === 15 && seconds === 0) {
+          const key = `15min-${nextTask.id}`;
+          if (!notifiedTasks.has(key)) {
+            await sendPushNotification(
+              user.id, 
+              '🚨 Task Due Imminent', 
+              `"${nextTask.title}" is due in 15 minutes!`, 
+              `task-15min-${nextTask.id}`,
+              { taskId: nextTask.id, type: 'task_reminder' }
+            );
+            setNotifiedTasks(prev => new Set([...prev, key]));
+          }
+        }
+        // 5 minutes before
+        else if (days === 0 && hours === 0 && minutes === 5 && seconds === 0) {
+          const key = `5min-${nextTask.id}`;
+          if (!notifiedTasks.has(key)) {
+            await sendPushNotification(
+              user.id, 
+              '🔥 Final Warning', 
+              `"${nextTask.title}" is due in 5 minutes!`, 
+              `task-5min-${nextTask.id}`,
+              { taskId: nextTask.id, type: 'task_reminder' }
+            );
+            setNotifiedTasks(prev => new Set([...prev, key]));
+          }
+        }
+        // When due
+        else if (days === 0 && hours === 0 && minutes === 0 && seconds === 0) {
+          const key = `due-${nextTask.id}`;
+          if (!notifiedTasks.has(key)) {
+            await sendPushNotification(
+              user.id, 
+              '⏰ Task Due Now!', 
+              `Your task "${nextTask.title}" is due now.`, 
+              `task-due-${nextTask.id}`,
+              { taskId: nextTask.id, type: 'task_due' }
+            );
+            setNotifiedTasks(prev => new Set([...prev, key]));
+          }
+        }
+      }
     } else {
       setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-      if (user && nextTask && !hasBeenNotified(`overdue-${nextTask.id}`)) {
-        sendPushNotification(
-          user.id,
-          '📅 Task Overdue!',
-          `"${nextTask.title}" is now overdue! Complete it as soon as possible.`,
-          `task-overdue-${nextTask.id}`,
-          { taskId: nextTask.id, type: 'task_overdue' }
-        );
-        markAsNotified(`overdue-${nextTask.id}`);
-      }
-      if (user && nextTask && !countdownCompleted.has(nextTask.id)) {
-          setCountdownCompleted(prev => new Set([...prev, nextTask.id]));
-          sendPushNotification(
-              user.id,
-              '⏰ Task Time\'s Up!',
-              `The countdown for "${nextTask.title}" has finished.`,
-              `task-completed-${nextTask.id}`
+      
+      // Overdue notification
+      if (user && isSubscribed && nextTask) {
+        const key = `overdue-${nextTask.id}`;
+        if (!notifiedTasks.has(key)) {
+          await sendPushNotification(
+            user.id,
+            '📅 Task Overdue!',
+            `"${nextTask.title}" is now overdue! Complete it as soon as possible.`,
+            `task-overdue-${nextTask.id}`,
+            { taskId: nextTask.id, type: 'task_overdue' }
           );
+          setNotifiedTasks(prev => new Set([...prev, key]));
+        }
       }
     }
-  }, [nextTask, user, hasBeenNotified, markAsNotified, sendPushNotification, countdownCompleted, isAppVisible]);
+  }, [nextTask, user, isSubscribed, sendPushNotification, notifiedTasks]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         setIsAppVisible(true);
-        updateCountdown(); // Recalculate immediately on becoming visible
+        updateCountdown();
       } else {
         setIsAppVisible(false);
       }
@@ -160,26 +203,6 @@ const TaskCountdown = () => {
     const timer = setInterval(updateCountdown, interval);
     return () => clearInterval(timer);
   }, [nextTask, updateCountdown, isAppVisible]);
-
-  useEffect(() => {
-    if (nextTask && user && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'SCHEDULE_TASK_NOTIFICATION',
-        task: nextTask,
-        userId: user.id,
-      });
-    }
-  }, [nextTask, user]);
-
-  useEffect(() => {
-    if (nextTask && user && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'SCHEDULE_TASK_NOTIFICATION',
-        task: nextTask,
-        userId: user.id,
-      });
-    }
-  }, [nextTask, user]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
